@@ -86,6 +86,9 @@ ExecStart=/usr/bin/node server.js
 Restart=always
 RestartSec=5
 Environment=NODE_ENV=production
+Environment=PORT=80
+AmbientCapabilities=CAP_NET_BIND_SERVICE
+CapabilityBoundingSet=CAP_NET_BIND_SERVICE
 User=www-data
 Group=www-data
 
@@ -105,8 +108,10 @@ echo y | ufw enable
 
 sleep 3
 echo "--- Health check ---"
-curl -fsS http://localhost:3000/healthz && echo
+curl -fsS http://localhost/healthz && echo
+PUBIP=$(curl -fsS https://ifconfig.me || echo "<this-server-public-ip>")
 echo "======================================================"
-echo "DONE! CyberNexa is live on this server, port 3000."
-echo "Open http://<this-server-public-ip>:3000 in a browser."
+echo "DONE! CyberNexa is LIVE."
+echo "Open this in your browser:  http://${PUBIP}"
+echo "Admin panel:                http://${PUBIP}/admin"
 echo "======================================================"
