@@ -2,15 +2,20 @@
 # ============================================================
 # CyberNexa Solutions — server-side one-shot installer
 # Run THIS FILE ON THE EC2 SERVER (Ubuntu 22.04 / 24.04 / 26.04)
-# Usage:  sudo bash ec2-bootstrap.sh https://<url-to-cybernexa-deploy.zip>
-# It installs: Node 20, MySQL 8, the app, systemd auto-restart service
+#
+# Usage:
+#   git URL  : sudo bash ec2-bootstrap.sh https://github.com/USER/REPO.git
+#   zip URL  : sudo bash ec2-bootstrap.sh https://github.com/USER/REPO/archive/refs/heads/main.zip
+#
+# Secrets (optional — override before running):
+#   sudo ADMIN_PASSWORD='...' DB_PASSWORD='...' bash ec2-bootstrap.sh <url>
+#
+# Installs: Node 20, MySQL 8, the app, systemd auto-restart service
 # ============================================================
 set -euo pipefail
 export DEBIAN_FRONTEND=noninteractive
 
-URL="${1:?Usage: sudo bash ec2-bootstrap.sh <zip-url>}"
-# Secrets come from the environment at run time so they are never committed.
-# Example:  sudo ADMIN_PASSWORD='...' DB_PASSWORD='...' bash ec2-bootstrap.sh <zip-url>
+URL="${1:?Usage: sudo bash ec2-bootstrap.sh <git-or-zip-url>}"
 ADMIN_PASSWORD="${ADMIN_PASSWORD:-CHANGE_ME_ADMIN_PASSWORD}"
 DB_PASSWORD="${DB_PASSWORD:-CHANGE_ME_STRONG_DB_PASSWORD}"
 OWNER_EMAIL="${OWNER_EMAIL:-umair799283@gmail.com}"
@@ -34,9 +39,21 @@ FLUSH PRIVILEGES;
 SQL
 
 echo "[4/7] Download + install application"
-mkdir -p /opt/cybernexa
-curl -fsSL "${URL}" -o /tmp/cybernexa-deploy.zip
-unzip -o /tmp/cybernexa-deploy.zip -d /opt/cybernexa
+rm -rf /opt/cybernexa
+if [[ "${URL}" == *.git ]]; then
+  git clone --depth 1 "${URL}" /opt/cybernexa
+else
+  rm -rf /tmp/cnzip && mkdir -p /tmp/cnzip/extracted
+  curl -fsSL "${URL}" -o /tmp/cnzip/app.zip
+  unzip -o -q /tmp/cnzip/app.zip -d /tmp/cnzip/extracted
+  mkdir -p /opt/cybernexa
+  top=$(find /tmp/cnzip/extracted -mindepth 1 -maxdepth 1 -type d | head -1 || true)
+  if [ -n "${top}" ] && [ "$(find /tmp/cnzip/extracted -mindepth 1 -maxdepth 1 | wc -l)" -eq 1 ]; then
+    cp -a "${top}"/. /opt/cybernexa/
+  else
+    cp -a /tmp/cnzip/extracted/. /opt/cybernexa/
+  fi
+fi
 cd /opt/cybernexa
 npm ci --omit=dev 2>/dev/null || npm install --omit=dev
 
