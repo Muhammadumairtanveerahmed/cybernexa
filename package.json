@@ -1,0 +1,17 @@
+{
+  "name": "CyberNexa-website",
+  "version": "1.0.0",
+  "description": "CyberNexa Solutions - Website with Node.js backend",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=20"
+  },
+  "dependencies": {
+    "express": "^4.21.2",
+    "mysql2": "^3.24.5",
+    "nodemailer": "^10.0.16"
+  }
+}

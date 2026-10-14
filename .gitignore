@@ -1,0 +1,20 @@
+# Dependencies
+node_modules/
+
+# Environment secrets
+.env
+
+# Local message storage (MySQL is the source of truth)
+data/messages.json
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+cloudflared.exe
+api/
+deploy/*.zip
+
