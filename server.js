@@ -704,7 +704,7 @@ function adminLayout(title, active, body) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${title}</title>
 <style>
-  :root { --bg:#0a0a17; --card:#12122a; --border:#26264a; --violet:#8b5cf6; --indigo:#6366f1; --cyan:#22d3ee; --text:#ececf5; --muted:#9a9ab5; --green:#22c55e; }
+  :root { --bg:#0a0a17; --card:#12122a; --border:#26264a; --violet:#3b82f6; --indigo:#2563eb; --cyan:#60a5fa; --text:#ececf5; --muted:#9a9ab5; --green:#22c55e; }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; display:flex; min-height:100vh; }
   .side { width:230px; flex-shrink:0; background:var(--card); border-right:1px solid var(--border); padding:26px 18px; display:flex; flex-direction:column; }
@@ -733,17 +733,17 @@ function adminLayout(title, active, body) {
   th, td { padding:12px 14px; text-align:left; border-bottom:1px solid var(--border); font-size:.9rem; }
   th { color:var(--cyan); font-size:.75rem; text-transform:uppercase; letter-spacing:.06em; white-space:nowrap; }
   tr:last-child td { border-bottom:0; }
-  tr.unread td { background:rgba(139,92,246,.07); }
+  tr.unread td { background:rgba(59,130,246,.07); }
   .msg { color:var(--muted); max-width:320px; white-space:pre-wrap; }
   a { color:var(--cyan); }
   .btn { display:inline-block; padding:6px 13px; border-radius:8px; text-decoration:none; font-size:.8rem; font-weight:600; margin-right:6px; cursor:pointer; border:0; font-family:inherit; }
-  .b-read { background:rgba(34,211,238,.15); color:var(--cyan); border:1px solid rgba(34,211,238,.4); }
+  .b-read { background:rgba(96,165,250,.15); color:var(--cyan); border:1px solid rgba(96,165,250,.4); }
   .b-del  { background:rgba(239,68,68,.15); color:#f87171; border:1px solid rgba(239,68,68,.4); }
   .empty  { text-align:center; padding:40px; color:var(--muted); }
   .head-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
   label { display:block; font-size:.78rem; color:var(--muted); margin:12px 0 4px; }
   input[type=text], input[type=number], input[type=password], textarea, select { width:100%; background:#0d0d22; border:1px solid var(--border); color:var(--text); padding:9px 12px; border-radius:8px; font-family:inherit; font-size:.9rem; outline:none; }
-  input:focus, textarea:focus, select:focus { border-color:var(--violet); box-shadow:0 0 0 3px rgba(139,92,246,.18); }
+  input:focus, textarea:focus, select:focus { border-color:var(--violet); box-shadow:0 0 0 3px rgba(59,130,246,.18); }
   textarea { min-height:70px; resize:vertical; }
   .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
   .check-row { display:flex; gap:22px; margin-top:16px; flex-wrap:wrap; }
@@ -753,7 +753,7 @@ function adminLayout(title, active, body) {
   .badge { display:inline-block; padding:3px 9px; border-radius:999px; font-size:.7rem; font-weight:700; white-space:nowrap; }
   .badge.on { background:rgba(34,197,94,.14); color:var(--green); border:1px solid rgba(34,197,94,.35); }
   .badge.off { background:rgba(148,163,184,.12); color:var(--muted); border:1px solid rgba(148,163,184,.3); }
-  .badge.feat { background:rgba(34,211,238,.12); color:var(--cyan); border:1px solid rgba(34,211,238,.35); }
+  .badge.feat { background:rgba(96,165,250,.12); color:var(--cyan); border:1px solid rgba(96,165,250,.35); }
   .notice { background:rgba(34,197,94,.1); border:1px solid rgba(34,197,94,.3); color:var(--green); padding:10px 14px; border-radius:10px; margin-bottom:18px; font-size:.85rem; }
   @media (max-width:900px){ .form-grid{ grid-template-columns:1fr; } }
   @media (max-width: 900px) {
