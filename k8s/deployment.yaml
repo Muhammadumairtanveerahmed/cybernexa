@@ -13,7 +13,19 @@ spec:
         app: cybernexa
     spec:
       securityContext:
-        fsGroup: 1000          # node image user/group — makes the uploads volume writable
+        fsGroup: 1000          # node image user/group — makes the volumes writable
+      initContainers:
+        # Wait for MySQL to accept connections before the app starts, so the app
+        # always uses the database instead of falling back to file storage.
+        - name: wait-for-mysql
+          image: mysql:8.0
+          envFrom:
+            - secretRef:
+                name: mysql-secret
+          command:
+            - sh
+            - -c
+            - until mysqladmin ping -h mysql --silent; do echo "waiting for mysql..."; sleep 3; done
       containers:
         - name: cybernexa
           image: cybernexa:1.0
