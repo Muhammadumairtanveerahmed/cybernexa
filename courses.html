@@ -193,13 +193,55 @@
         <li>✔ Installment options available</li>
       </ul>
 
-      <form class="enroll-form" id="enrollForm" novalidate>
+      <form class="enroll-form" id="enrollForm" novalidate enctype="multipart/form-data">
         <input class="enroll-input" id="ef-name" name="name" type="text" placeholder="Your Name *" autocomplete="name" maxlength="80" />
         <p class="enroll-field-error" id="ef-name-err"></p>
         <input class="enroll-input" id="ef-email" name="email" type="email" placeholder="Email *" autocomplete="email" maxlength="100" />
         <p class="enroll-field-error" id="ef-email-err"></p>
         <input class="enroll-input" id="ef-phone" name="phone" type="tel" placeholder="Phone (optional)" autocomplete="tel" maxlength="20" />
         <p class="enroll-field-error" id="ef-phone-err"></p>
+
+        <select class="enroll-input" id="ef-enrollmentType" name="enrollmentType">
+          <option value="">Enrollment Type * — Online or On-Site</option>
+          <option value="Online">Online (live instructor-led)</option>
+          <option value="On-Site">On-Site (classroom)</option>
+        </select>
+        <p class="enroll-field-error" id="ef-enrollmentType-err"></p>
+
+        <div class="enroll-docs">
+          <p class="enroll-docs-title">📎 Upload Documents <span>(JPG, PNG or PDF · max 10 MB each)</span></p>
+
+          <label class="enroll-file">CNIC / B-Form <em>required</em>
+            <input type="file" id="ef-cnic" name="cnic" accept=".jpg,.jpeg,.png,.pdf" />
+          </label>
+          <p class="enroll-file-name" id="ef-cnic-name"></p>
+          <p class="enroll-field-error" id="ef-cnic-err"></p>
+
+          <label class="enroll-file">Recent Photograph <em>required</em>
+            <input type="file" id="ef-photo" name="photo" accept=".jpg,.jpeg,.png" />
+          </label>
+          <p class="enroll-file-name" id="ef-photo-name"></p>
+          <p class="enroll-field-error" id="ef-photo-err"></p>
+
+          <label class="enroll-file">Payment Proof / Receipt <em>required</em>
+            <input type="file" id="ef-payment" name="payment" accept=".jpg,.jpeg,.png,.pdf" />
+          </label>
+          <p class="enroll-file-name" id="ef-payment-name"></p>
+          <p class="enroll-field-error" id="ef-payment-err"></p>
+
+          <label class="enroll-file">Last Qualification Certificate <em>optional</em>
+            <input type="file" id="ef-qualification" name="qualification" accept=".jpg,.jpeg,.png,.pdf" />
+          </label>
+          <p class="enroll-file-name" id="ef-qualification-name"></p>
+          <p class="enroll-field-error" id="ef-qualification-err"></p>
+
+          <label class="enroll-file">Other Documents <em>optional · multiple</em>
+            <input type="file" id="ef-other" name="other" accept=".jpg,.jpeg,.png,.pdf" multiple />
+          </label>
+          <p class="enroll-file-name" id="ef-other-name"></p>
+          <p class="enroll-field-error" id="ef-other-err"></p>
+        </div>
+
         <button type="submit" class="enroll-btn" id="ef-send" style="width:100%; margin-top:4px;">Send Enrollment Request 📩</button>
         <p class="enroll-status" id="ef-msg" role="status"></p>
       </form>

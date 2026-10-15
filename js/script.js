@@ -273,23 +273,74 @@ if (contactForm) {
   var statusEl = document.getElementById("ef-msg");
   var current = { course: "", price: "" };
 
+  var typeSel = document.getElementById("ef-enrollmentType");
+  var fileInputs = {
+    cnic: document.getElementById("ef-cnic"),
+    photo: document.getElementById("ef-photo"),
+    payment: document.getElementById("ef-payment"),
+    qualification: document.getElementById("ef-qualification"),
+    other: document.getElementById("ef-other"),
+  };
+  var REQUIRED_FILES = {
+    cnic: "CNIC / B-Form is required",
+    photo: "Recent Photograph is required",
+    payment: "Payment Proof / Receipt is required",
+  };
+  var MAX_BYTES = 10 * 1024 * 1024;
+
   var errEls = {
     name: document.getElementById("ef-name-err"),
     email: document.getElementById("ef-email-err"),
     phone: document.getElementById("ef-phone-err"),
+    enrollmentType: document.getElementById("ef-enrollmentType-err"),
+    cnic: document.getElementById("ef-cnic-err"),
+    photo: document.getElementById("ef-photo-err"),
+    payment: document.getElementById("ef-payment-err"),
+    qualification: document.getElementById("ef-qualification-err"),
+    other: document.getElementById("ef-other-err"),
+    files: document.getElementById("ef-msg"),
   };
 
   function clearErr(field) {
     if (errEls[field]) errEls[field].textContent = "";
     var input = document.getElementById("ef-" + field);
-    if (input) input.classList.remove("invalid");
+    if (input && input.classList) input.classList.remove("invalid");
   }
 
   function setErr(field, msg) {
     if (errEls[field]) errEls[field].textContent = msg;
     var input = document.getElementById("ef-" + field);
-    if (input) input.classList.add("invalid");
+    if (input && input.classList) input.classList.add("invalid");
   }
+
+  function fileFieldError(field) {
+    var input = fileInputs[field];
+    if (!input) return "";
+    var files = input.files;
+    if (REQUIRED_FILES[field] && (!files || files.length === 0)) return REQUIRED_FILES[field];
+    if (files) {
+      for (var i = 0; i < files.length; i++) {
+        if (files[i].size > MAX_BYTES) return "\u201C" + files[i].name + "\u201D is larger than 10 MB";
+      }
+    }
+    return "";
+  }
+
+  // Show the chosen file name(s) under each upload field
+  Object.keys(fileInputs).forEach(function (field) {
+    var input = fileInputs[field];
+    if (!input) return;
+    input.addEventListener("change", function () {
+      var nameEl = document.getElementById("ef-" + field + "-name");
+      var files = input.files;
+      if (nameEl) {
+        if (!files || !files.length) nameEl.textContent = "";
+        else if (files.length === 1) nameEl.textContent = "\u2714 " + files[0].name;
+        else nameEl.textContent = "\u2714 " + files.length + " files selected";
+      }
+      clearErr(field);
+    });
+  });
 
   // Per-field validation — returns error message or "" if OK
   function validateField(field) {
@@ -331,7 +382,13 @@ if (contactForm) {
   function openModal() {
     statusEl.textContent = "";
     statusEl.className = "enroll-status";
-    ["name", "email", "phone"].forEach(clearErr);
+    ["name", "email", "phone", "enrollmentType", "cnic", "photo", "payment", "qualification", "other"].forEach(clearErr);
+    Object.keys(fileInputs).forEach(function (field) {
+      var nameEl = document.getElementById("ef-" + field + "-name");
+      if (nameEl) nameEl.textContent = "";
+    });
+    if (typeSel) typeSel.value = "";
+    Object.keys(fileInputs).forEach(function (field) { if (fileInputs[field]) fileInputs[field].value = ""; });
     form.style.display = "";
     modal.classList.add("open");
     modal.setAttribute("aria-hidden", "false");
@@ -369,24 +426,48 @@ if (contactForm) {
       var name = nameI.value.trim();
       var email = emailI.value.trim();
       var phone = phoneI.value.trim();
+      var enrollmentType = typeSel ? typeSel.value : "";
 
-      var f, firstBad = null;
+      var firstBad = null;
       var checks = [["name", nameI], ["email", emailI], ["phone", phoneI]];
       checks.forEach(function (pair) {
         var err = validateField(pair[0]);
         if (err) { setErr(pair[0], err); if (!firstBad) firstBad = pair[1]; }
         else clearErr(pair[0]);
       });
-      if (firstBad) { firstBad.focus(); return; }
+
+      // Enrollment type
+      if (!enrollmentType) {
+        setErr("enrollmentType", "Please select Online or On-Site");
+        if (!firstBad) firstBad = typeSel;
+      }
+
+      // Required documents + size checks
+      ["cnic", "photo", "payment", "qualification", "other"].forEach(function (field) {
+        var err = fileFieldError(field);
+        if (err) { setErr(field, err); if (!firstBad) firstBad = fileInputs[field]; }
+        else clearErr(field);
+      });
+
+      if (firstBad) { if (firstBad.focus) firstBad.focus(); return; }
 
       sendBtn.disabled = true;
       sendBtn.textContent = "Sending\u2026";
 
-      fetch("/api/enroll", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ course: current.course, price: current.price, name: name, email: email, phone: phone })
-      })
+      var fd = new FormData();
+      fd.append("course", current.course);
+      fd.append("price", current.price);
+      fd.append("name", name);
+      fd.append("email", email);
+      fd.append("phone", phone);
+      fd.append("enrollmentType", enrollmentType);
+      Object.keys(fileInputs).forEach(function (field) {
+        var input = fileInputs[field];
+        if (!input || !input.files) return;
+        for (var i = 0; i < input.files.length; i++) fd.append(field, input.files[i]);
+      });
+
+      fetch("/api/enroll", { method: "POST", body: fd })
         .then(function (r) { return r.json().then(function (d) { return { status: r.status, data: d }; }); })
         .then(function (res) {
           var d = res.data;
@@ -397,7 +478,7 @@ if (contactForm) {
             var msg = d && d.msg;
             if (d && d.errors) {
               Object.keys(d.errors).forEach(function (k) {
-                if (errEls[k]) setErr(k, d.errors[k]);
+                if (errEls[k] && errEls[k] !== statusEl) setErr(k, d.errors[k]);
               });
               var keys = Object.keys(d.errors);
               if (keys.length) msg = d.errors[keys[0]];

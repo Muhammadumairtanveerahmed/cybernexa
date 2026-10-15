@@ -522,8 +522,56 @@ async function notifyOwner(subject, fields, origin) {
 }
 
 // ---------- API: Course enrollment (saves request + emails the owner) ----------
-app.post("/api/enroll", async (req, res) => {
-  const { course = "", price = "", name = "", email = "", phone = "" } = req.body || {};
+const multer = require("multer");
+const UPLOAD_DIR = path.join(__dirname, "uploads", "enrollments");
+if (!fs.existsSync(UPLOAD_DIR)) fs.mkdirSync(UPLOAD_DIR, { recursive: true });
+
+const storage = multer.diskStorage({
+  destination: UPLOAD_DIR,
+  filename: (req, file, cb) => {
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    const base = path.basename(file.originalname || "file", ext).replace(/[^a-zA-Z0-9_-]+/g, "-").slice(0, 40);
+    cb(null, "enroll_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 6) + (base ? "_" + base : "") + ext);
+  },
+});
+const upload = multer({
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024, files: 20 },
+  fileFilter: (req, file, cb) => {
+    const allowed = [".jpg", ".jpeg", ".png", ".pdf", ".webp", ".heic", ".heif"];
+    const ext = path.extname(file.originalname || "").toLowerCase();
+    if (allowed.includes(ext)) return cb(null, true);
+    cb(new Error("Only JPG, PNG, PDF files are allowed."));
+  },
+});
+
+function buildAttachmentsMeta(files) {
+  if (!files || !files.length) return [];
+  const LABEL = { cnic: "CNIC/B-Form", photo: "Photograph", payment: "Payment Proof", qualification: "Qualification", other: "Other" };
+  return files.map((f) => ({
+    field: f.fieldname,
+    label: LABEL[f.fieldname] || "Document",
+    originalname: f.originalname,
+    filename: f.filename,
+  }));
+}
+
+app.post(
+  "/api/enroll",
+  (req, res, next) => {
+    upload.any()(req, res, (err) => {
+      if (err) {
+        const msg =
+          err.code === "LIMIT_FILE_SIZE"
+            ? "Each file must be 10 MB or smaller."
+            : err.message || "File upload failed.";
+        return res.status(422).json({ ok: false, errors: { files: msg }, msg });
+      }
+      next();
+    });
+  },
+  async (req, res) => {
+  const { course = "", price = "", name = "", email = "", phone = "", enrollmentType = "" } = req.body || {};
 
   const errors = {};
   if (String(course).trim().length < 2) errors.course = "Course is required";
@@ -533,6 +581,16 @@ app.post("/api/enroll", async (req, res) => {
   if (!isValidEmail(email)) errors.email = "Please enter a valid email address";
   else { const issue = emailIssue(email); if (issue) errors.email = issue; }
   if (String(phone).trim() && !isValidPKPhone(phone)) errors.phone = "Enter a valid mobile number (e.g. 0300 1234567)";
+  if (!["Online", "On-Site"].includes(String(enrollmentType).trim())) {
+    errors.enrollmentType = "Select enrollment type — Online or On-Site";
+  }
+
+  // Required documents (checked by form field name)
+  const files = req.files || [];
+  const byField = (name) => files.filter((f) => f.fieldname === name);
+  if (byField("cnic").length === 0) errors.cnic = "CNIC / B-Form is required (JPG, PNG or PDF)";
+  if (byField("photo").length === 0) errors.photo = "Recent Photograph is required (JPG or PNG)";
+  if (byField("payment").length === 0) errors.payment = "Payment Proof / Receipt is required (JPG, PNG or PDF)";
 
   if (Object.keys(errors).length) {
     return res.status(422).json({ ok: false, errors });
@@ -551,15 +609,19 @@ app.post("/api/enroll", async (req, res) => {
   const displayName = String(name).trim();
   const displayEmail = String(email).trim();
   const displayPhone = String(phone).trim();
+  const enrollType = String(enrollmentType).trim();
 
   // 1) Always save the request (admin dashboard)
+  const attachMeta = buildAttachmentsMeta(files);
+  const msgBody = `🎓 Enrollment request — ${courseName} (${coursePrice})\nEnrollment Type: ${enrollType}\nAttachments: ${attachMeta.length}\n${attachMeta.map((a) => "- " + a.originalname + " → " + a.filename).join("\n")}`;
+
   try {
     await addMessage({
       id: "msg_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6),
       name: displayName,
       email: displayEmail,
       phone: displayPhone,
-      message: `🎓 Enrollment request — ${courseName} (${coursePrice})`,
+      message: msgBody,
       date: new Date().toISOString().slice(0, 19).replace("T", " "),
       ip: req.ip,
     });
@@ -571,15 +633,20 @@ app.post("/api/enroll", async (req, res) => {
   // 2) Email the owner (SMTP if configured, otherwise FormSubmit relay)
   let mailed = null;
   try {
-    mailed = await notifyOwner(`New Enrollment Request — ${courseName}`, {
+    const fields = {
       Course: courseName,
       Fee: coursePrice,
+      "Enrollment Type": enrollType,
       Name: displayName,
       Email: displayEmail,
       Phone: displayPhone || "-",
       Time: new Date().toLocaleString("en-PK"),
       IP: String(req.ip),
-    }, originOf(req));
+      Attachments: attachMeta.length
+        ? attachMeta.map((a) => a.originalname).join(", ") + "  (open the admin panel to download)"
+        : "-",
+    };
+    mailed = await notifyOwner(`New Enrollment Request — ${courseName}`, fields, originOf(req));
   } catch (err) {
     console.error("Enrollment notification failed:", err.message);
   }
@@ -590,7 +657,8 @@ app.post("/api/enroll", async (req, res) => {
     msg: "Enrollment request sent! We will contact you shortly.",
     mailed: !!mailed,
   });
-});
+  }
+);
 
 // ---------- API: Newsletter subscription ----------
 app.post("/api/subscribe", async (req, res) => {
@@ -863,6 +931,29 @@ app.get("/admin", async (req, res) => {
 });
 
 // ---------- Admin: All messages ----------
+function attachmentsCell(m) {
+  const txt = String(m.message || "");
+  const re = /-\s*(.+?)\s*→\s*(enroll_[^\s]+?\.(?:jpg|jpeg|png|pdf|webp|heic|heif))/gi;
+  const links = [];
+  let mm;
+  while ((mm = re.exec(txt)) !== null) {
+    links.push(
+      `<a class="btn b-read" style="margin:2px 0" href="/admin/file/${encodeURIComponent(mm[2])}" target="_blank" rel="noopener">📎 ${esc(mm[1])}</a>`
+    );
+  }
+  return links.length ? `<div style="display:flex;flex-direction:column;gap:4px">${links.join("")}</div>` : "-";
+}
+
+// Protected download of an uploaded enrollment document (admin only)
+app.get("/admin/file/:name", (req, res) => {
+  const name = path.basename(String(req.params.name || ""));
+  const full = path.join(UPLOAD_DIR, name);
+  if (!full.startsWith(UPLOAD_DIR) || !fs.existsSync(full)) {
+    return res.status(404).send("<h1>404 — File not found</h1>");
+  }
+  res.download(full, name);
+});
+
 app.get("/admin/messages", async (req, res) => {
   const messages = (await getMessages()).reverse();
   const unread = messages.filter((m) => !m.read).length;
@@ -878,6 +969,7 @@ app.get("/admin/messages", async (req, res) => {
         <td><a href="mailto:${esc(m.email)}">${esc(m.email)}</a></td>
         <td>${esc(m.phone) || "-"}</td>
         <td class="msg">${esc(m.message)}</td>
+        <td>${attachmentsCell(m)}</td>
         <td>
           ${m.read ? "" : `<form method="post" action="/admin/read" style="display:inline">
             <input type="hidden" name="id" value="${esc(m.id)}">
@@ -888,7 +980,7 @@ app.get("/admin/messages", async (req, res) => {
       </tr>`
         )
         .join("")
-    : `<tr><td colspan="7" class="empty">No messages yet. 🙂</td></tr>`;
+    : `<tr><td colspan="8" class="empty">No messages yet. 🙂</td></tr>`;
 
   res.send(
     adminLayout(
@@ -904,7 +996,7 @@ app.get("/admin/messages", async (req, res) => {
     </div>
     <div class="panel">
       <table>
-        <tr><th>#</th><th>Date</th><th>Name</th><th>Email</th><th>Phone</th><th>Message</th><th>Action</th></tr>
+        <tr><th>#</th><th>Date</th><th>Name</th><th>Email</th><th>Phone</th><th>Message</th><th>Attachments</th><th>Action</th></tr>
         ${rows}
       </table>
     </div>`
@@ -1099,6 +1191,8 @@ app.get("/healthz", (req, res) =>
 );
 
 // ---------- Static frontend ----------
+// Uploaded enrollment documents must NOT be publicly reachable.
+app.use("/uploads", (req, res) => res.status(403).send("<h1>403 — Forbidden</h1>"));
 app.use(express.static(__dirname, { extensions: ["html"] }));
 
 // ---------- 404 ----------
