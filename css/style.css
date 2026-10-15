@@ -1505,6 +1505,16 @@ a:focus-visible, button:focus-visible, .btn:focus-visible {
   50% { box-shadow: 0 14px 34px -12px rgba(37, 211, 102, 0.6), 0 0 0 14px rgba(37, 211, 102, 0); }
 }
 
+/* --- WhatsApp brand logo icon --- */
+.wa-ico {
+  width: 18px;
+  height: 18px;
+  flex: 0 0 auto;
+  display: block;
+}
+.btn-ghost .wa-ico { color: #25d366; }
+.float-btn .wa-ico { width: 27px; height: 27px; color: #fff; }
+
 /* --- Footer newsletter --- */
 .footer-newsletter {
   display: flex;
