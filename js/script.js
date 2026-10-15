@@ -2,6 +2,28 @@
    CyberNexa Solutions — Interactions
    ========================================================== */
 
+// ---------- Student / Teacher portal link in the main nav ----------
+// Injected on every page so the portal is reachable from the whole website.
+(async () => {
+  const nav = document.getElementById("navLinks");
+  if (!nav) return;
+  const link = document.createElement("a");
+  link.href = "/portal/login";
+  link.textContent = "Portal";
+  const cta = nav.querySelector(".btn.btn-small");
+  nav.insertBefore(link, cta || null);
+  try {
+    const res = await fetch("/api/me", { headers: { Accept: "application/json" } });
+    const data = await res.json();
+    if (data && data.user) {
+      link.href = "/portal/dashboard";
+      link.textContent = data.user.name.split(" ")[0] + " · Portal";
+    }
+  } catch (e) {
+    /* not signed in / offline — keep the sign-in link */
+  }
+})();
+
 // ---------- Navbar scroll effect ----------
 const navbar = document.getElementById("navbar");
 

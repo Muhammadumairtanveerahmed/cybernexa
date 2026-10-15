@@ -4,6 +4,8 @@ metadata:
   name: cybernexa
 spec:
   replicas: 1
+  strategy:
+    type: Recreate          # single ReadWriteOnce uploads volume
   selector:
     matchLabels:
       app: cybernexa
@@ -41,9 +43,17 @@ spec:
           readinessProbe:
             httpGet: { path: /healthz, port: 3000 }
             initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 6
+          startupProbe:
+            httpGet: { path: /healthz, port: 3000 }
+            periodSeconds: 5
+            failureThreshold: 30
           livenessProbe:
             httpGet: { path: /healthz, port: 3000 }
-            initialDelaySeconds: 15
+            initialDelaySeconds: 10
+            periodSeconds: 15
+            failureThreshold: 4
       volumes:
         - name: uploads
           persistentVolumeClaim:

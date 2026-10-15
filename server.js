@@ -20,6 +20,8 @@ if (fs.existsSync(ENV_FILE)) {
 const dns = require("dns");
 const mysql = require("mysql2/promise");
 const nodemailer = require("nodemailer");
+const portal = require("./portal");
+const mountPortalAdmin = require("./portal-admin");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -31,6 +33,9 @@ const DATA_FILE = path.join(__dirname, "data", "messages.json");
 
 // ---------- Middleware ----------
 app.use(express.json({ limit: "10kb" }));
+
+// Resolve the signed-in portal user (student/teacher) for /portal and /api routes — must run early.
+app.use(portal.attachUser);
 
 // Basic security headers
 app.use((req, res, next) => {
@@ -147,6 +152,8 @@ async function initDb() {
     }
 
     storageMode = "MySQL";
+    // Portal tables (users, enrollments, documents, sessions, ...)
+    await portal.initSchema(pool);
     console.log(`🗄️  MySQL connected (${host}:${port}/${database}) — data stored in database`);
   } catch (err) {
     pool = null;
@@ -633,6 +640,24 @@ app.post(
     return res.status(500).json({ ok: false, msg: "Sorry, something went wrong. Please try again." });
   }
 
+  // 1b) Also create a managed enrollment record for the portal (linked when a student is signed in)
+  try {
+    const LABEL = { cnic: "CNIC/B-Form", photo: "Photograph", payment: "Payment Proof", qualification: "Qualification", other: "Other" };
+    await portal.recordEnrollment({
+      user: req.user || null,
+      course: courseName,
+      courseId: String(req.body.courseId || req.body.course_id || ""),
+      price: coursePrice,
+      enrollmentType: enrollType,
+      name: displayName,
+      email: displayEmail,
+      phone: displayPhone,
+      files: (req.files || []).map((f) => ({ ...f, label: LABEL[f.fieldname] || "Document" })),
+    });
+  } catch (err) {
+    console.error("Portal enrollment record failed:", err.message);
+  }
+
   // 2) Email the owner (SMTP if configured, otherwise FormSubmit relay)
   let mailed = null;
   try {
@@ -844,6 +869,11 @@ function adminLayout(title, active, body) {
   <a href="/admin" class="${active === "dash" ? "active" : ""}">📊 Dashboard</a>
   <a href="/admin/messages" class="${active === "msgs" ? "active" : ""}">📬 Messages</a>
   <a href="/admin/courses" class="${active === "courses" ? "active" : ""}">🎓 Courses</a>
+  <a href="/admin/students" class="${active === "students" ? "active" : ""}">🎒 Students</a>
+  <a href="/admin/teachers" class="${active === "teachers" ? "active" : ""}">👨‍🏫 Teachers</a>
+  <a href="/admin/enrollments" class="${active === "enrollments" ? "active" : ""}">🗂️ Enrollments</a>
+  <a href="/admin/notices" class="${active === "notices" ? "active" : ""}">🔔 Notices</a>
+  <a href="/admin/resets" class="${active === "resets" ? "active" : ""}">🔐 Password resets</a>
   <a href="/" target="_blank">🌐 View Website</a>
   <div class="foot">Signed in as <b>admin</b></div>
 </aside>
@@ -1193,6 +1223,23 @@ app.get("/healthz", (req, res) =>
   res.json({ ok: true, name: "CyberNexa Solutions", time: new Date().toISOString() })
 );
 
+// ---------- Student & Teacher Portal ----------
+// Mounts /portal/*, /api/me, and the portal admin pages under /admin/*.
+portal.mount(app, {
+  getPool: () => pool,
+  uploadRoot: path.join(__dirname, "uploads"),
+  esc,
+  isValidEmail,
+  isValidPKPhone,
+  emailIssue,
+  emailDomainExists,
+  notifyOwner,
+  originOf,
+  adminLayout,
+  getCourses,
+});
+mountPortalAdmin(app);
+
 // ---------- Static frontend ----------
 // Uploaded enrollment documents must NOT be publicly reachable.
 app.use("/uploads", (req, res) => res.status(403).send("<h1>403 — Forbidden</h1>"));
@@ -1203,8 +1250,36 @@ app.use((req, res) => {
   res.status(404).send("<h1>404 — Page not found</h1>");
 });
 
-app.listen(PORT, async () => {
-  console.log(`✅ Server running: http://localhost:${PORT}`);
-  console.log(`📬 Admin panel:    http://localhost:${PORT}/admin`);
-  await initDb();
+// ---------- Error handler ----------
+// Catches errors forwarded by the portal's async-route wrapper (and any other
+// next(err)) so a single bad request can never crash the server.
+app.use((err, req, res, next) => {
+  console.error("❌ Route error:", (err && err.message) || err);
+  if (res.headersSent) return next(err);
+  if (req.path.startsWith("/portal") || req.path.startsWith("/api/")) {
+    try {
+      return res.status(500).send(
+        portal.core.errorPage("Something went wrong", "Please go back and try again in a moment.")
+      );
+    } catch (_) {
+      /* fall through to the plain response below */
+    }
+  }
+  res.status(500).send("<h1>500 — Something went wrong</h1>");
+});
+
+// Last-resort safety nets: log instead of crashing the live site.
+process.on("unhandledRejection", (err) => console.error("⚠️  Unhandled rejection:", (err && err.message) || err));
+process.on("uncaughtException", (err) => console.error("⚠️  Uncaught exception:", (err && err.stack) || err));
+
+// Initialize the database (and portal schema) BEFORE accepting traffic, so the
+// very first request never races against table creation. initDb never throws and
+// we cap the wait so an unreachable MySQL can never keep the site offline.
+const startup = initDb().catch((err) => console.error("Startup init failed:", err && err.message));
+const deadline = new Promise((resolve) => setTimeout(resolve, 20000));
+Promise.race([startup, deadline]).then(() => {
+  app.listen(PORT, () => {
+    console.log(`✅ Server running: http://localhost:${PORT}`);
+    console.log(`📬 Admin panel:    http://localhost:${PORT}/admin`);
+  });
 });
