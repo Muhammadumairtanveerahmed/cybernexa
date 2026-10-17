@@ -549,6 +549,90 @@ module.exports = function mountAdmin(app) {
     res.redirect("/admin/notices?ok=Notice+deleted");
   });
 
+  // ============================ ASSIGNMENTS ============================
+  app.get("/admin/assignments", async (req, res) => {
+    const [rows] = await q(
+      `SELECT a.*, t.full_name AS teacher,
+        (SELECT COUNT(*) FROM submissions s WHERE s.assignment_id = a.id) AS subs,
+        (SELECT COUNT(*) FROM submissions s WHERE s.assignment_id = a.id AND s.status = 'graded') AS graded
+       FROM assignments a LEFT JOIN users t ON t.id = a.teacher_id
+       ORDER BY a.created_at DESC LIMIT 400`
+    );
+    const body = rows
+      .map(
+        (a) => `<tr>
+        <td><strong>${esc(a.title)}</strong><div class="muted" style="font-size:.78rem">${esc(a.course_title)}</div></td>
+        <td>${esc(a.teacher) || "-"}</td>
+        <td class="muted">${esc(a.due_date) || "-"}</td>
+        <td>${Number(a.subs)} <span class="muted">(${Number(a.graded)} graded)</span></td>
+        <td>${badge(a.status)}</td>
+        <td><a class="btn b-read" href="/admin/assignments/view?id=${esc(a.id)}">Open</a></td>
+      </tr>`
+      )
+      .join("");
+    res.send(
+      layout(
+        "Admin — Assignments",
+        "assignments",
+        `<div class="head-row"><div><h1>📝 Assignments</h1>
+        <p class="sub">${rows.length} assignment(s) posted by teachers.</p></div>
+        <a class="btn b-read" href="/admin">← Dashboard</a></div>
+        <div class="panel"><table>
+        <tr><th>Assignment</th><th>Teacher</th><th>Due</th><th>Submissions</th><th>Status</th><th></th></tr>
+        ${body || `<tr><td colspan="6" class="empty">No assignments posted yet.</td></tr>`}
+        </table></div>`
+      )
+    );
+  });
+
+  app.get("/admin/assignments/view", async (req, res) => {
+    const [ar] = await q("SELECT * FROM assignments WHERE id = ? LIMIT 1", [String(req.query.id || "")]);
+    const a = ar[0];
+    if (!a) return res.redirect("/admin/assignments?error=Not+found");
+    const [teacher] = await q("SELECT * FROM users WHERE id = ? LIMIT 1", [a.teacher_id]);
+    const [subs] = await q(
+      `SELECT s.*, u.full_name AS student, u.email
+       FROM submissions s LEFT JOIN users u ON u.id = s.student_id
+       WHERE s.assignment_id = ? ORDER BY s.submitted_at DESC`,
+      [a.id]
+    );
+    const doc = a.doc_id ? await core.getDocument(a.doc_id) : null;
+    const subRows = subs
+      .map(
+        (s) => `<tr>
+        <td><strong>${esc(s.student) || "—"}</strong><div class="muted" style="font-size:.78rem">${esc(s.email) || ""}</div></td>
+        <td class="muted">${esc(s.submitted_at)}</td>
+        <td>${s.status === "graded" ? `<strong>${esc(s.marks)}</strong> / ${Number(a.max_marks)}` : badge("submitted")}</td>
+        <td class="muted" style="max-width:260px">${s.feedback ? esc(s.feedback) : "—"}</td>
+        <td>${s.doc_id ? `<a class="btn b-read" href="/admin/doc/${esc(s.doc_id)}" target="_blank">Download</a>` : "—"}</td>
+      </tr>`
+      )
+      .join("");
+    res.send(
+      layout(
+        "Admin — Assignment",
+        "assignments",
+        `<div class="head-row"><div><h1>📝 ${esc(a.title)}</h1>
+        <p class="sub">${esc(a.course_title)} · teacher ${esc((teacher && teacher.full_name) || "-")} · posted ${esc(a.created_at)}</p></div>
+        <a class="btn b-read" href="/admin/assignments">← All assignments</a></div>
+        <div class="panel"><h2>Details</h2>
+          <table>
+            <tr><th>Course</th><td>${esc(a.course_title)}</td></tr>
+            <tr><th>Due</th><td>${esc(a.due_date) || "-"}</td></tr>
+            <tr><th>Total marks</th><td>${Number(a.max_marks)}</td></tr>
+            <tr><th>Status</th><td>${badge(a.status)}</td></tr>
+            <tr><th>Brief</th><td>${doc ? `<a class="btn b-read" href="/admin/doc/${esc(doc.id)}" target="_blank">📎 ${esc(doc.originalname)}</a>` : "-"}</td></tr>
+            <tr><th>Instructions</th><td class="msg" style="white-space:pre-wrap">${esc(a.description) || "-"}</td></tr>
+          </table>
+        </div>
+        <div class="panel"><h2>Submissions (${subs.length})</h2>
+          <table><tr><th>Student</th><th>Submitted</th><th>Marks</th><th>Feedback</th><th>File</th></tr>
+          ${subRows || `<tr><td colspan="5" class="empty">No submissions yet.</td></tr>`}</table>
+        </div>`
+      )
+    );
+  });
+
   // ============================ SHARED ACTIONS ============================
   app.post("/admin/account/status", form, async (req, res) => {
     await q("UPDATE users SET status = ?, updated_at = NOW() WHERE id = ? AND role <> 'admin'", [String(req.body.status || "active"), String(req.body.user_id || req.body.id || "")]);

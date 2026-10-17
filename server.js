@@ -22,6 +22,7 @@ const mysql = require("mysql2/promise");
 const nodemailer = require("nodemailer");
 const portal = require("./portal");
 const mountPortalAdmin = require("./portal-admin");
+const mountPortalAcademics = require("./portal-academics");
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -872,6 +873,7 @@ function adminLayout(title, active, body) {
   <a href="/admin/students" class="${active === "students" ? "active" : ""}">🎒 Students</a>
   <a href="/admin/teachers" class="${active === "teachers" ? "active" : ""}">👨‍🏫 Teachers</a>
   <a href="/admin/enrollments" class="${active === "enrollments" ? "active" : ""}">🗂️ Enrollments</a>
+  <a href="/admin/assignments" class="${active === "assignments" ? "active" : ""}">📝 Assignments</a>
   <a href="/admin/notices" class="${active === "notices" ? "active" : ""}">🔔 Notices</a>
   <a href="/admin/resets" class="${active === "resets" ? "active" : ""}">🔐 Password resets</a>
   <a href="/" target="_blank">🌐 View Website</a>
@@ -1239,6 +1241,7 @@ portal.mount(app, {
   getCourses,
 });
 mountPortalAdmin(app);
+mountPortalAcademics(app);
 
 // ---------- Static frontend ----------
 // Uploaded enrollment documents must NOT be publicly reachable.

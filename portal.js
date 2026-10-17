@@ -236,6 +236,42 @@ async function initSchema(pool) {
       created_at DATETIME NOT NULL,
       INDEX idx_teacher (teacher_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // ---- Academics: assignments posted by teachers -------------------------
+    `CREATE TABLE IF NOT EXISTS assignments (
+      id VARCHAR(40) PRIMARY KEY,
+      course_title VARCHAR(190) NOT NULL,
+      teacher_id VARCHAR(40) NOT NULL,
+      title VARCHAR(200) NOT NULL,
+      description TEXT,
+      due_date DATETIME NULL,
+      max_marks INT NOT NULL DEFAULT 100,
+      doc_id VARCHAR(40) DEFAULT '',
+      status ENUM('draft','published','closed') NOT NULL DEFAULT 'published',
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL,
+      INDEX idx_course (course_title),
+      INDEX idx_teacher (teacher_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // ---- Academics: student submissions + teacher grades -------------------
+    `CREATE TABLE IF NOT EXISTS submissions (
+      id VARCHAR(40) PRIMARY KEY,
+      assignment_id VARCHAR(40) NOT NULL,
+      student_id VARCHAR(40) NOT NULL,
+      doc_id VARCHAR(40) DEFAULT '',
+      note TEXT,
+      submitted_at DATETIME NOT NULL,
+      status ENUM('submitted','graded') NOT NULL DEFAULT 'submitted',
+      marks DECIMAL(6,2) NULL,
+      feedback TEXT,
+      graded_at DATETIME NULL,
+      graded_by VARCHAR(40) DEFAULT '',
+      updated_at DATETIME NOT NULL,
+      UNIQUE KEY uniq_sub (assignment_id, student_id),
+      INDEX idx_student (student_id),
+      INDEX idx_assignment (assignment_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   ];
   for (const sql of t) await pool.query(sql);
   console.log("🎒 Portal schema ready");
@@ -483,6 +519,8 @@ tr:last-child td{border-bottom:0}
 .b-unpaid{background:rgba(148,163,184,.14);color:var(--mut);border:1px solid var(--line2)}
 .b-partial{background:rgba(245,158,11,.14);color:#fcd6a0;border:1px solid rgba(245,158,11,.35)}
 .b-paid{background:rgba(34,197,94,.14);color:#86efac;border:1px solid rgba(34,197,94,.4)}
+.b-submitted{background:rgba(96,165,250,.14);color:var(--acc);border:1px solid rgba(96,165,250,.4)}
+.b-graded{background:rgba(34,197,94,.14);color:#86efac;border:1px solid rgba(34,197,94,.4)}
 .empty{text-align:center;color:var(--mut);padding:34px}
 .note{border-left:3px solid var(--p);background:rgba(59,130,246,.07);border-radius:0 10px 10px 0;padding:12px 16px;margin-bottom:10px}
 .note h4{font-size:.95rem}
@@ -529,11 +567,18 @@ function errorPage(title, message) {
 function shell(user, active, title, sub, body, extraNav = "") {
   const items = user.role === "teacher"
     ? [["/portal/profile", "👤 My Profile", "profile"],
-       ["/portal/courses", "📚 My Courses", "courses"], ["/portal/documents", "📄 My Documents", "docs"],
+       ["/portal/courses", "📚 My Courses", "courses"],
+       ["/portal/assignments", "📝 Assignments", "assign"],
+       ["/portal/students", "🎒 My Students", "students"],
+       ["/portal/documents", "📄 My Documents", "docs"],
        ["/portal/notices", "🔔 Notices", "notices"]]
     : [["/portal/profile", "👤 My Profile", "profile"],
-       ["/portal/enrollments", "🎓 My Enrollments", "enroll"], ["/portal/documents", "📄 My Documents", "docs"],
-       ["/portal/fees", "💰 Fees & Payments", "fees"], ["/portal/notices", "🔔 Notices", "notices"]];
+       ["/portal/enrollments", "🎓 My Enrollments", "enroll"],
+       ["/portal/assignments", "📝 Assignments", "assign"],
+       ["/portal/marks", "📊 My Marks & Result", "marks"],
+       ["/portal/documents", "📄 My Documents", "docs"],
+       ["/portal/fees", "💰 Fees & Payments", "fees"],
+       ["/portal/notices", "🔔 Notices", "notices"]];
   const nav = items.map(([href, label, key]) => `<a href="${href}" class="${active === key ? "on" : ""}">${label}</a>`).join("");
   const pending = user.status !== "active"
     ? `<div class="note" style="margin:14px 0 0"><h4>⏳ Account ${esc(user.status)}</h4><p>${user.role === "teacher" ? "Your teacher application is waiting for admin approval. You can complete your profile meanwhile." : "Your account is " + esc(user.status) + "."}</p></div>`
@@ -948,6 +993,25 @@ function mount(app, context) {
       due += Math.max(0, Number(en.amount_total || 0) - paid);
     }
     const comp = await completeProfile(u);
+    const asg = (await q(
+      `SELECT a.id, a.title, a.course_title, a.due_date, a.max_marks,
+              s.status AS sub_status, s.marks AS sub_marks
+       FROM assignments a
+       LEFT JOIN submissions s ON s.assignment_id = a.id AND s.student_id = ?
+       WHERE a.status <> 'draft' AND a.course_title IN (
+         SELECT course_title FROM enrollments
+         WHERE user_id = ? AND status <> 'rejected' AND course_title <> ''
+       )
+       ORDER BY (a.due_date IS NULL), a.due_date ASC LIMIT 20`,
+      [u.id, u.id]
+    ))[0];
+    const pendingCount = asg.filter((a) => !a.sub_status).length;
+    const gradedCount = asg.filter((a) => a.sub_status === "graded").length;
+    const asgRows = asg.slice(0, 5).map((a) => `
+      <tr><td><strong>${esc(a.title)}</strong><div class="muted" style="font-size:.78rem">${esc(a.course_title)}</div></td>
+      <td class="muted">${esc(a.due_date || "—")}</td>
+      <td>${a.sub_status === "graded" ? `${esc(a.sub_marks)} / ${esc(a.max_marks)}` : a.sub_status ? statusBadge("submitted") : statusBadge("pending")}</td>
+      <td><a class="btn ghost sm" href="/portal/assignments/view?id=${esc(a.id)}">Open</a></td></tr>`).join("");
     const rows = enrollments.slice(0, 5).map((en) => `
       <tr><td><strong>${esc(en.course_title)}</strong><div class="muted" style="font-size:.8rem">${esc(en.enrollment_type)}</div></td>
       <td>${esc(en.price)}</td><td>${statusBadge(en.status)}</td><td>${statusBadge(en.payment_status)}</td>
@@ -958,9 +1022,15 @@ function mount(app, context) {
       `${welcome}
       <div class="cards">
         <div class="stat"><b>${enrollments.length}</b><span>Enrollments</span></div>
-        <div class="stat"><b>${enrollments.filter((e) => e.status === "approved").length}</b><span>Active courses</span></div>
-        <div class="stat"><b>${enrollments.filter((e) => e.status === "completed").length}</b><span>Completed</span></div>
+        <div class="stat"><b>${pendingCount}</b><span>Pending tasks</span></div>
+        <div class="stat"><b>${gradedCount}</b><span>Graded</span></div>
         <div class="stat"><b>PKR ${due.toLocaleString("en-PK")}</b><span>Fee due</span></div>
+      </div>
+      <div class="panel">
+        <h2>📝 Assignments &amp; tasks</h2>
+        ${asg.length ? `<table><tr><th>Assignment</th><th>Due</th><th>Status</th><th></th></tr>${asgRows}</table>
+          <p class="mt"><a class="btn ghost sm" href="/portal/assignments">View all assignments →</a></p>`
+        : `<p class="muted">No assignments yet. They will appear here once your teacher posts them.</p>`}
       </div>
       <div class="panel">
         <h2>Profile completeness — ${comp.pct}%</h2>
@@ -988,6 +1058,23 @@ function mount(app, context) {
     const mine = (await q("SELECT * FROM teacher_courses WHERE teacher_id = ? ORDER BY created_at DESC", [u.id]))[0];
     const notices = await getNotices(u);
     const docs = await getUserDocuments(u.id);
+    const [[asgStat]] = await q(
+      `SELECT COUNT(*) AS total,
+        (SELECT COUNT(*) FROM submissions s JOIN assignments a2 ON a2.id = s.assignment_id
+          WHERE a2.teacher_id = ? AND s.status = 'submitted') AS tograde
+       FROM assignments WHERE teacher_id = ?`,
+      [u.id, u.id]
+    );
+    const recentAsg = (await q(
+      `SELECT a.*, (SELECT COUNT(*) FROM submissions s WHERE s.assignment_id = a.id) AS subs
+       FROM assignments a WHERE a.teacher_id = ? ORDER BY a.created_at DESC LIMIT 5`,
+      [u.id]
+    ))[0];
+    const asgRows = recentAsg.map((a) => `<tr>
+      <td><strong>${esc(a.title)}</strong><div class="muted" style="font-size:.78rem">${esc(a.course_title)}</div></td>
+      <td class="muted">${esc(a.due_date || "—")}</td>
+      <td>${Number(a.subs || 0)}</td>
+      <td><a class="btn ghost sm" href="/portal/assignments/view?id=${esc(a.id)}">Open</a></td></tr>`).join("");
     const rows = mine
       .map((c) => `<tr><td><strong>${esc(c.course_title)}</strong></td><td class="muted">${esc(c.created_at)}</td></tr>`)
       .join("");
@@ -997,9 +1084,15 @@ function mount(app, context) {
       ${u.status === "active" ? `<div class="ok">✅ Your teacher account is approved.</div>` : ""}
       <div class="cards">
         <div class="stat"><b style="text-transform:capitalize">${esc(u.status)}</b><span>Account status</span></div>
-        <div class="stat"><b>${Number(tp.experience_years || 0)}</b><span>Years experience</span></div>
         <div class="stat"><b>${mine.length}</b><span>Assigned courses</span></div>
-        <div class="stat"><b>${docs.length}</b><span>Documents</span></div>
+        <div class="stat"><b>${Number(asgStat.total || 0)}</b><span>Assignments</span></div>
+        <div class="stat"><b>${Number(asgStat.tograde || 0)}</b><span>To grade</span></div>
+      </div>
+      <div class="panel">
+        <h2>📝 Recent assignments</h2>
+        ${recentAsg.length ? `<table><tr><th>Assignment</th><th>Due</th><th>Submissions</th><th></th></tr>${asgRows}</table>` : `<p class="muted">No assignments posted yet.</p>`}
+        <p class="mt"><a class="btn primary sm" href="/portal/assignments/new">➕ Create assignment</a>
+          <a class="btn ghost sm" href="/portal/assignments">Manage all →</a></p>
       </div>
       <div class="panel"><h2>My courses</h2>
         ${rows
@@ -1279,6 +1372,8 @@ function mount(app, context) {
   core.q = q;
   core.uid = uid;
   core.shell = shell;
+  core.requireUser = requireUser;
+  core.getPool = getPool;
   core.publicPage = publicPage;
   core.errorPage = errorPage;
   core.statusBadge = statusBadge;
