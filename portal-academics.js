@@ -549,7 +549,8 @@ module.exports = function mountAcademics(app) {
           <h2>📊 Result card</h2>
           <table><tr><th>Assignment</th><th>Due</th><th>Marks</th><th>%</th><th>Grade</th><th>Feedback</th></tr>${body}</table>
         </div>`
-        : `<div class="panel"><p class="empty">No graded assignments yet. Your results will appear here once your teacher checks your work.</p></div>`}`));
+        : `<div class="panel"><p class="empty">No graded assignments yet. Your results will appear here once your teacher checks your work.</p></div>`}
+       <p class="mt"><a class="btn ghost sm" href="/portal/transcript" target="_blank">🖨️ Print result card / transcript</a></p>`));
   });
 
   // ------------------------------- FILE DOWNLOADS -------------------------------

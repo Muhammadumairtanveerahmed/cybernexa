@@ -633,6 +633,144 @@ module.exports = function mountAdmin(app) {
     );
   });
 
+  // ============================ CAMPUS (attendance, timetable, materials, quizzes) ============================
+  const DAYS = ["", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"];
+
+  app.get("/admin/campus", async (req, res) => {
+    const [[stats]] = await q(
+      `SELECT
+        (SELECT COUNT(*) FROM timetable) AS slots,
+        (SELECT COUNT(*) FROM attendance_sessions) AS sessions,
+        (SELECT COUNT(*) FROM materials) AS materials,
+        (SELECT COUNT(*) FROM quizzes) AS quizzes,
+        (SELECT COUNT(*) FROM quiz_attempts WHERE status='submitted') AS attempts,
+        (SELECT COUNT(*) FROM announcements) AS announcements`
+    );
+    const [slots] = await q(
+      `SELECT * FROM timetable ORDER BY day_of_week, start_time LIMIT 300`
+    );
+    const [sessions] = await q(
+      `SELECT s.*, t.full_name AS teacher,
+        (SELECT COUNT(*) FROM attendance a WHERE a.session_id = s.id AND a.status IN ('present','late')) AS present,
+        (SELECT COUNT(*) FROM attendance a WHERE a.session_id = s.id) AS total
+       FROM attendance_sessions s LEFT JOIN users t ON t.id = s.teacher_id
+       ORDER BY s.session_date DESC LIMIT 40`
+    );
+    const [materials] = await q(
+      `SELECT m.*, t.full_name AS teacher FROM materials m LEFT JOIN users t ON t.id = m.teacher_id
+       ORDER BY m.created_at DESC LIMIT 40`
+    );
+    const [quizzes] = await q(
+      `SELECT z.*, t.full_name AS teacher,
+        (SELECT COUNT(*) FROM quiz_questions qq WHERE qq.quiz_id = z.id) AS qn,
+        (SELECT COUNT(*) FROM quiz_attempts a WHERE a.quiz_id = z.id AND a.status='submitted') AS attempts
+       FROM quizzes z LEFT JOIN users t ON t.id = z.teacher_id
+       ORDER BY z.created_at DESC LIMIT 40`
+    );
+    const [anns] = await q(
+      `SELECT n.*, t.full_name AS teacher FROM announcements n LEFT JOIN users t ON t.id = n.teacher_id
+       ORDER BY n.created_at DESC LIMIT 40`
+    );
+    const courses = await A().getCourses();
+
+    const byDay = {};
+    for (const s of slots) (byDay[s.day_of_week] = byDay[s.day_of_week] || []).push(s);
+    const dayCols = [1, 2, 3, 4, 5, 6].map((d) => {
+      const list = byDay[d] || [];
+      return `<div class="box" style="padding:14px">
+        <strong>${DAYS[d]}</strong>
+        ${list.length ? list.map((s) => `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;border-bottom:1px solid var(--border);padding:6px 0;font-size:.85rem">
+            <span><span style="color:var(--cyan)">${esc(String(s.start_time).slice(0, 5))}–${esc(String(s.end_time).slice(0, 5))}</span> ${esc(s.course_title)}${s.room ? ` <span style="color:var(--muted)">(${esc(s.room)})</span>` : ""}</span>
+            <a class="btn b-del" href="/admin/campus/timetable/delete?id=${esc(s.id)}" onclick="return confirm('Remove this slot?')">✕</a>
+          </div>`).join("") : `<div style="color:var(--muted);font-size:.82rem;padding:6px 0">No classes</div>`}
+      </div>`;
+    }).join("");
+
+    const courseOpts = courses.map((c) => `<option value="${esc(c.title)}">${esc(c.title)}</option>`).join("");
+    const sessRows = sessions.map((s) => `<tr>
+      <td class="muted">${esc(String(s.session_date).slice(0, 10))}</td>
+      <td><strong>${esc(s.course_title)}</strong><div class="muted" style="font-size:.76rem">${esc(s.topic) || "—"}</div></td>
+      <td>${esc(s.teacher) || "—"}</td>
+      <td>${Number(s.present)} / ${Number(s.total)}</td>
+    </tr>`).join("");
+    const matRows = materials.map((m) => `<tr>
+      <td><strong>${esc(m.title)}</strong><div class="muted" style="font-size:.76rem">${esc(m.course_title)}</div></td>
+      <td>${esc(m.teacher) || "—"}</td>
+      <td class="muted">${esc(String(m.created_at).slice(0, 16))}</td>
+      <td>${m.doc_id ? `<a class="btn b-read" href="/admin/doc/${esc(m.doc_id)}" target="_blank">Download</a>` : m.external_url ? `<a class="btn b-read" href="${esc(m.external_url)}" target="_blank">Link</a>` : "—"}</td>
+    </tr>`).join("");
+    const qzRows = quizzes.map((z) => `<tr>
+      <td><strong>${esc(z.title)}</strong><div class="muted" style="font-size:.76rem">${esc(z.course_title)}</div></td>
+      <td>${esc(z.teacher) || "—"}</td>
+      <td>${Number(z.qn)}</td>
+      <td>${Number(z.attempts)}</td>
+      <td>${badge(z.status)}</td>
+    </tr>`).join("");
+    const annRows = anns.map((n) => `<tr>
+      <td><strong>${esc(n.title)}</strong>${n.pinned ? ` <span class="badge on">pinned</span>` : ""}</td>
+      <td>${esc(n.course_title)}</td>
+      <td>${esc(n.teacher) || "—"}</td>
+      <td class="muted">${esc(String(n.created_at).slice(0, 16))}</td>
+    </tr>`).join("");
+
+    res.send(
+      layout(
+        "Admin — Campus",
+        "campus",
+        `<div class="head-row"><div><h1>🏫 Campus</h1>
+          <p class="sub">Attendance, timetable, course materials, quizzes and announcements across the academy.</p></div>
+          <a class="btn b-read" href="/admin">Dashboard</a></div>
+        <div class="stats">
+          <div class="box"><b>${Number(stats.sessions)}</b><span>Attendance sessions</span></div>
+          <div class="box v"><b>${Number(stats.slots)}</b><span>Timetable slots</span></div>
+          <div class="box g"><b>${Number(stats.materials)}</b><span>Materials</span></div>
+          <div class="box o"><b>${Number(stats.quizzes)}</b><span>Quizzes (${Number(stats.attempts)} attempts)</span></div>
+        </div>
+        <div class="panel"><h2>🗓️ Timetable</h2>
+          <form method="post" action="/admin/campus/timetable/add" class="form-grid">
+            <div><label>Course</label><select name="course_title" required><option value="">— select —</option>${courseOpts}</select></div>
+            <div><label>Day</label><select name="day_of_week">${[1, 2, 3, 4, 5, 6].map((d) => `<option value="${d}">${DAYS[d]}</option>`).join("")}</select></div>
+            <div><label>Start time</label><input type="time" name="start_time" required></div>
+            <div><label>End time</label><input type="time" name="end_time" required></div>
+            <div><label>Room / Lab</label><input type="text" name="room" maxlength="60" placeholder="e.g. Lab-2"></div>
+            <div style="display:flex;align-items:flex-end"><button class="btn b-add" type="submit">Add slot</button></div>
+          </form>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:20px">${dayCols}</div>
+        </div>
+        <div class="panel"><h2>✅ Recent attendance sessions (${sessions.length})</h2>
+          <table><tr><th>Date</th><th>Course</th><th>Teacher</th><th>Present</th></tr>${sessRows || `<tr><td colspan="4" class="empty">No attendance taken yet.</td></tr>`}</table>
+        </div>
+        <div class="panel"><h2>📁 Course materials (${materials.length})</h2>
+          <table><tr><th>Resource</th><th>Teacher</th><th>Added</th><th></th></tr>${matRows || `<tr><td colspan="4" class="empty">No materials shared yet.</td></tr>`}</table>
+        </div>
+        <div class="panel"><h2>🧪 Quizzes (${quizzes.length})</h2>
+          <table><tr><th>Quiz</th><th>Teacher</th><th>Questions</th><th>Attempts</th><th>Status</th></tr>${qzRows || `<tr><td colspan="5" class="empty">No quizzes created yet.</td></tr>`}</table>
+        </div>
+        <div class="panel"><h2>📢 Announcements (${anns.length})</h2>
+          <table><tr><th>Title</th><th>Course</th><th>Teacher</th><th>Posted</th></tr>${annRows || `<tr><td colspan="4" class="empty">No announcements yet.</td></tr>`}</table>
+        </div>`
+      )
+    );
+  });
+
+  app.post("/admin/campus/timetable/add", form, async (req, res) => {
+    const course = String(req.body.course_title || "").trim();
+    const day = Math.min(6, Math.max(1, Number(req.body.day_of_week) || 1));
+    const st = String(req.body.start_time || "").slice(0, 5);
+    const en = String(req.body.end_time || "").slice(0, 5);
+    const room = String(req.body.room || "").trim().slice(0, 60);
+    if (course && /^\d{2}:\d{2}$/.test(st) && /^\d{2}:\d{2}$/.test(en) && en > st) {
+      await q("INSERT INTO timetable (id, course_title, teacher_id, day_of_week, start_time, end_time, room, created_at) VALUES (?,?,?,?,?,?,?,NOW())",
+        [uid("tt_"), course, "", day, st + ":00", en + ":00", room]);
+    }
+    res.redirect("/admin/campus");
+  });
+
+  app.get("/admin/campus/timetable/delete", async (req, res) => {
+    await q("DELETE FROM timetable WHERE id = ?", [String(req.query.id || "")]);
+    res.redirect("/admin/campus");
+  });
+
   // ============================ SHARED ACTIONS ============================
   app.post("/admin/account/status", form, async (req, res) => {
     await q("UPDATE users SET status = ?, updated_at = NOW() WHERE id = ? AND role <> 'admin'", [String(req.body.status || "active"), String(req.body.user_id || req.body.id || "")]);

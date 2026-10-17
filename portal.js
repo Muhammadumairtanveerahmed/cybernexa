@@ -272,6 +272,120 @@ async function initSchema(pool) {
       INDEX idx_student (student_id),
       INDEX idx_assignment (assignment_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // ---- Campus: attendance sessions (one class meeting) --------------------
+    `CREATE TABLE IF NOT EXISTS attendance_sessions (
+      id VARCHAR(40) PRIMARY KEY,
+      course_title VARCHAR(190) NOT NULL,
+      teacher_id VARCHAR(40) NOT NULL,
+      session_date DATE NOT NULL,
+      topic VARCHAR(200) DEFAULT '',
+      created_at DATETIME NOT NULL,
+      INDEX idx_course (course_title),
+      INDEX idx_teacher (teacher_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // ---- Campus: per-student attendance marks -------------------------------
+    `CREATE TABLE IF NOT EXISTS attendance (
+      id VARCHAR(40) PRIMARY KEY,
+      session_id VARCHAR(40) NOT NULL,
+      student_id VARCHAR(40) NOT NULL,
+      status ENUM('present','absent','late','excused') NOT NULL DEFAULT 'present',
+      created_at DATETIME NOT NULL,
+      UNIQUE KEY uniq_att (session_id, student_id),
+      INDEX idx_student (student_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // ---- Campus: weekly timetable slots -------------------------------------
+    `CREATE TABLE IF NOT EXISTS timetable (
+      id VARCHAR(40) PRIMARY KEY,
+      course_title VARCHAR(190) NOT NULL,
+      teacher_id VARCHAR(40) DEFAULT '',
+      day_of_week TINYINT NOT NULL,
+      start_time TIME NOT NULL,
+      end_time TIME NOT NULL,
+      room VARCHAR(60) DEFAULT '',
+      created_at DATETIME NOT NULL,
+      INDEX idx_course (course_title)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // ---- Campus: course materials / lecture notes ---------------------------
+    `CREATE TABLE IF NOT EXISTS materials (
+      id VARCHAR(40) PRIMARY KEY,
+      course_title VARCHAR(190) NOT NULL,
+      teacher_id VARCHAR(40) NOT NULL,
+      title VARCHAR(200) NOT NULL,
+      description TEXT,
+      doc_id VARCHAR(40) DEFAULT '',
+      external_url VARCHAR(500) DEFAULT '',
+      created_at DATETIME NOT NULL,
+      INDEX idx_course (course_title)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // ---- Campus: course announcements ---------------------------------------
+    `CREATE TABLE IF NOT EXISTS announcements (
+      id VARCHAR(40) PRIMARY KEY,
+      course_title VARCHAR(190) NOT NULL,
+      teacher_id VARCHAR(40) NOT NULL,
+      title VARCHAR(200) NOT NULL,
+      body TEXT,
+      pinned TINYINT(1) NOT NULL DEFAULT 0,
+      created_at DATETIME NOT NULL,
+      INDEX idx_course (course_title)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // ---- Campus: quizzes (MCQ online tests) ---------------------------------
+    `CREATE TABLE IF NOT EXISTS quizzes (
+      id VARCHAR(40) PRIMARY KEY,
+      course_title VARCHAR(190) NOT NULL,
+      teacher_id VARCHAR(40) NOT NULL,
+      title VARCHAR(200) NOT NULL,
+      description VARCHAR(400) DEFAULT '',
+      duration_minutes INT NOT NULL DEFAULT 15,
+      pass_percent INT NOT NULL DEFAULT 50,
+      status ENUM('draft','published','closed') NOT NULL DEFAULT 'published',
+      created_at DATETIME NOT NULL,
+      updated_at DATETIME NOT NULL,
+      INDEX idx_course (course_title),
+      INDEX idx_teacher (teacher_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    `CREATE TABLE IF NOT EXISTS quiz_questions (
+      id VARCHAR(40) PRIMARY KEY,
+      quiz_id VARCHAR(40) NOT NULL,
+      q_no INT NOT NULL DEFAULT 1,
+      question TEXT NOT NULL,
+      option_a VARCHAR(400) NOT NULL,
+      option_b VARCHAR(400) NOT NULL,
+      option_c VARCHAR(400) DEFAULT '',
+      option_d VARCHAR(400) DEFAULT '',
+      correct CHAR(1) NOT NULL,
+      marks DECIMAL(6,2) NOT NULL DEFAULT 1,
+      INDEX idx_quiz (quiz_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    `CREATE TABLE IF NOT EXISTS quiz_attempts (
+      id VARCHAR(40) PRIMARY KEY,
+      quiz_id VARCHAR(40) NOT NULL,
+      student_id VARCHAR(40) NOT NULL,
+      started_at DATETIME NOT NULL,
+      submitted_at DATETIME NULL,
+      score DECIMAL(8,2) DEFAULT NULL,
+      total DECIMAL(8,2) DEFAULT NULL,
+      status ENUM('in_progress','submitted') NOT NULL DEFAULT 'in_progress',
+      UNIQUE KEY uniq_attempt (quiz_id, student_id),
+      INDEX idx_student (student_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    `CREATE TABLE IF NOT EXISTS quiz_answers (
+      id VARCHAR(40) PRIMARY KEY,
+      attempt_id VARCHAR(40) NOT NULL,
+      question_id VARCHAR(40) NOT NULL,
+      choice CHAR(1) DEFAULT '',
+      correct TINYINT(1) NOT NULL DEFAULT 0,
+      marks DECIMAL(6,2) NOT NULL DEFAULT 0,
+      INDEX idx_attempt (attempt_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   ];
   for (const sql of t) await pool.query(sql);
   console.log("🎒 Portal schema ready");
@@ -530,6 +644,14 @@ tr:last-child td{border-bottom:0}
 .file{display:flex;align-items:center;gap:10px;padding:10px 12px;border:1px solid var(--line);border-radius:10px;background:#0b1020;margin-bottom:8px;font-size:.88rem}
 .file .nm{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .pill{font-size:.72rem;padding:2px 9px;border-radius:99px;background:rgba(59,130,246,.14);color:var(--acc);border:1px solid rgba(59,130,246,.3)}
+.side .grp{font-size:.66rem;text-transform:uppercase;letter-spacing:.09em;color:var(--mut);opacity:.75;padding:15px 13px 3px;font-weight:700}
+.grid3{display:grid;grid-template-columns:repeat(auto-fit,minmax(210px,1fr));gap:14px}
+.acard{background:var(--bg3);border:1px solid var(--line);border-radius:12px;padding:15px}
+.acard h3{font-size:.92rem;margin-bottom:8px;color:var(--acc)}
+.slot{display:flex;gap:9px;align-items:center;padding:8px 10px;border:1px solid var(--line);border-radius:9px;background:#0b1020;margin-bottom:7px;font-size:.82rem}
+.slot .tm{color:var(--acc);font-weight:600;white-space:nowrap;line-height:1.25;font-size:.78rem}
+.tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
+.tag{font-size:.7rem;padding:2px 8px;border-radius:6px;background:rgba(148,163,255,.12);color:var(--mut);border:1px solid var(--line)}
 @media(max-width:860px){.shell{grid-template-columns:1fr}.side{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);align-items:center}.side .brand,.side .who{display:none}.grid2{grid-template-columns:1fr}.main{padding:18px}}
 `;
 
@@ -565,21 +687,44 @@ function errorPage(title, message) {
 }
 
 function shell(user, active, title, sub, body, extraNav = "") {
-  const items = user.role === "teacher"
-    ? [["/portal/profile", "👤 My Profile", "profile"],
-       ["/portal/courses", "📚 My Courses", "courses"],
-       ["/portal/assignments", "📝 Assignments", "assign"],
-       ["/portal/students", "🎒 My Students", "students"],
-       ["/portal/documents", "📄 My Documents", "docs"],
-       ["/portal/notices", "🔔 Notices", "notices"]]
-    : [["/portal/profile", "👤 My Profile", "profile"],
-       ["/portal/enrollments", "🎓 My Enrollments", "enroll"],
-       ["/portal/assignments", "📝 Assignments", "assign"],
-       ["/portal/marks", "📊 My Marks & Result", "marks"],
-       ["/portal/documents", "📄 My Documents", "docs"],
-       ["/portal/fees", "💰 Fees & Payments", "fees"],
-       ["/portal/notices", "🔔 Notices", "notices"]];
-  const nav = items.map(([href, label, key]) => `<a href="${href}" class="${active === key ? "on" : ""}">${label}</a>`).join("");
+  const groups = user.role === "teacher"
+    ? [{ t: "Overview", items: [["/portal/dashboard", "📊 Dashboard", "dash"]] },
+       { t: "Teaching", items: [
+           ["/portal/courses", "📚 My Courses", "courses"],
+           ["/portal/assignments", "📝 Assignments", "assign"],
+           ["/portal/quizzes", "🧪 Quizzes", "quizzes"],
+           ["/portal/students", "🎒 My Students", "students"]] },
+       { t: "Class", items: [
+           ["/portal/timetable", "🗓️ Timetable", "timetable"],
+           ["/portal/attendance", "✅ Attendance", "attend"],
+           ["/portal/materials", "📁 Materials", "materials"]] },
+       { t: "Communication", items: [
+           ["/portal/announcements", "📢 Announcements", "announce"],
+           ["/portal/notices", "🔔 Notices", "notices"]] },
+       { t: "Account", items: [
+           ["/portal/profile", "👤 My Profile", "profile"],
+           ["/portal/documents", "📄 My Documents", "docs"]] }]
+    : [{ t: "Overview", items: [["/portal/dashboard", "📊 Dashboard", "dash"]] },
+       { t: "Academics", items: [
+           ["/portal/enrollments", "🎓 My Enrollments", "enroll"],
+           ["/portal/assignments", "📝 Assignments", "assign"],
+           ["/portal/quizzes", "🧪 Quizzes", "quizzes"],
+           ["/portal/marks", "📊 My Marks & Result", "marks"]] },
+       { t: "Class", items: [
+           ["/portal/timetable", "🗓️ Timetable", "timetable"],
+           ["/portal/attendance", "✅ Attendance", "attend"],
+           ["/portal/materials", "📁 Materials", "materials"]] },
+       { t: "Records", items: [
+           ["/portal/documents", "📄 My Documents", "docs"],
+           ["/portal/fees", "💰 Fees & Payments", "fees"]] },
+       { t: "Communication", items: [
+           ["/portal/announcements", "📢 Announcements", "announce"],
+           ["/portal/notices", "🔔 Notices", "notices"]] },
+       { t: "Account", items: [["/portal/profile", "👤 My Profile", "profile"]] }];
+  const nav = groups.map((g) =>
+    `<div class="grp">${g.t}</div>` +
+    g.items.map(([href, label, key]) => `<a href="${href}" class="${active === key ? "on" : ""}">${label}</a>`).join("")
+  ).join("");
   const pending = user.status !== "active"
     ? `<div class="note" style="margin:14px 0 0"><h4>⏳ Account ${esc(user.status)}</h4><p>${user.role === "teacher" ? "Your teacher application is waiting for admin approval. You can complete your profile meanwhile." : "Your account is " + esc(user.status) + "."}</p></div>`
     : "";
@@ -587,7 +732,6 @@ function shell(user, active, title, sub, body, extraNav = "") {
 <body><div class="shell">
   <aside class="side">
     <div class="brand">Cyber<b>Nexa</b> Portal</div>
-    <a href="/portal/dashboard" class="${active === "dash" ? "on" : ""}">📊 Dashboard</a>
     ${nav}
     ${extraNav}
     <a href="/" target="_blank">🌐 View Website</a>
@@ -1007,6 +1151,43 @@ function mount(app, context) {
     ))[0];
     const pendingCount = asg.filter((a) => !a.sub_status).length;
     const gradedCount = asg.filter((a) => a.sub_status === "graded").length;
+    // attendance snapshot
+    const [[att]] = await q(
+      `SELECT COUNT(*) AS total, COALESCE(SUM(a.status IN ('present','late')),0) AS attended
+       FROM attendance a JOIN attendance_sessions s ON s.id = a.session_id
+       WHERE a.student_id = ? AND a.status <> 'excused'`,
+      [u.id]
+    );
+    const attPct = Number(att.total) > 0 ? Math.round((Number(att.attended) / Number(att.total)) * 100) : null;
+    // quizzes available / pending
+    const qz = (await q(
+      `SELECT z.id, z.title, z.course_title, z.duration_minutes, z.status,
+              a.status AS at_status, a.score, a.total
+       FROM quizzes z
+       LEFT JOIN quiz_attempts a ON a.quiz_id = z.id AND a.student_id = ?
+       WHERE z.status = 'published' AND z.course_title IN (
+         SELECT course_title FROM enrollments WHERE user_id = ? AND status <> 'rejected' AND course_title <> ''
+       )
+       ORDER BY (a.status = 'submitted'), z.created_at DESC LIMIT 20`,
+      [u.id, u.id]
+    ))[0];
+    const quizPending = qz.filter((z) => z.at_status !== "submitted").length;
+    // latest announcements
+    const announcements = (await q(
+      `SELECT n.*, t.full_name AS teacher FROM announcements n LEFT JOIN users t ON t.id = n.teacher_id
+       WHERE n.course_title IN (
+         SELECT course_title FROM enrollments WHERE user_id = ? AND status <> 'rejected' AND course_title <> ''
+       ) ORDER BY n.pinned DESC, n.created_at DESC LIMIT 3`,
+      [u.id]
+    ))[0];
+    // today's classes
+    const dayNum = ((new Date().getDay() + 6) % 7) + 1; // Mon=1 .. Sun=7
+    const todaySlots = (await q(
+      `SELECT * FROM timetable WHERE day_of_week = ? AND course_title IN (
+         SELECT course_title FROM enrollments WHERE user_id = ? AND status <> 'rejected' AND course_title <> ''
+       ) ORDER BY start_time LIMIT 10`,
+      [dayNum, u.id]
+    ))[0];
     const asgRows = asg.slice(0, 5).map((a) => `
       <tr><td><strong>${esc(a.title)}</strong><div class="muted" style="font-size:.78rem">${esc(a.course_title)}</div></td>
       <td class="muted">${esc(a.due_date || "—")}</td>
@@ -1022,7 +1203,9 @@ function mount(app, context) {
       `${welcome}
       <div class="cards">
         <div class="stat"><b>${enrollments.length}</b><span>Enrollments</span></div>
+        <div class="stat"><b>${attPct === null ? "—" : attPct + "%"}</b><span>Attendance</span></div>
         <div class="stat"><b>${pendingCount}</b><span>Pending tasks</span></div>
+        <div class="stat"><b>${quizPending}</b><span>Quizzes to attempt</span></div>
         <div class="stat"><b>${gradedCount}</b><span>Graded</span></div>
         <div class="stat"><b>PKR ${due.toLocaleString("en-PK")}</b><span>Fee due</span></div>
       </div>
@@ -1031,6 +1214,31 @@ function mount(app, context) {
         ${asg.length ? `<table><tr><th>Assignment</th><th>Due</th><th>Status</th><th></th></tr>${asgRows}</table>
           <p class="mt"><a class="btn ghost sm" href="/portal/assignments">View all assignments</a></p>`
         : `<p class="muted">No assignments yet. They will appear here once your teacher posts them.</p>`}
+      </div>
+      <div class="panel">
+        <h2>🗓️ Today's classes</h2>
+        ${todaySlots.length
+          ? `<table><tr><th>Time</th><th>Course</th><th>Room</th></tr>${todaySlots.map((s) => `<tr>
+              <td class="muted">${esc(String(s.start_time).slice(0, 5))} – ${esc(String(s.end_time).slice(0, 5))}</td>
+              <td><strong>${esc(s.course_title)}</strong></td><td class="muted">${esc(s.room) || "—"}</td></tr>`).join("")}</table>
+             <p class="mt"><a class="btn ghost sm" href="/portal/timetable">Full timetable</a></p>`
+          : `<p class="muted">No classes scheduled for today. <a href="/portal/timetable">View your timetable</a></p>`}
+      </div>
+      <div class="panel">
+        <h2>🧪 Quizzes</h2>
+        ${qz.length
+          ? `<table><tr><th>Quiz</th><th>Duration</th><th>Status</th><th>Score</th><th></th></tr>${qz.slice(0, 5).map((z) => {
+              const done = z.at_status === "submitted";
+              return `<tr>
+                <td><strong>${esc(z.title)}</strong><div class="muted" style="font-size:.78rem">${esc(z.course_title)}</div></td>
+                <td class="muted">${Number(z.duration_minutes)} min</td>
+                <td>${done ? `<span class="badge b-graded">completed</span>` : `<span class="badge b-pending">to attempt</span>`}</td>
+                <td>${done ? `<strong>${esc(z.score)}</strong> / ${esc(z.total)}` : `<span class="muted">—</span>`}</td>
+                <td><a class="btn ${done ? "ghost" : "primary"} sm" href="/portal/quizzes/${done ? "result" : "take"}?id=${esc(z.id)}">${done ? "Result" : "Attempt"}</a></td>
+              </tr>`;
+            }).join("")}</table>
+             <p class="mt"><a class="btn ghost sm" href="/portal/quizzes">All quizzes</a></p>`
+          : `<p class="muted">No quizzes available right now.</p>`}
       </div>
       <div class="panel">
         <h2>Profile completeness — ${comp.pct}%</h2>
@@ -1044,10 +1252,15 @@ function mount(app, context) {
         ${rows || `<tr><td colspan="5" class="empty">No enrollments yet. <a href="/courses">Browse courses</a></td></tr>`}</table>
         ${enrollments.length ? `<p class="mt"><a class="btn ghost sm" href="/portal/enrollments">View all</a></p>` : ""}
       </div>
+      ${announcements.length ? `<div class="panel"><h2>📢 Announcements</h2>${announcements.map((n) => `<div class="note"><h4>${esc(n.title)} <span class="pill">${esc(n.course_title)}</span></h4><p>${esc(n.body || "")}</p><p class="muted" style="font-size:.76rem;margin-top:4px">${esc(n.created_at)} · ${esc(n.teacher || "Teacher")}</p></div>`).join("")}
+        <p class="mt"><a class="btn ghost sm" href="/portal/announcements">All announcements</a></p></div>` : ""}
       ${notices.length ? `<div class="panel"><h2>🔔 Notices</h2>${notices.slice(0, 3).map(noteHtml).join("")}</div>` : ""}
       <div class="panel"><h2>Quick actions</h2><div class="row">
         <a class="btn primary sm" href="/courses">🎓 Enroll in a course</a>
-        <a class="btn ghost sm" href="/portal/documents">📄 Upload documents</a>
+        <a class="btn ghost sm" href="/portal/assignments">📝 Assignments</a>
+        <a class="btn ghost sm" href="/portal/timetable">🗓️ Timetable</a>
+        <a class="btn ghost sm" href="/portal/materials">📁 Materials</a>
+        <a class="btn ghost sm" href="/portal/transcript">🖨️ Result card</a>
         <a class="btn ghost sm" href="/portal/fees">💰 Fee details</a>
       </div></div>`));
   }
@@ -1070,6 +1283,21 @@ function mount(app, context) {
        FROM assignments a WHERE a.teacher_id = ? ORDER BY a.created_at DESC LIMIT 5`,
       [u.id]
     ))[0];
+    const [[qzStat]] = await q("SELECT COUNT(*) AS total FROM quizzes WHERE teacher_id = ?", [u.id]);
+    const [[matStat]] = await q("SELECT COUNT(*) AS total FROM materials WHERE teacher_id = ?", [u.id]);
+    const [[attStat]] = await q(
+      `SELECT COUNT(*) AS sessions,
+              (SELECT COUNT(*) FROM attendance_sessions s WHERE s.teacher_id = ? AND s.session_date >= DATE_SUB(CURDATE(), INTERVAL 7 DAY)) AS week
+       FROM attendance_sessions WHERE teacher_id = ?`,
+      [u.id, u.id]
+    );
+    const dayNum = ((new Date().getDay() + 6) % 7) + 1;
+    const todaySlots = (await q(
+      `SELECT * FROM timetable WHERE day_of_week = ? AND course_title IN (
+         SELECT course_title FROM teacher_courses WHERE teacher_id = ?
+       ) ORDER BY start_time LIMIT 10`,
+      [dayNum, u.id]
+    ))[0];
     const asgRows = recentAsg.map((a) => `<tr>
       <td><strong>${esc(a.title)}</strong><div class="muted" style="font-size:.78rem">${esc(a.course_title)}</div></td>
       <td class="muted">${esc(a.due_date || "—")}</td>
@@ -1087,6 +1315,8 @@ function mount(app, context) {
         <div class="stat"><b>${mine.length}</b><span>Assigned courses</span></div>
         <div class="stat"><b>${Number(asgStat.total || 0)}</b><span>Assignments</span></div>
         <div class="stat"><b>${Number(asgStat.tograde || 0)}</b><span>To grade</span></div>
+        <div class="stat"><b>${Number(qzStat.total || 0)}</b><span>Quizzes</span></div>
+        <div class="stat"><b>${Number(matStat.total || 0)}</b><span>Materials</span></div>
       </div>
       <div class="panel">
         <h2>📝 Recent assignments</h2>
@@ -1099,6 +1329,22 @@ function mount(app, context) {
           ? `<table><tr><th>Course</th><th>Assigned</th></tr>${rows}</table>`
           : `<p class="muted">No courses assigned yet. The academy will assign courses after approval.</p>`}
       </div>
+      <div class="panel"><h2>🗓️ Today's classes</h2>
+        ${todaySlots.length
+          ? `<table><tr><th>Time</th><th>Course</th><th>Room</th><th></th></tr>${todaySlots.map((s) => `<tr>
+              <td class="muted">${esc(String(s.start_time).slice(0, 5))} – ${esc(String(s.end_time).slice(0, 5))}</td>
+              <td><strong>${esc(s.course_title)}</strong></td><td class="muted">${esc(s.room) || "—"}</td>
+              <td><a class="btn ghost sm" href="/portal/attendance?course=${encodeURIComponent(s.course_title)}">Take attendance</a></td></tr>`).join("")}</table>`
+          : `<p class="muted">No classes scheduled for today. <a href="/portal/timetable">Manage timetable</a></p>`}
+      </div>
+      <div class="panel"><h2>Quick actions</h2><div class="row">
+        <a class="btn primary sm" href="/portal/assignments/new">📝 New assignment</a>
+        <a class="btn ghost sm" href="/portal/quizzes/new">🧪 New quiz</a>
+        <a class="btn ghost sm" href="/portal/materials">📁 Share material</a>
+        <a class="btn ghost sm" href="/portal/attendance">✅ Attendance</a>
+        <a class="btn ghost sm" href="/portal/announcements">📢 Announcement</a>
+        <a class="btn ghost sm" href="/portal/timetable">🗓️ Timetable</a>
+      </div></div>
       ${notices.length ? `<div class="panel"><h2>🔔 Notices</h2>${notices.slice(0, 5).map(noteHtml).join("")}</div>` : ""}`));
   }
 
@@ -1264,9 +1510,10 @@ function mount(app, context) {
           <div><div class="muted" style="font-size:.78rem">Paid</div><strong>PKR ${paid.toLocaleString("en-PK")}</strong></div>
           <div><div class="muted" style="font-size:.78rem">Balance</div><strong>PKR ${Math.max(0, total - paid).toLocaleString("en-PK")}</strong></div>
         </div>
-        ${payments.length ? `<table class="mt"><tr><th>Date</th><th>Amount</th><th>Method</th><th>Note</th></tr>
-          ${payments.map((p) => `<tr><td>${esc(p.paid_at)}</td><td>PKR ${Number(p.amount).toLocaleString("en-PK")}</td><td>${esc(p.method)}</td><td class="muted">${esc(p.note)}</td></tr>`).join("")}</table>` : `<p class="muted mt">No payments recorded yet.</p>`}
+        ${payments.length ? `<table class="mt"><tr><th>Date</th><th>Amount</th><th>Method</th><th>Note</th><th></th></tr>
+          ${payments.map((p) => `<tr><td>${esc(p.paid_at)}</td><td>PKR ${Number(p.amount).toLocaleString("en-PK")}</td><td>${esc(p.method)}</td><td class="muted">${esc(p.note)}</td><td><a class="btn ghost sm" href="/portal/fees/receipt/${esc(p.id)}" target="_blank">🧾 Receipt</a></td></tr>`).join("")}</table>` : `<p class="muted mt">No payments recorded yet.</p>`}
         <div class="row mt">
+          <a class="btn ghost sm" href="/portal/fees/statement/${esc(en.id)}" target="_blank">🖨️ Print statement</a>
           ${receipt ? `<a class="btn ghost sm" href="/portal/file/${esc(receipt.id)}" target="_blank">🧾 Download receipt</a>` : ""}
           ${cert ? `<a class="btn ok sm" href="/portal/file/${esc(cert.id)}" target="_blank">🏅 Download certificate</a>` : ""}
         </div>
