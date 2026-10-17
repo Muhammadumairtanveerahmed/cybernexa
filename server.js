@@ -959,7 +959,7 @@ app.get("/admin", async (req, res) => {
         <tr><th>Name</th><th>Email</th><th>Message</th><th>Date</th><th>Status</th></tr>
         ${recentRows}
       </table>
-      <p style="margin-top:16px"><a href="/admin/messages" style="font-weight:600">View all messages →</a></p>
+      <p style="margin-top:16px"><a href="/admin/messages" style="font-weight:600">View all messages</a></p>
     </div>`
     )
   );
@@ -1027,7 +1027,7 @@ app.get("/admin/messages", async (req, res) => {
         <h1>📬 Messages</h1>
         <p class="sub">${messages.length} total · ${unread} unread</p>
       </div>
-      <a href="/admin" class="btn b-read">← Dashboard</a>
+      <a href="/admin" class="btn b-read">Dashboard</a>
     </div>
     <div class="panel">
       <table>
@@ -1126,7 +1126,7 @@ app.get("/admin/courses", async (req, res) => {
         <h1>🎓 Courses</h1>
         <p class="sub">${total} total · ${activeN} active · ${featuredN} featured · ${cats} categories · Storage: ${storageMode}</p>
       </div>
-      <a href="/admin" class="btn b-read">← Dashboard</a>
+      <a href="/admin" class="btn b-read">Dashboard</a>
     </div>
     ${msg}
     <div class="panel">
@@ -1185,7 +1185,7 @@ app.get("/admin/courses/edit", async (req, res) => {
       `
     <div class="head-row">
       <div><h1>✏️ Edit Course</h1><p class="sub">${esc(c.title)} · ${esc(c.category)}</p></div>
-      <a href="/admin/courses" class="btn b-read">← All Courses</a>
+      <a href="/admin/courses" class="btn b-read">All Courses</a>
     </div>
     <div class="panel">${courseForm(c, false)}</div>`
     )

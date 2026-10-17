@@ -217,7 +217,7 @@ module.exports = function mountAcademics(app) {
          ${list.length ? `<table><tr><th>Assignment</th><th>Due</th><th>Status</th><th>Marks</th><th></th></tr>${rows}</table>`
            : (courses.length
                ? `<p class="muted">No assignments posted for your courses yet.</p>`
-               : `<p class="muted">You are not enrolled in any course yet. <a href="/courses">Browse courses →</a></p>`)}
+               : `<p class="muted">You are not enrolled in any course yet. <a href="/courses">Browse courses</a></p>`)}
        </div>`));
   }
 
@@ -349,7 +349,7 @@ module.exports = function mountAcademics(app) {
            <tr><th>Brief</th><td>${doc ? `<a class="btn ghost sm" href="/portal/assignment-file/${esc(doc.id)}" target="_blank">📎 ${esc(doc.originalname || "Download")}</a>` : `<span class="muted">No file attached</span>`}</td></tr>
            <tr><th>Instructions</th><td style="white-space:pre-wrap">${esc(a.description || "—")}</td></tr>
          </table>
-         <p class="mt"><a class="btn ghost sm" href="/portal/assignments">← All assignments</a>
+         <p class="mt"><a class="btn ghost sm" href="/portal/assignments">All assignments</a>
            <a class="btn danger sm" href="/portal/assignments/delete?id=${esc(a.id)}" onclick="return confirm('Delete this assignment?')">Delete</a></p>
        </div>
        <div class="panel">
@@ -409,7 +409,7 @@ module.exports = function mountAcademics(app) {
            <tr><th>Assignment brief</th><td>${doc ? `<a class="btn ghost sm" href="/portal/assignment-file/${esc(doc.id)}" target="_blank">⬇ ${esc(doc.originalname || "Download brief")}</a>` : `<span class="muted">No file attached</span>`}</td></tr>
            <tr><th>Instructions</th><td style="white-space:pre-wrap">${esc(a.description || "—")}</td></tr>
          </table>
-         <p class="mt"><a class="btn ghost sm" href="/portal/assignments">← All assignments</a></p>
+         <p class="mt"><a class="btn ghost sm" href="/portal/assignments">All assignments</a></p>
        </div>
        ${resultCard}
        ${submitPanel}`));

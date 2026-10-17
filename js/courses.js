@@ -59,7 +59,7 @@
         '<div class="course-meta">' + metaChips + "</div>" +
         '<button type="button" class="enroll-btn" data-course-cat="' + esc(c.category) + '" data-course-title="' + esc(c.title) +
         '" data-course-desc="' + esc(c.description || "") + '" data-course-meta="' + esc(c.meta || "") +
-        '" data-course-price="' + esc(c.price || "PKR 20,000") + '">Enroll Now \u2192</button>' +
+        '" data-course-price="' + esc(c.price || "PKR 20,000") + '">Enroll Now</button>' +
       "</div>"
     );
   }

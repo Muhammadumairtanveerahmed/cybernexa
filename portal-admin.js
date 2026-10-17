@@ -107,7 +107,7 @@ module.exports = function mountAdmin(app) {
         `${okMsg}${errMsg}
       <div class="head-row"><div><h1>👤 ${esc(u.full_name)}</h1>
         <p class="sub">${esc(u.email)} · joined ${esc(u.created_at)} · last login ${esc(u.last_login || "-")}</p></div>
-        <a class="btn b-read" href="/admin/students">← All students</a></div>
+        <a class="btn b-read" href="/admin/students">All students</a></div>
 
       <div class="panel"><h2>Account</h2>
         <table>
@@ -207,7 +207,7 @@ module.exports = function mountAdmin(app) {
         `${okMsg}
       <div class="head-row"><div><h1>👨‍🏫 ${esc(t.full_name)}</h1>
         <p class="sub">${esc(t.email)} · applied ${esc(p.applied_at || t.created_at)}</p></div>
-        <a class="btn b-read" href="/admin/teachers">← All teachers</a></div>
+        <a class="btn b-read" href="/admin/teachers">All teachers</a></div>
 
       <div class="panel"><h2>Application</h2>
         <table>
@@ -345,7 +345,7 @@ module.exports = function mountAdmin(app) {
         `${okMsg}
       <div class="head-row"><div><h1>🎓 ${esc(e.course_title)}</h1>
         <p class="sub">${esc(e.enrollment_type)} · ${esc(e.price)} · ${esc(e.created_at)}</p></div>
-        <a class="btn b-read" href="/admin/enrollments">← All enrollments</a></div>
+        <a class="btn b-read" href="/admin/enrollments">All enrollments</a></div>
 
       <div class="panel"><h2>Status &amp; payment</h2>
         <div class="row">
@@ -485,7 +485,7 @@ module.exports = function mountAdmin(app) {
         `${link}
       <div class="head-row"><div><h1>🔐 Password reset requests</h1>
         <p class="sub">${rows.length} open request(s). Send the link to the student, or set a password directly from their profile.</p></div>
-        <a class="btn b-read" href="/admin">← Dashboard</a></div>
+        <a class="btn b-read" href="/admin">Dashboard</a></div>
       <div class="panel"><table>
         <tr><th>User</th><th>Requested</th><th>Expires</th><th>Action</th></tr>
         ${body || `<tr><td colspan="4" class="empty">No open requests.</td></tr>`}
@@ -521,7 +521,7 @@ module.exports = function mountAdmin(app) {
         "notices",
         `${okMsg}
       <div class="head-row"><div><h1>🔔 Notices</h1><p class="sub">Announcements shown in the student & teacher portals.</p></div>
-      <a class="btn b-read" href="/admin">← Dashboard</a></div>
+      <a class="btn b-read" href="/admin">Dashboard</a></div>
       <div class="panel"><h2>➕ Post a notice</h2>
         <form method="post" action="/admin/notices">
           <div class="form-grid">
@@ -576,7 +576,7 @@ module.exports = function mountAdmin(app) {
         "assignments",
         `<div class="head-row"><div><h1>📝 Assignments</h1>
         <p class="sub">${rows.length} assignment(s) posted by teachers.</p></div>
-        <a class="btn b-read" href="/admin">← Dashboard</a></div>
+        <a class="btn b-read" href="/admin">Dashboard</a></div>
         <div class="panel"><table>
         <tr><th>Assignment</th><th>Teacher</th><th>Due</th><th>Submissions</th><th>Status</th><th></th></tr>
         ${body || `<tr><td colspan="6" class="empty">No assignments posted yet.</td></tr>`}
@@ -614,7 +614,7 @@ module.exports = function mountAdmin(app) {
         "assignments",
         `<div class="head-row"><div><h1>📝 ${esc(a.title)}</h1>
         <p class="sub">${esc(a.course_title)} · teacher ${esc((teacher && teacher.full_name) || "-")} · posted ${esc(a.created_at)}</p></div>
-        <a class="btn b-read" href="/admin/assignments">← All assignments</a></div>
+        <a class="btn b-read" href="/admin/assignments">All assignments</a></div>
         <div class="panel"><h2>Details</h2>
           <table>
             <tr><th>Course</th><td>${esc(a.course_title)}</td></tr>

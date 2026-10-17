@@ -1029,7 +1029,7 @@ function mount(app, context) {
       <div class="panel">
         <h2>📝 Assignments &amp; tasks</h2>
         ${asg.length ? `<table><tr><th>Assignment</th><th>Due</th><th>Status</th><th></th></tr>${asgRows}</table>
-          <p class="mt"><a class="btn ghost sm" href="/portal/assignments">View all assignments →</a></p>`
+          <p class="mt"><a class="btn ghost sm" href="/portal/assignments">View all assignments</a></p>`
         : `<p class="muted">No assignments yet. They will appear here once your teacher posts them.</p>`}
       </div>
       <div class="panel">
@@ -1041,8 +1041,8 @@ function mount(app, context) {
       <div class="panel">
         <h2>Recent enrollments</h2>
         <table><tr><th>Course</th><th>Fee</th><th>Status</th><th>Payment</th><th>Date</th></tr>
-        ${rows || `<tr><td colspan="5" class="empty">No enrollments yet. <a href="/courses">Browse courses →</a></td></tr>`}</table>
-        ${enrollments.length ? `<p class="mt"><a class="btn ghost sm" href="/portal/enrollments">View all →</a></p>` : ""}
+        ${rows || `<tr><td colspan="5" class="empty">No enrollments yet. <a href="/courses">Browse courses</a></td></tr>`}</table>
+        ${enrollments.length ? `<p class="mt"><a class="btn ghost sm" href="/portal/enrollments">View all</a></p>` : ""}
       </div>
       ${notices.length ? `<div class="panel"><h2>🔔 Notices</h2>${notices.slice(0, 3).map(noteHtml).join("")}</div>` : ""}
       <div class="panel"><h2>Quick actions</h2><div class="row">
@@ -1092,7 +1092,7 @@ function mount(app, context) {
         <h2>📝 Recent assignments</h2>
         ${recentAsg.length ? `<table><tr><th>Assignment</th><th>Due</th><th>Submissions</th><th></th></tr>${asgRows}</table>` : `<p class="muted">No assignments posted yet.</p>`}
         <p class="mt"><a class="btn primary sm" href="/portal/assignments/new">➕ Create assignment</a>
-          <a class="btn ghost sm" href="/portal/assignments">Manage all →</a></p>
+          <a class="btn ghost sm" href="/portal/assignments">Manage all</a></p>
       </div>
       <div class="panel"><h2>My courses</h2>
         ${rows
@@ -1238,7 +1238,7 @@ function mount(app, context) {
         </div>`);
     }
     res.send(shell(req.user, "enroll", "My Enrollments", "Track your courses, documents and status.",
-      rows.join("") || `<div class="panel"><p class="empty">No enrollments yet. <a href="/courses">Browse courses →</a></p></div>`));
+      rows.join("") || `<div class="panel"><p class="empty">No enrollments yet. <a href="/courses">Browse courses</a></p></div>`));
   });
 
   function docLink(d, base) {

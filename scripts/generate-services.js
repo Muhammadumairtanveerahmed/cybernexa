@@ -190,7 +190,7 @@ function page(s) {
         <a href="../">Home</a>
 
         <div class="dropdown open">
-          <button class="drop-btn" type="button">Services <span class="caret">▾</span></button>
+          <button class="drop-btn" type="button">Services </button>
           <div class="dropdown-menu">
             <a href="/services/managed-it-operations">Managed IT Operations</a>
             <a href="/services/cloud-infrastructure">Cloud &amp; Infrastructure</a>
@@ -202,7 +202,7 @@ function page(s) {
         </div>
 
         <div class="dropdown">
-          <button class="drop-btn" type="button">Industries <span class="caret">▾</span></button>
+          <button class="drop-btn" type="button">Industries </button>
           <div class="dropdown-menu">
             <a href="/industries#health">Health Care</a>
             <a href="/industries#finance">Finance</a>
@@ -212,9 +212,9 @@ function page(s) {
           </div>
         </div>
 
-        <div class="dropdown">           <button class="drop-btn" type="button">Courses <span class="caret">▾</span></button>           <div class="dropdown-menu">             <a href="/courses#cybersecurity">Cybersecurity</a>             <a href="/courses#networking">Networking</a>             <a href="/courses#devops">DevOps</a>             <a href="/courses#linux">Linux &amp; Unix</a>             <a href="/courses#cloud">Cloud Computing</a>             <a href="/courses#sysadmin">System Administration</a>             <a href="/courses#marketing">Digital Marketing</a>             <a href="/courses#programming">Programming</a>             <a href="/courses#designing">Designing</a>             <a href="/courses"><strong>All Courses →</strong></a>           </div>         </div> 
+        <div class="dropdown">           <button class="drop-btn" type="button">Courses </button>           <div class="dropdown-menu">             <a href="/courses#cybersecurity">Cybersecurity</a>             <a href="/courses#networking">Networking</a>             <a href="/courses#devops">DevOps</a>             <a href="/courses#linux">Linux &amp; Unix</a>             <a href="/courses#cloud">Cloud Computing</a>             <a href="/courses#sysadmin">System Administration</a>             <a href="/courses#marketing">Digital Marketing</a>             <a href="/courses#programming">Programming</a>             <a href="/courses#designing">Designing</a>             <a href="/courses"><strong>All Courses</strong></a>           </div>         </div> 
         <div class="dropdown">
-          <button class="drop-btn" type="button">Company <span class="caret">▾</span></button>
+          <button class="drop-btn" type="button">Company </button>
           <div class="dropdown-menu">
             <a href="/about">About Us</a>
             <a href="/#training">Training</a>
