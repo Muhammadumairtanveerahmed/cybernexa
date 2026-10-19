@@ -88,7 +88,7 @@ const DB_CFG = {
   dateStrings: true, // return "YYYY-MM-DD HH:MM:SS" strings for DATETIME
 };
 
-let pool = null; // null → JSON file mode
+let pool = null; // null means JSON file mode
 let storageMode = "JSON file";
 
 async function initDb() {
@@ -345,7 +345,7 @@ function esc(str) {
 // ---------- Validation helpers ----------
 const EMAIL_RE = /^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9-]+(\.[a-zA-Z0-9-]+)*\.[a-zA-Z]{2,}$/;
 
-// Common email typos → suggested fix
+// Common email typos and their suggested fix
 const EMAIL_TYPOS = {
   "gmial.com": "gmail.com", "gmai.com": "gmail.com", "gamil.com": "gmail.com",
   "gmail.co": "gmail.com", "gmail.con": "gmail.com", "gmailo.com": "gmail.com",
@@ -366,7 +366,7 @@ function isValidEmail(v) {
   return v.length <= 100 && EMAIL_RE.test(v) && !v.includes("..") && !v.includes(".@") && !v.includes("@.");
 }
 
-// Extra email check: typo or disposable address → helpful message, otherwise ""
+// Extra email check: typo or disposable address gives a helpful message, otherwise ""
 function emailIssue(v) {
   const domain = String(v || "").trim().toLowerCase().split("@")[1] || "";
   if (EMAIL_TYPOS[domain]) return "This looks like a typo — did you mean " + EMAIL_TYPOS[domain] + "?";
@@ -625,7 +625,7 @@ app.post(
 
   // 1) Always save the request (admin dashboard)
   const attachMeta = buildAttachmentsMeta(files);
-  const msgBody = `Enrollment request — ${courseName} (${coursePrice})\nEnrollment Type: ${enrollType}\nAttachments: ${attachMeta.length}\n${attachMeta.map((a) => "- " + a.originalname + " → " + a.filename).join("\n")}`;
+  const msgBody = `Enrollment request — ${courseName} (${coursePrice})\nEnrollment Type: ${enrollType}\nAttachments: ${attachMeta.length}\n${attachMeta.map((a) => "- " + a.originalname + " :: " + a.filename).join("\n")}`;
 
   try {
     await addMessage({
@@ -971,7 +971,7 @@ app.get("/admin", async (req, res) => {
 // ---------- Admin: All messages ----------
 function attachmentsCell(m) {
   const txt = String(m.message || "");
-  const re = /-\s*(.+?)\s*→\s*(enroll_[^\s]+?\.(?:jpg|jpeg|png|pdf|webp|heic|heif))/gi;
+  const re = /-\s*(.+?)\s*::\s*(enroll_[^\s]+?\.(?:jpg|jpeg|png|pdf|webp|heic|heif))/gi;
   const links = [];
   let mm;
   while ((mm = re.exec(txt)) !== null) {

@@ -71,7 +71,7 @@ pipeline {
 
   post {
     success {
-      echo '✅ CyberNexa deployed successfully to k3s'
+      echo 'CyberNexa deployed successfully to k3s'
     }
     failure {
       echo '❌ Deploy FAILED — check the stage logs above'

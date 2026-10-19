@@ -2,10 +2,10 @@
  * CyberNexa Solutions — Portal: Academics (Assignments, Submissions, Marks)
  * ------------------------------------------------------------------------
  * A university-style coursework module on top of the student/teacher portal:
- *   • Teacher  → create assignments (with a brief/attachment) per course,
+ *   • Teacher: create assignments (with a brief/attachment) per course,
  *                see every enrolled student, download submissions and award
  *                marks + feedback.
- *   • Student  → see assignments for enrolled courses, download the brief,
+ *   • Student: see assignments for enrolled courses, download the brief,
  *                upload their work and view marks / result card.
  *
  * Mounted from server.js AFTER portal.mount() so it can reuse the shared
@@ -53,7 +53,7 @@ function gpaPoint(pct) {
   if (pct >= 40) return 1.0;
   return 0.0;
 }
-// datetime-local ("2026-10-20T15:30") → MySQL DATETIME string or null
+// datetime-local ("2026-10-20T15:30") becomes MySQL DATETIME string or null
 function parseDue(v) {
   const s = String(v || "").trim().replace("T", " ");
   if (!/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}(:\d{2})?)?$/.test(s)) return null;

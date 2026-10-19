@@ -1,6 +1,6 @@
 /* One-time migration: swap static course markup for dynamic containers.
-   - courses.html: remove the 9 hardcoded cat-blocks → <div id="courseCatalog">
-   - index.html:  remove the 8 hardcoded featured cards → <div id="featuredCourses">
+   - courses.html: remove the 9 hardcoded cat-blocks with <div id="courseCatalog">
+   - index.html:  remove the 8 hardcoded featured cards with <div id="featuredCourses">
    Handles CRLF or LF line endings. Safe to re-run (skips already-done work).
    Run: node scripts/make-dynamic.js */
 const fs = require("fs");

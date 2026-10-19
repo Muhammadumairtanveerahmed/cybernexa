@@ -1499,6 +1499,7 @@ a:focus-visible, button:focus-visible, .btn:focus-visible {
 }
 .float-btn.to-top.show { opacity: 1; pointer-events: auto; }
 .float-btn.to-top:hover { box-shadow: 0 20px 44px -14px var(--glow); }
+.float-btn.to-top .to-top-txt { font-size: 0.72rem; font-weight: 800; letter-spacing: 0.06em; }
 .float-btn.pulse-anim { animation: waPulse 2.6s ease-in-out infinite; }
 @keyframes waPulse {
   0%, 100% { box-shadow: 0 14px 34px -12px rgba(37, 211, 102, 0.6), 0 0 0 0 rgba(37, 211, 102, 0.5); }

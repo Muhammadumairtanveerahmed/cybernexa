@@ -62,6 +62,6 @@ fs.mkdirSync(path.dirname(outFile), { recursive: true });
 fs.writeFileSync(outFile, JSON.stringify(courses, null, 2), "utf-8");
 
 const featured = courses.filter((c) => c.featured).map((c) => c.title);
-console.log(`Seeded ${courses.length} courses → data/courses.json`);
+console.log(`Seeded ${courses.length} courses to data/courses.json`);
 console.log(`Featured (${featured.length}):`);
-featured.forEach((t) => console.log("  ⭐ " + t));
+featured.forEach((t) => console.log("  " + t));
