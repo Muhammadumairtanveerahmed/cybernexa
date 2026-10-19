@@ -134,6 +134,7 @@ function printPage(title, backHref, body) {
 <meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
   :root{--ink:#0f172a;--mut:#64748b;--line:#e2e8f0;--p:#2563eb;--p2:#1d4ed8;}
   *{box-sizing:border-box;margin:0;padding:0}
@@ -210,8 +211,8 @@ module.exports = function mountCampus(app) {
     const all = await allCourseTitles();
     const course = String(req.query.course || "").trim();
     const date = (String(req.query.date || "").slice(0, 10)) || today();
-    const ok = req.query.ok ? `<div class="ok">✅ ${esc(req.query.ok)}</div>` : "";
-    const err = req.query.e ? `<div class="err">⚠️ ${esc(req.query.e)}</div>` : "";
+    const ok = req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : "";
+    const err = req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : "";
 
     let marking = "";
     if (course) {
@@ -229,7 +230,7 @@ module.exports = function mountCampus(app) {
       </tr>`).join("");
       marking = `<div class="panel">
         <div class="row" style="justify-content:space-between">
-          <h2 style="margin:0">🧑‍🏫 ${esc(course)} — ${esc(date)}</h2>
+          <h2 style="margin:0"><i class="fa-solid fa-chalkboard-user"></i> ${esc(course)} — ${esc(date)}</h2>
           <span class="pill">${list.length} student(s)</span>
         </div>
         <form method="post" action="/portal/attendance/save">
@@ -240,7 +241,7 @@ module.exports = function mountCampus(app) {
           ${list.length ? `<table class="mt"><tr><th>Student</th><th>Status</th></tr>${rows}</table>`
             : `<p class="muted mt">No students enrolled in this course yet.</p>`}
           <div class="row mt">
-            <button class="btn primary" type="submit">💾 Save attendance</button>
+            <button class="btn primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save attendance</button>
             <a class="btn ghost" href="/portal/attendance">Clear</a>
           </div>
         </form>
@@ -264,9 +265,9 @@ module.exports = function mountCampus(app) {
 
     res.send(core.shell(u, "attend", "Attendance", "Mark a class roster and review your past sessions.",
       `${ok}${err}
-       ${courses.length ? "" : `<div class="note"><h4>⚠️ No course assigned yet</h4><p>Ask the admin to assign you a course before taking attendance.</p></div>`}
+       ${courses.length ? "" : `<div class="note"><h4><i class="fa-solid fa-triangle-exclamation"></i> No course assigned yet</h4><p>Ask the admin to assign you a course before taking attendance.</p></div>`}
        <div class="panel">
-         <h2>📝 Take attendance</h2>
+         <h2><i class="fa-solid fa-pen-to-square"></i> Take attendance</h2>
          <form method="get" action="/portal/attendance">
            <div class="grid2">
              <div><label>Course *</label>${courseOptions(courses, course, all)}</div>
@@ -277,7 +278,7 @@ module.exports = function mountCampus(app) {
        </div>
        ${marking}
        <div class="panel">
-         <h2>🗓️ Recent sessions (${sessions.length})</h2>
+         <h2><i class="fa-solid fa-calendar-days"></i> Recent sessions (${sessions.length})</h2>
          ${sessions.length ? `<table><tr><th>Course</th><th>Date</th><th>Present</th><th></th></tr>${sRows}</table>`
            : `<p class="muted">No attendance taken yet.</p>`}
        </div>`));
@@ -388,7 +389,7 @@ module.exports = function mountCampus(app) {
           <div class="stat"><b>${overallCounted}</b><span>Classes held</span></div>
         </div>` : ""}
        ${cards || `<div class="panel"><p class="empty">You are not enrolled in any course yet. <a href="/courses">Browse courses</a></p></div>`}
-       ${recent.length ? `<div class="panel"><h2>🔎 Recent records</h2>
+       ${recent.length ? `<div class="panel"><h2><i class="fa-solid fa-magnifying-glass"></i> Recent records</h2>
          <table><tr><th>Date</th><th>Course</th><th>Topic</th><th>Status</th></tr>${rRows}</table></div>` : ""}`));
   }
 
@@ -418,13 +419,13 @@ module.exports = function mountCampus(app) {
             <span class="tm">${esc(hhmm(s.start_time))}<br><span class="muted">${esc(hhmm(s.end_time))}</span></span>
             <span style="flex:1"><strong>${esc(s.course_title)}</strong>
               ${s.room ? `<div class="muted" style="font-size:.75rem">Room ${esc(s.room)}</div>` : ""}</span>
-            ${isTeacher ? `<a class="btn danger sm" href="/portal/timetable/delete?id=${esc(s.id)}" onclick="return confirm('Remove this slot?')">✕</a>` : ""}
+            ${isTeacher ? `<a class="btn danger sm" href="/portal/timetable/delete?id=${esc(s.id)}" onclick="return confirm('Remove this slot?')"><i class="fa-solid fa-xmark"></i></a>` : ""}
           </div>`).join("") : `<p class="muted" style="font-size:.82rem">No classes</p>`}
       </div>`;
     }).join("");
 
     const addForm = isTeacher ? `<div class="panel">
-      <h2>➕ Add a class slot</h2>
+      <h2><i class="fa-solid fa-plus"></i> Add a class slot</h2>
       <form method="post" action="/portal/timetable/add">
         <label>Course *</label>${courseOptions(courses, "", all)}
         <div class="grid2">
@@ -440,9 +441,9 @@ module.exports = function mountCampus(app) {
     </div>` : "";
 
     res.send(core.shell(u, "timetable", "Class Timetable", "Your weekly class schedule.",
-      `${req.query.ok ? `<div class="ok">✅ ${esc(req.query.ok)}</div>` : ""}
-       ${req.query.e ? `<div class="err">⚠️ ${esc(req.query.e)}</div>` : ""}
-       <div class="panel"><h2>📅 Weekly schedule</h2>
+      `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
+       ${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
+       <div class="panel"><h2><i class="fa-solid fa-calendar-days"></i> Weekly schedule</h2>
          ${courses.length || slots.length ? `<div class="grid3 mt">${dayCols}</div>`
            : `<p class="muted">No courses yet, so there is no schedule to show.</p>`}
        </div>
@@ -491,9 +492,9 @@ module.exports = function mountCampus(app) {
     const byCourse = {};
     for (const m of list) (byCourse[m.course_title] = byCourse[m.course_title] || []).push(m);
     const blocks = Object.keys(byCourse).sort().map((c) => `<div class="panel">
-      <h2>📚 ${esc(c)} <span class="muted" style="font-size:.8rem">(${byCourse[c].length})</span></h2>
+      <h2><i class="fa-solid fa-book-open"></i> ${esc(c)} <span class="muted" style="font-size:.8rem">(${byCourse[c].length})</span></h2>
       ${byCourse[c].map((m) => `<div class="file">
-        <span>${m.doc_id ? "📎" : "🔗"}</span>
+        <span>${m.doc_id ? "<i class='fa-solid fa-paperclip'></i>" : "<i class='fa-solid fa-link'></i>"}</span>
         <span class="nm"><strong>${esc(m.title)}</strong>${m.description ? `<div class="muted" style="font-size:.76rem">${esc(m.description)}</div>` : ""}
           <div class="muted" style="font-size:.72rem">${esc(m.teacher || "")} · ${esc(niceDate(m.created_at))}</div></span>
         ${m.doc_id ? `<a class="btn ghost sm" href="/portal/material-file/${esc(m.doc_id)}" target="_blank">Download</a>`
@@ -503,7 +504,7 @@ module.exports = function mountCampus(app) {
     </div>`).join("");
 
     const uploadForm = isTeacher ? `<div class="panel">
-      <h2>⬆️ Share a resource</h2>
+      <h2><i class="fa-solid fa-upload"></i> Share a resource</h2>
       <form method="post" action="/portal/materials/new" enctype="multipart/form-data">
         <label>Course *</label>${courseOptions(courses, "", all)}
         <label>Title *</label><input name="title" required maxlength="200" placeholder="e.g. Lecture 04 — Routing protocols">
@@ -512,13 +513,13 @@ module.exports = function mountCampus(app) {
           <div><label>Upload a file (PDF, PPT, ZIP, image… max 10 MB)</label><input type="file" name="file"></div>
           <div><label>…or paste an external link</label><input name="external_url" type="url" placeholder="https://…"></div>
         </div>
-        <button class="btn primary mt" type="submit">📤 Publish resource</button>
+        <button class="btn primary mt" type="submit"><i class="fa-solid fa-upload"></i> Publish resource</button>
       </form>
     </div>` : "";
 
     res.send(core.shell(u, "materials", "Course Materials", "Lecture notes, slides and resources shared by your teachers.",
-      `${req.query.ok ? `<div class="ok">✅ ${esc(req.query.ok)}</div>` : ""}
-       ${req.query.e ? `<div class="err">⚠️ ${esc(req.query.e)}</div>` : ""}
+      `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
+       ${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
        ${total ? `<div class="cards"><div class="stat"><b>${total}</b><span>Resources</span></div><div class="stat"><b>${Object.keys(byCourse).length}</b><span>Courses</span></div></div>` : ""}
        ${uploadForm}
        ${blocks || `<div class="panel"><p class="empty">No course materials shared yet.</p></div>`}`));
@@ -550,7 +551,7 @@ module.exports = function mountCampus(app) {
       }
       await q("INSERT INTO materials (id, course_title, teacher_id, title, description, doc_id, external_url, created_at) VALUES (?,?,?,?,?,?,?,NOW())",
         [uid("mat_"), course, u.id, title, description, docId, url]);
-      await notifyStudents(course, "📚 New course material: " + title, `${description || ""}\n\nCourse: ${course}`.trim());
+      await notifyStudents(course, "New course material: " + title, `${description || ""}\n\nCourse: ${course}`.trim());
       res.redirect("/portal/materials?ok=" + encodeURIComponent("Resource published"));
     } catch (e) {
       res.redirect("/portal/materials?e=" + encodeURIComponent(e.message || "Could not save resource"));
@@ -608,19 +609,19 @@ module.exports = function mountCampus(app) {
     </div>`).join("");
 
     const postForm = isTeacher ? `<div class="panel">
-      <h2>📢 Post an announcement</h2>
+      <h2><i class="fa-solid fa-bullhorn"></i> Post an announcement</h2>
       <form method="post" action="/portal/announcements/new">
         <label>Course *</label>${courseOptions(courses, "", all)}
         <label>Title *</label><input name="title" required maxlength="200" placeholder="e.g. Quiz on Friday — chapter 3">
         <label>Message</label><textarea name="body" placeholder="Write your announcement…"></textarea>
         <label style="display:flex;align-items:center;gap:8px;color:var(--txt)"><input type="checkbox" name="pinned" value="1" style="width:auto"> Pin to top</label>
-        <button class="btn primary mt" type="submit">📢 Publish</button>
+        <button class="btn primary mt" type="submit"><i class="fa-solid fa-bullhorn"></i> Publish</button>
       </form>
     </div>` : "";
 
     res.send(core.shell(u, "announce", "Announcements", "Course notices and updates from your teachers.",
-      `${req.query.ok ? `<div class="ok">✅ ${esc(req.query.ok)}</div>` : ""}
-       ${req.query.e ? `<div class="err">⚠️ ${esc(req.query.e)}</div>` : ""}
+      `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
+       ${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
        ${postForm}
        ${cards || `<div class="panel"><p class="empty">No announcements yet.</p></div>`}`));
   });
@@ -635,7 +636,7 @@ module.exports = function mountCampus(app) {
     if (title.length < 2) return back("Please enter a title");
     await q("INSERT INTO announcements (id, course_title, teacher_id, title, body, pinned, created_at) VALUES (?,?,?,?,?,?,NOW())",
       [uid("anc_"), course, req.user.id, title, body, pinned]);
-    await notifyStudents(course, "📢 " + title, body);
+    await notifyStudents(course, title, body);
     res.redirect("/portal/announcements?ok=" + encodeURIComponent("Announcement published"));
   });
 
@@ -678,10 +679,10 @@ module.exports = function mountCampus(app) {
           <a class="btn danger sm" href="/portal/quizzes/delete?id=${esc(z.id)}" onclick="return confirm('Delete this quiz and all attempts?')">Delete</a>
         </td></tr>`).join("");
       return res.send(core.shell(u, "quizzes", "Quizzes", "Build MCQ tests — students attempt them online and get instant marks.",
-        `${req.query.ok ? `<div class="ok">✅ ${esc(req.query.ok)}</div>` : ""}
+        `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
          <div class="panel">
-           <div class="row" style="justify-content:space-between"><h2 style="margin:0">🧪 My quizzes (${mine.length})</h2>
-             <a class="btn primary sm" href="/portal/quizzes/new">➕ New quiz</a></div>
+           <div class="row" style="justify-content:space-between"><h2 style="margin:0"><i class="fa-solid fa-flask"></i> My quizzes (${mine.length})</h2>
+             <a class="btn primary sm" href="/portal/quizzes/new"><i class="fa-solid fa-plus"></i> New quiz</a></div>
            ${mine.length ? `<table class="mt"><tr><th>Quiz</th><th>Questions</th><th>Duration</th><th>Attempts</th><th>Status</th><th></th></tr>${rows}</table>`
              : `<p class="muted mt">No quizzes yet. Click “New quiz” to build one.</p>`}
          </div>`));
@@ -722,7 +723,7 @@ module.exports = function mountCampus(app) {
         <div class="stat"><b>${pending}</b><span>To attempt</span></div>
         <div class="stat"><b>${done}</b><span>Completed</span></div>
       </div>` : ""}
-      <div class="panel"><h2>🧪 Quizzes</h2>
+      <div class="panel"><h2><i class="fa-solid fa-flask"></i> Quizzes</h2>
         ${list.length ? `<table><tr><th>Quiz</th><th>Duration</th><th>Status</th><th>Score</th><th></th></tr>${rows}</table>`
           : `<p class="muted">No quizzes published for your courses yet.</p>`}
       </div>`));
@@ -732,7 +733,7 @@ module.exports = function mountCampus(app) {
     const courses = await teacherCourseTitles(req.user.id);
     const all = await allCourseTitles();
     res.send(core.shell(req.user, "quizzes", "New quiz", "Add MCQ questions — each question can carry its own marks.",
-      `${req.query.e ? `<div class="err">⚠️ ${esc(req.query.e)}</div>` : ""}
+      `${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
        <div class="panel">
          <form method="post" action="/portal/quizzes/new" id="qf">
            <label>Course *</label>${courseOptions(courses, "", all)}
@@ -746,11 +747,11 @@ module.exports = function mountCampus(app) {
            </div>
            <div class="row mt" style="justify-content:space-between">
              <h2 style="margin:0">Questions</h2>
-             <button type="button" class="btn ghost sm" onclick="addQ()">➕ Add question</button>
+             <button type="button" class="btn ghost sm" onclick="addQ()"><i class="fa-solid fa-plus"></i> Add question</button>
            </div>
            <div id="qs"></div>
            <div class="row mt">
-             <button class="btn primary" type="submit">💾 Create quiz</button>
+             <button class="btn primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Create quiz</button>
              <a class="btn ghost" href="/portal/quizzes">Cancel</a>
            </div>
          </form>
@@ -804,7 +805,7 @@ module.exports = function mountCampus(app) {
                  VALUES (?,?,?,?,?,?,?,?,?,?)`,
           [uid("qq_"), id, n++, b.text, b.a, b.b, b.c, b.d, b.correct, b.marks]);
       }
-      await notifyStudents(course, "🧪 New quiz: " + title, `${built.length} question(s) · ${duration} minutes.\nOpen the Quizzes section to attempt it.`);
+      await notifyStudents(course, "New quiz: " + title, `${built.length} question(s) · ${duration} minutes.\nOpen the Quizzes section to attempt it.`);
       res.redirect("/portal/quizzes/view?id=" + id + "&ok=" + encodeURIComponent("Quiz published"));
     } catch (e) {
       res.redirect("/portal/quizzes/new?e=" + encodeURIComponent(e.message || "Could not create quiz"));
@@ -838,7 +839,7 @@ module.exports = function mountCampus(app) {
       </tr>`;
     }).join("");
     res.send(core.shell(req.user, "quizzes", z.title, `${esc(z.course_title)} · ${st.questions} questions · ${Number(z.duration_minutes)} minutes`,
-      `${req.query.ok ? `<div class="ok">✅ ${esc(req.query.ok)}</div>` : ""}
+      `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
        <div class="cards">
          <div class="stat"><b>${st.questions}</b><span>Questions</span></div>
          <div class="stat"><b>${st.total}</b><span>Total marks</span></div>
@@ -854,10 +855,10 @@ module.exports = function mountCampus(app) {
            </div>
          </div>
        </div>
-       <div class="panel"><h2>❓ Questions</h2>
+       <div class="panel"><h2><i class="fa-solid fa-circle-question"></i> Questions</h2>
          <table><tr><th>#</th><th>Question</th><th>Correct</th><th>Marks</th></tr>${qRows || `<tr><td colspan="4" class="empty">No questions.</td></tr>`}</table>
        </div>
-       <div class="panel"><h2>👥 Attempts (${attempts.length})</h2>
+       <div class="panel"><h2><i class="fa-solid fa-users"></i> Attempts (${attempts.length})</h2>
          <table><tr><th>Student</th><th>Submitted</th><th>Score</th><th>%</th></tr>${aRows || `<tr><td colspan="4" class="empty">No attempts yet.</td></tr>`}</table>
        </div>`));
   });
@@ -915,7 +916,7 @@ module.exports = function mountCampus(app) {
        <form method="post" action="/portal/quizzes/submit" id="qzform">
          <input type="hidden" name="quiz_id" value="${esc(z.id)}">
          ${qs}
-         <button class="btn primary mt" type="submit" onclick="return confirm('Submit your answers?')">✅ Submit quiz</button>
+         <button class="btn primary mt" type="submit" onclick="return confirm('Submit your answers?')"><i class="fa-solid fa-circle-check"></i> Submit quiz</button>
        </form>
        <script>
          (function(){var s=${seconds};var el=document.getElementById('tmr');var f=document.getElementById('qzform');if(!el)return;
@@ -978,7 +979,7 @@ module.exports = function mountCampus(app) {
          <div class="stat"><b>${letterGrade(p)}</b><span>Grade</span></div>
          <div class="stat"><b>${passed ? "PASS" : "FAIL"}</b><span>Result (pass ${Number(z.pass_percent)}%)</span></div>
        </div>
-       <div class="panel"><h2>📋 Answer review</h2>
+       <div class="panel"><h2><i class="fa-solid fa-clipboard-list"></i> Answer review</h2>
          <table><tr><th>#</th><th>Question</th><th>Your answer</th><th>Correct</th><th>Marks</th></tr>${rows}</table>
        </div>
        <p><a class="btn ghost" href="/portal/quizzes">Back to quizzes</a></p>`));
@@ -1130,5 +1131,5 @@ module.exports = function mountCampus(app) {
     res.send(printPage("Fee Statement — CyberNexa", "/portal/fees", body));
   });
 
-  console.log("🏫 Portal campus mounted");
+  console.log(" Portal campus mounted");
 };

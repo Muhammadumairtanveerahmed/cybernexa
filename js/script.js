@@ -272,20 +272,20 @@ if (contactForm) {
       const json = await res.json();
 
       if (json.ok) {
-        resp.textContent = "✅ " + json.msg;
+        resp.textContent = json.msg;
         resp.classList.add("ok");
         contactForm.reset();
       } else {
         if (json.errors) showErrors(json.errors);
-        resp.textContent = "❌ " + (json.msg || "Please check the form");
+        resp.textContent = (json.msg || "Please check the form");
         resp.classList.add("err");
       }
     } catch (err) {
-      resp.textContent = "❌ Could not connect to the server";
+      resp.textContent = "Could not connect to the server";
       resp.classList.add("err");
     } finally {
       btn.disabled = false;
-      btn.textContent = "Send Message 🚀";
+      btn.textContent = "Send Message";
     }
   });
 }
@@ -369,8 +369,8 @@ if (contactForm) {
       var files = input.files;
       if (nameEl) {
         if (!files || !files.length) nameEl.textContent = "";
-        else if (files.length === 1) nameEl.textContent = "\u2714 " + files[0].name;
-        else nameEl.textContent = "\u2714 " + files.length + " files selected";
+        else if (files.length === 1) nameEl.textContent = files[0].name;
+        else nameEl.textContent = files.length + " files selected";
       }
       clearErr(field);
     });
@@ -507,7 +507,7 @@ if (contactForm) {
           var d = res.data;
           if (d && d.ok) {
             form.style.display = "none";
-            status(d.msg + " \uD83C\uDF89", false);
+            status(d.msg, false);
           } else {
             var msg = d && d.msg;
             if (d && d.errors) {
@@ -525,7 +525,7 @@ if (contactForm) {
         })
         .finally(function () {
           sendBtn.disabled = false;
-          sendBtn.textContent = "Send Enrollment Request \uD83D\uDCE9";
+          sendBtn.textContent = "Send Enrollment Request";
         });
     });
   }
@@ -577,7 +577,7 @@ document.querySelectorAll(".faq-item").forEach(function (item) {
   wrap.className = "float-actions";
   wrap.innerHTML =
     '<a class="float-btn pulse-anim" href="https://wa.me/923237469306?text=Hi%20CyberNexa%2C%20I%20need%20help%20with%20" target="_blank" rel="noopener" aria-label="Chat on WhatsApp" title="Chat with us on WhatsApp"><svg class="wa-ico" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" focusable="false"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/></svg></a>' +
-    '<button class="float-btn to-top" id="toTopBtn" type="button" aria-label="Back to top" title="Back to top">↑</button>';
+    '<button class="float-btn to-top" id="toTopBtn" type="button" aria-label="Back to top" title="Back to top"><i class="fa-solid fa-arrow-up"></i></button>';
   document.body.appendChild(wrap);
 
   var topBtn = document.getElementById("toTopBtn");
@@ -602,7 +602,7 @@ document.querySelectorAll(".faq-item").forEach(function (item) {
   var box = document.createElement("div");
   box.className = "footer-newsletter";
   box.innerHTML =
-    '<div class="fn-text"><strong>🔐 Stay ahead of security threats</strong><span>Monthly tips on cybersecurity, cloud and IT careers. No spam, unsubscribe anytime.</span></div>' +
+    '<div class="fn-text"><strong><i class="fa-solid fa-lock"></i> Stay ahead of security threats</strong><span>Monthly tips on cybersecurity, cloud and IT careers. No spam, unsubscribe anytime.</span></div>' +
     '<form id="newsletterForm" novalidate><input type="email" id="nl-email" placeholder="Your email address" maxlength="100" autocomplete="email" aria-label="Email address" /><button type="submit" class="btn btn-primary" id="nl-btn">Subscribe</button></form>' +
     '<p class="fn-msg" id="nl-msg" role="status"></p>';
 

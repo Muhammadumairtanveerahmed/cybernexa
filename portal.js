@@ -388,7 +388,7 @@ async function initSchema(pool) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   ];
   for (const sql of t) await pool.query(sql);
-  console.log("🎒 Portal schema ready");
+  console.log(" Portal schema ready");
 }
 
 // ---------------------------------------------------------------------------
@@ -543,14 +543,14 @@ function makeUpload(subdir, exts, maxFiles = 6) {
 // ---------------------------------------------------------------------------
 function deny(res, msg, status = 403) {
   res.status(status).send(
-    publicPage("Access denied", `<div class="card narrow"><h1>🚫 ${esc(msg)}</h1>
+    publicPage("Access denied", `<div class="card narrow"><h1><i class="fa-solid fa-ban"></i> ${esc(msg)}</h1>
       <p class="muted">Please sign in with the right account.</p>
       <p><a class="btn primary" href="/portal/login">Go to sign in</a></p></div>`)
   );
 }
 function requireUser(...roles) {
   return (req, res, next) => {
-    if (!getPool()) return res.status(503).send(publicPage("Portal unavailable", `<div class="card narrow"><h1>🔧 Portal offline</h1><p class="muted">The portal needs the database. Please try again shortly.</p></div>`));
+    if (!getPool()) return res.status(503).send(publicPage("Portal unavailable", `<div class="card narrow"><h1><i class="fa-solid fa-screwdriver-wrench"></i> Portal offline</h1><p class="muted">The portal needs the database. Please try again shortly.</p></div>`));
     if (!req.user) return res.redirect("/portal/login?next=" + encodeURIComponent(req.originalUrl));
     if (roles.length && !roles.includes(req.user.role)) return deny(res, "This area is for " + roles.join(" / ") + " accounts only");
     if (req.user.status === "suspended") return deny(res, "Your account is suspended. Please contact the academy.");
@@ -661,6 +661,7 @@ function head(title) {
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>${CSS}</style>`;
 }
 
@@ -688,45 +689,45 @@ function errorPage(title, message) {
 
 function shell(user, active, title, sub, body, extraNav = "") {
   const groups = user.role === "teacher"
-    ? [{ t: "Overview", items: [["/portal/dashboard", "📊 Dashboard", "dash"]] },
+    ? [{ t: "Overview", items: [["/portal/dashboard", "<i class='fa-solid fa-chart-column'></i> Dashboard", "dash"]] },
        { t: "Teaching", items: [
-           ["/portal/courses", "📚 My Courses", "courses"],
-           ["/portal/assignments", "📝 Assignments", "assign"],
-           ["/portal/quizzes", "🧪 Quizzes", "quizzes"],
-           ["/portal/students", "🎒 My Students", "students"]] },
+           ["/portal/courses", "<i class='fa-solid fa-book-open'></i> My Courses", "courses"],
+           ["/portal/assignments", "<i class='fa-solid fa-pen-to-square'></i> Assignments", "assign"],
+           ["/portal/quizzes", "<i class='fa-solid fa-flask'></i> Quizzes", "quizzes"],
+           ["/portal/students", "<i class='fa-solid fa-user-graduate'></i> My Students", "students"]] },
        { t: "Class", items: [
-           ["/portal/timetable", "🗓️ Timetable", "timetable"],
-           ["/portal/attendance", "✅ Attendance", "attend"],
-           ["/portal/materials", "📁 Materials", "materials"]] },
+           ["/portal/timetable", "<i class='fa-solid fa-calendar-days'></i> Timetable", "timetable"],
+           ["/portal/attendance", "<i class='fa-solid fa-circle-check'></i> Attendance", "attend"],
+           ["/portal/materials", "<i class='fa-solid fa-folder'></i> Materials", "materials"]] },
        { t: "Communication", items: [
-           ["/portal/announcements", "📢 Announcements", "announce"],
-           ["/portal/notices", "🔔 Notices", "notices"]] },
+           ["/portal/announcements", "<i class='fa-solid fa-bullhorn'></i> Announcements", "announce"],
+           ["/portal/notices", "<i class='fa-solid fa-bell'></i> Notices", "notices"]] },
        { t: "Account", items: [
-           ["/portal/profile", "👤 My Profile", "profile"],
-           ["/portal/documents", "📄 My Documents", "docs"]] }]
-    : [{ t: "Overview", items: [["/portal/dashboard", "📊 Dashboard", "dash"]] },
+           ["/portal/profile", "<i class='fa-solid fa-user'></i> My Profile", "profile"],
+           ["/portal/documents", "<i class='fa-solid fa-file-lines'></i> My Documents", "docs"]] }]
+    : [{ t: "Overview", items: [["/portal/dashboard", "<i class='fa-solid fa-chart-column'></i> Dashboard", "dash"]] },
        { t: "Academics", items: [
-           ["/portal/enrollments", "🎓 My Enrollments", "enroll"],
-           ["/portal/assignments", "📝 Assignments", "assign"],
-           ["/portal/quizzes", "🧪 Quizzes", "quizzes"],
-           ["/portal/marks", "📊 My Marks & Result", "marks"]] },
+           ["/portal/enrollments", "<i class='fa-solid fa-graduation-cap'></i> My Enrollments", "enroll"],
+           ["/portal/assignments", "<i class='fa-solid fa-pen-to-square'></i> Assignments", "assign"],
+           ["/portal/quizzes", "<i class='fa-solid fa-flask'></i> Quizzes", "quizzes"],
+           ["/portal/marks", "<i class='fa-solid fa-chart-column'></i> My Marks & Result", "marks"]] },
        { t: "Class", items: [
-           ["/portal/timetable", "🗓️ Timetable", "timetable"],
-           ["/portal/attendance", "✅ Attendance", "attend"],
-           ["/portal/materials", "📁 Materials", "materials"]] },
+           ["/portal/timetable", "<i class='fa-solid fa-calendar-days'></i> Timetable", "timetable"],
+           ["/portal/attendance", "<i class='fa-solid fa-circle-check'></i> Attendance", "attend"],
+           ["/portal/materials", "<i class='fa-solid fa-folder'></i> Materials", "materials"]] },
        { t: "Records", items: [
-           ["/portal/documents", "📄 My Documents", "docs"],
-           ["/portal/fees", "💰 Fees & Payments", "fees"]] },
+           ["/portal/documents", "<i class='fa-solid fa-file-lines'></i> My Documents", "docs"],
+           ["/portal/fees", "<i class='fa-solid fa-sack-dollar'></i> Fees & Payments", "fees"]] },
        { t: "Communication", items: [
-           ["/portal/announcements", "📢 Announcements", "announce"],
-           ["/portal/notices", "🔔 Notices", "notices"]] },
-       { t: "Account", items: [["/portal/profile", "👤 My Profile", "profile"]] }];
+           ["/portal/announcements", "<i class='fa-solid fa-bullhorn'></i> Announcements", "announce"],
+           ["/portal/notices", "<i class='fa-solid fa-bell'></i> Notices", "notices"]] },
+       { t: "Account", items: [["/portal/profile", "<i class='fa-solid fa-user'></i> My Profile", "profile"]] }];
   const nav = groups.map((g) =>
     `<div class="grp">${g.t}</div>` +
     g.items.map(([href, label, key]) => `<a href="${href}" class="${active === key ? "on" : ""}">${label}</a>`).join("")
   ).join("");
   const pending = user.status !== "active"
-    ? `<div class="note" style="margin:14px 0 0"><h4>⏳ Account ${esc(user.status)}</h4><p>${user.role === "teacher" ? "Your teacher application is waiting for admin approval. You can complete your profile meanwhile." : "Your account is " + esc(user.status) + "."}</p></div>`
+    ? `<div class="note" style="margin:14px 0 0"><h4><i class="fa-solid fa-hourglass-half"></i> Account ${esc(user.status)}</h4><p>${user.role === "teacher" ? "Your teacher application is waiting for admin approval. You can complete your profile meanwhile." : "Your account is " + esc(user.status) + "."}</p></div>`
     : "";
   return `<!DOCTYPE html><html lang="en"><head>${head(title + " — CyberNexa Portal")}</head>
 <body><div class="shell">
@@ -734,7 +735,7 @@ function shell(user, active, title, sub, body, extraNav = "") {
     <div class="brand">Cyber<b>Nexa</b> Portal</div>
     ${nav}
     ${extraNav}
-    <a href="/" target="_blank">🌐 View Website</a>
+    <a href="/" target="_blank"><i class="fa-solid fa-globe"></i> View Website</a>
     <div class="who">
       <div class="nm">${esc(user.full_name)}</div>
       <div>${esc(user.role)} · ${esc(user.email)}</div>
@@ -833,7 +834,7 @@ function mount(app, context) {
 
   app.get("/portal/login", (req, res) => {
     if (req.user) return res.redirect("/portal/dashboard");
-    const notice = req.query.reset === "1" ? `<div class="ok">✅ Password updated — please sign in.</div>` : "";
+    const notice = req.query.reset === "1" ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> Password updated — please sign in.</div>` : "";
     const err = req.query.e ? `<div class="err">${esc(req.query.e)}</div>` : "";
     res.send(publicPage("Sign in", `
       <div class="card narrow">
@@ -886,11 +887,11 @@ function mount(app, context) {
         <h1>Join the CyberNexa Academy</h1>
         <p class="muted" style="margin-bottom:18px">Choose how you want to join.</p>
         <a class="file" href="/portal/register/student" style="padding:18px">
-          <span style="font-size:1.6rem">🎓</span>
+          <span style="font-size:1.6rem"><i class="fa-solid fa-graduation-cap"></i></span>
           <span class="nm"><strong>Student</strong><br><span class="muted">Enroll in courses, upload documents, track your progress</span></span>
         </a>
         <a class="file" href="/portal/register/teacher" style="padding:18px">
-          <span style="font-size:1.6rem">🧑‍🏫</span>
+          <span style="font-size:1.6rem"><i class="fa-solid fa-chalkboard-user"></i></span>
           <div class="nm"><strong>Teacher / Instructor</strong>
           <div class="muted" style="white-space:normal">Apply to teach. Your application is reviewed and approved by the academy.</div></div>
         </a>
@@ -900,7 +901,7 @@ function mount(app, context) {
   app.get("/portal/register/student", (req, res) => {
     res.send(publicPage("Student registration", `
       <div class="card">
-        <h1>🎓 Student registration</h1>
+        <h1><i class="fa-solid fa-graduation-cap"></i> Student registration</h1>
         <p class="muted" style="margin-bottom:8px">Create your account, then complete your profile.</p>
         ${req.query.e ? `<div class="err">${esc(req.query.e)}</div>` : ""}
         <form method="post" action="/portal/register/student">
@@ -944,7 +945,7 @@ function mount(app, context) {
         [id, "student", email, hashPassword(password), full_name, phone]
       );
       await q("INSERT INTO student_profiles (user_id, updated_at) VALUES (?, NOW())", [id]);
-      await createNotice("user", id, "Welcome to CyberNexa 🎉", "Your student account is ready. Complete your profile and explore our courses.");
+      await createNotice("user", id, "Welcome to CyberNexa", "Your student account is ready. Complete your profile and explore our courses.");
       const sid = await createSession(id, req.ip, req.headers["user-agent"]);
       setSessionCookie(res, sid);
       ctx.notifyOwner("New Student Registration", { Name: full_name, Email: email, Phone: phone }, ctx.originOf(req)).catch(() => {});
@@ -958,7 +959,7 @@ function mount(app, context) {
   app.get("/portal/register/teacher", (req, res) => {
     res.send(publicPage("Teacher application", `
       <div class="card">
-        <h1>👨‍🏫 Teacher application</h1>
+        <h1><i class="fa-solid fa-chalkboard-user"></i> Teacher application</h1>
         <p class="muted" style="margin-bottom:8px">Apply to teach at CyberNexa. An admin reviews every application.</p>
         ${req.query.e ? `<div class="err">${esc(req.query.e)}</div>` : ""}
         <form method="post" action="/portal/register/teacher" enctype="multipart/form-data">
@@ -1028,7 +1029,7 @@ function mount(app, context) {
       if (req.file) {
         await saveDocument({ scope: "teacher", refId: id, userId: id, kind: "cv", label: "CV / Resume", file: req.file, uploadedBy: "teacher", subdir: "documents" });
       }
-      await createNotice("user", id, "Application received ⏳", "Thank you for applying. Our academy team will review your application and contact you soon.");
+      await createNotice("user", id, "Application received", "Thank you for applying. Our academy team will review your application and contact you soon.");
       const sid = await createSession(id, req.ip, req.headers["user-agent"]);
       setSessionCookie(res, sid);
       const fields = { Name: full_name, Email: email, Phone: phone, Qualification: qualification, Expertise: expertise, Experience: experience_years + " years" };
@@ -1046,7 +1047,7 @@ function mount(app, context) {
       <div class="card narrow">
         <h1>Forgot your password?</h1>
         <p class="muted" style="margin-bottom:8px">Enter your email. Our team will verify and send you a reset link.</p>
-        ${req.query.sent ? `<div class="ok">✅ Request received. Our admin will send you a reset link shortly.</div>` : ""}
+        ${req.query.sent ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> Request received. Our admin will send you a reset link shortly.</div>` : ""}
         ${req.query.e ? `<div class="err">${esc(req.query.e)}</div>` : ""}
         <form method="post" action="/portal/forgot">
           <label>Email</label><input type="email" name="email" required>
@@ -1067,7 +1068,7 @@ function mount(app, context) {
           "INSERT INTO password_resets (id, token, user_id, requested_at, expires_at) VALUES (?,?,?,NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY))",
           [uid("rst_"), token, user.id]
         );
-        await createNotice("user", user.id, "🔐 Password reset requested", "An admin will contact you with a reset link.");
+        await createNotice("user", user.id, "Password reset requested", "An admin will contact you with a reset link.");
       }
     } catch (err) {
       console.error("forgot failed:", err.message);
@@ -1086,7 +1087,7 @@ function mount(app, context) {
       valid = r.length > 0;
     }
     if (!valid) {
-      return res.send(publicPage("Reset link", `<div class="card narrow"><h1>⚠️ Link not valid</h1>
+      return res.send(publicPage("Reset link", `<div class="card narrow"><h1><i class="fa-solid fa-triangle-exclamation"></i> Link not valid</h1>
         <p class="muted">This reset link is invalid or has expired. Please request a new one.</p>
         <p class="mt"><a class="btn primary" href="/portal/forgot">Request new link</a></p></div>`));
     }
@@ -1197,8 +1198,8 @@ function mount(app, context) {
       <tr><td><strong>${esc(en.course_title)}</strong><div class="muted" style="font-size:.8rem">${esc(en.enrollment_type)}</div></td>
       <td>${esc(en.price)}</td><td>${statusBadge(en.status)}</td><td>${statusBadge(en.payment_status)}</td>
       <td>${esc(en.created_at)}</td></tr>`).join("");
-    const welcome = req.query.applied ? `<div class="ok">🎉 Welcome! Your account is ready.</div>` : "";
-    res.send(shell(u, "dash", "Welcome, " + u.full_name.split(" ")[0] + " 👋",
+    const welcome = req.query.applied ? `<div class="ok"><i class="fa-solid fa-champagne-glasses"></i> Welcome! Your account is ready.</div>` : "";
+    res.send(shell(u, "dash", "Welcome, " + u.full_name.split(" ")[0] + " <i class='fa-solid fa-hand'></i>",
       "Here is your learning overview.",
       `${welcome}
       <div class="cards">
@@ -1210,13 +1211,13 @@ function mount(app, context) {
         <div class="stat"><b>PKR ${due.toLocaleString("en-PK")}</b><span>Fee due</span></div>
       </div>
       <div class="panel">
-        <h2>📝 Assignments &amp; tasks</h2>
+        <h2><i class="fa-solid fa-pen-to-square"></i> Assignments &amp; tasks</h2>
         ${asg.length ? `<table><tr><th>Assignment</th><th>Due</th><th>Status</th><th></th></tr>${asgRows}</table>
           <p class="mt"><a class="btn ghost sm" href="/portal/assignments">View all assignments</a></p>`
         : `<p class="muted">No assignments yet. They will appear here once your teacher posts them.</p>`}
       </div>
       <div class="panel">
-        <h2>🗓️ Today's classes</h2>
+        <h2><i class="fa-solid fa-calendar-days"></i> Today's classes</h2>
         ${todaySlots.length
           ? `<table><tr><th>Time</th><th>Course</th><th>Room</th></tr>${todaySlots.map((s) => `<tr>
               <td class="muted">${esc(String(s.start_time).slice(0, 5))} – ${esc(String(s.end_time).slice(0, 5))}</td>
@@ -1225,7 +1226,7 @@ function mount(app, context) {
           : `<p class="muted">No classes scheduled for today. <a href="/portal/timetable">View your timetable</a></p>`}
       </div>
       <div class="panel">
-        <h2>🧪 Quizzes</h2>
+        <h2><i class="fa-solid fa-flask"></i> Quizzes</h2>
         ${qz.length
           ? `<table><tr><th>Quiz</th><th>Duration</th><th>Status</th><th>Score</th><th></th></tr>${qz.slice(0, 5).map((z) => {
               const done = z.at_status === "submitted";
@@ -1243,7 +1244,7 @@ function mount(app, context) {
       <div class="panel">
         <h2>Profile completeness — ${comp.pct}%</h2>
         <div class="progress"><i style="width:${comp.pct}%"></i></div>
-        ${comp.missing.length ? `<p class="muted mt">Still missing: ${esc(comp.missing.join(", "))}</p>` : `<p class="mt" style="color:var(--green)">✅ Your profile is complete.</p>`}
+        ${comp.missing.length ? `<p class="muted mt">Still missing: ${esc(comp.missing.join(", "))}</p>` : `<p class="mt" style="color:var(--green)"><i class="fa-solid fa-circle-check"></i> Your profile is complete.</p>`}
         <p class="mt"><a class="btn primary sm" href="/portal/profile">${comp.pct === 100 ? "View profile" : "Complete profile"}</a></p>
       </div>
       <div class="panel">
@@ -1252,16 +1253,16 @@ function mount(app, context) {
         ${rows || `<tr><td colspan="5" class="empty">No enrollments yet. <a href="/courses">Browse courses</a></td></tr>`}</table>
         ${enrollments.length ? `<p class="mt"><a class="btn ghost sm" href="/portal/enrollments">View all</a></p>` : ""}
       </div>
-      ${announcements.length ? `<div class="panel"><h2>📢 Announcements</h2>${announcements.map((n) => `<div class="note"><h4>${esc(n.title)} <span class="pill">${esc(n.course_title)}</span></h4><p>${esc(n.body || "")}</p><p class="muted" style="font-size:.76rem;margin-top:4px">${esc(n.created_at)} · ${esc(n.teacher || "Teacher")}</p></div>`).join("")}
+      ${announcements.length ? `<div class="panel"><h2><i class="fa-solid fa-bullhorn"></i> Announcements</h2>${announcements.map((n) => `<div class="note"><h4>${esc(n.title)} <span class="pill">${esc(n.course_title)}</span></h4><p>${esc(n.body || "")}</p><p class="muted" style="font-size:.76rem;margin-top:4px">${esc(n.created_at)} · ${esc(n.teacher || "Teacher")}</p></div>`).join("")}
         <p class="mt"><a class="btn ghost sm" href="/portal/announcements">All announcements</a></p></div>` : ""}
-      ${notices.length ? `<div class="panel"><h2>🔔 Notices</h2>${notices.slice(0, 3).map(noteHtml).join("")}</div>` : ""}
+      ${notices.length ? `<div class="panel"><h2><i class="fa-solid fa-bell"></i> Notices</h2>${notices.slice(0, 3).map(noteHtml).join("")}</div>` : ""}
       <div class="panel"><h2>Quick actions</h2><div class="row">
-        <a class="btn primary sm" href="/courses">🎓 Enroll in a course</a>
-        <a class="btn ghost sm" href="/portal/assignments">📝 Assignments</a>
-        <a class="btn ghost sm" href="/portal/timetable">🗓️ Timetable</a>
-        <a class="btn ghost sm" href="/portal/materials">📁 Materials</a>
-        <a class="btn ghost sm" href="/portal/transcript">🖨️ Result card</a>
-        <a class="btn ghost sm" href="/portal/fees">💰 Fee details</a>
+        <a class="btn primary sm" href="/courses"><i class="fa-solid fa-graduation-cap"></i> Enroll in a course</a>
+        <a class="btn ghost sm" href="/portal/assignments"><i class="fa-solid fa-pen-to-square"></i> Assignments</a>
+        <a class="btn ghost sm" href="/portal/timetable"><i class="fa-solid fa-calendar-days"></i> Timetable</a>
+        <a class="btn ghost sm" href="/portal/materials"><i class="fa-solid fa-folder"></i> Materials</a>
+        <a class="btn ghost sm" href="/portal/transcript"><i class="fa-solid fa-print"></i> Result card</a>
+        <a class="btn ghost sm" href="/portal/fees"><i class="fa-solid fa-sack-dollar"></i> Fee details</a>
       </div></div>`));
   }
 
@@ -1306,10 +1307,10 @@ function mount(app, context) {
     const rows = mine
       .map((c) => `<tr><td><strong>${esc(c.course_title)}</strong></td><td class="muted">${esc(c.created_at)}</td></tr>`)
       .join("");
-    res.send(shell(u, "dash", "Welcome, " + u.full_name.split(" ")[0] + " 👋", "Your instructor dashboard.",
-      `${req.query.applied ? `<div class="ok">🎉 Application submitted! Our academy team will review it soon.</div>` : ""}
-      ${u.status === "pending" ? `<div class="note"><h4>⏳ Application under review</h4><p>You can complete your profile meanwhile. An admin will approve your account before you start teaching.</p></div>` : ""}
-      ${u.status === "active" ? `<div class="ok">✅ Your teacher account is approved.</div>` : ""}
+    res.send(shell(u, "dash", "Welcome, " + u.full_name.split(" ")[0] + " <i class='fa-solid fa-hand'></i>", "Your instructor dashboard.",
+      `${req.query.applied ? `<div class="ok"><i class="fa-solid fa-champagne-glasses"></i> Application submitted! Our academy team will review it soon.</div>` : ""}
+      ${u.status === "pending" ? `<div class="note"><h4><i class="fa-solid fa-hourglass-half"></i> Application under review</h4><p>You can complete your profile meanwhile. An admin will approve your account before you start teaching.</p></div>` : ""}
+      ${u.status === "active" ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> Your teacher account is approved.</div>` : ""}
       <div class="cards">
         <div class="stat"><b style="text-transform:capitalize">${esc(u.status)}</b><span>Account status</span></div>
         <div class="stat"><b>${mine.length}</b><span>Assigned courses</span></div>
@@ -1319,9 +1320,9 @@ function mount(app, context) {
         <div class="stat"><b>${Number(matStat.total || 0)}</b><span>Materials</span></div>
       </div>
       <div class="panel">
-        <h2>📝 Recent assignments</h2>
+        <h2><i class="fa-solid fa-pen-to-square"></i> Recent assignments</h2>
         ${recentAsg.length ? `<table><tr><th>Assignment</th><th>Due</th><th>Submissions</th><th></th></tr>${asgRows}</table>` : `<p class="muted">No assignments posted yet.</p>`}
-        <p class="mt"><a class="btn primary sm" href="/portal/assignments/new">➕ Create assignment</a>
+        <p class="mt"><a class="btn primary sm" href="/portal/assignments/new"><i class="fa-solid fa-plus"></i> Create assignment</a>
           <a class="btn ghost sm" href="/portal/assignments">Manage all</a></p>
       </div>
       <div class="panel"><h2>My courses</h2>
@@ -1329,7 +1330,7 @@ function mount(app, context) {
           ? `<table><tr><th>Course</th><th>Assigned</th></tr>${rows}</table>`
           : `<p class="muted">No courses assigned yet. The academy will assign courses after approval.</p>`}
       </div>
-      <div class="panel"><h2>🗓️ Today's classes</h2>
+      <div class="panel"><h2><i class="fa-solid fa-calendar-days"></i> Today's classes</h2>
         ${todaySlots.length
           ? `<table><tr><th>Time</th><th>Course</th><th>Room</th><th></th></tr>${todaySlots.map((s) => `<tr>
               <td class="muted">${esc(String(s.start_time).slice(0, 5))} – ${esc(String(s.end_time).slice(0, 5))}</td>
@@ -1338,14 +1339,14 @@ function mount(app, context) {
           : `<p class="muted">No classes scheduled for today. <a href="/portal/timetable">Manage timetable</a></p>`}
       </div>
       <div class="panel"><h2>Quick actions</h2><div class="row">
-        <a class="btn primary sm" href="/portal/assignments/new">📝 New assignment</a>
-        <a class="btn ghost sm" href="/portal/quizzes/new">🧪 New quiz</a>
-        <a class="btn ghost sm" href="/portal/materials">📁 Share material</a>
-        <a class="btn ghost sm" href="/portal/attendance">✅ Attendance</a>
-        <a class="btn ghost sm" href="/portal/announcements">📢 Announcement</a>
-        <a class="btn ghost sm" href="/portal/timetable">🗓️ Timetable</a>
+        <a class="btn primary sm" href="/portal/assignments/new"><i class="fa-solid fa-pen-to-square"></i> New assignment</a>
+        <a class="btn ghost sm" href="/portal/quizzes/new"><i class="fa-solid fa-flask"></i> New quiz</a>
+        <a class="btn ghost sm" href="/portal/materials"><i class="fa-solid fa-folder"></i> Share material</a>
+        <a class="btn ghost sm" href="/portal/attendance"><i class="fa-solid fa-circle-check"></i> Attendance</a>
+        <a class="btn ghost sm" href="/portal/announcements"><i class="fa-solid fa-bullhorn"></i> Announcement</a>
+        <a class="btn ghost sm" href="/portal/timetable"><i class="fa-solid fa-calendar-days"></i> Timetable</a>
       </div></div>
-      ${notices.length ? `<div class="panel"><h2>🔔 Notices</h2>${notices.slice(0, 5).map(noteHtml).join("")}</div>` : ""}`));
+      ${notices.length ? `<div class="panel"><h2><i class="fa-solid fa-bell"></i> Notices</h2>${notices.slice(0, 5).map(noteHtml).join("")}</div>` : ""}`));
   }
 
   function noteHtml(n) {
@@ -1356,7 +1357,7 @@ function mount(app, context) {
   // ============================= PROFILE =============================
   app.get("/portal/profile", requireUser("student", "teacher"), async (req, res) => {
     const u = req.user;
-    const ok = req.query.saved ? `<div class="ok">✅ Profile saved.</div>` : "";
+    const ok = req.query.saved ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> Profile saved.</div>` : "";
     if (u.role === "teacher") {
       const t = (await getTeacherProfile(u.id)) || {};
       const cv = (await q("SELECT * FROM documents WHERE user_id = ? AND kind = 'cv' ORDER BY uploaded_at DESC LIMIT 1", [u.id]))[0][0];
@@ -1382,7 +1383,7 @@ function mount(app, context) {
             <label>Availability</label><input name="availability" value="${esc(t.availability)}" placeholder="Evenings, weekends...">
             <label>Profile photo</label><input type="file" name="photo" accept=".jpg,.jpeg,.png,.webp">
             <label>CV / Resume (PDF or image)</label><input type="file" name="cv" accept=".pdf,.jpg,.jpeg,.png">
-            ${cv ? `<p class="muted mt">Current CV: <a href="/portal/file/${esc(cv.id)}" target="_blank">📎 ${esc(cv.originalname || "CV")}</a></p>` : ""}
+            ${cv ? `<p class="muted mt">Current CV: <a href="/portal/file/${esc(cv.id)}" target="_blank"><i class="fa-solid fa-paperclip"></i> ${esc(cv.originalname || "CV")}</a></p>` : ""}
             <button class="btn primary mt" type="submit">Save profile</button>
           </form></div>`));
       return;
@@ -1480,7 +1481,7 @@ function mount(app, context) {
             <div><div class="muted" style="font-size:.78rem">Balance</div><strong>PKR ${Math.max(0, total - paid).toLocaleString("en-PK")}</strong></div>
           </div>
           ${docs.length ? `<div class="mt">${docs.map((d) => docLink(d, "/portal/file/")).join("")}</div>` : ""}
-          ${en.notes ? `<p class="muted mt">📝 ${esc(en.notes)}</p>` : ""}
+          ${en.notes ? `<p class="muted mt"><i class="fa-solid fa-pen-to-square"></i> ${esc(en.notes)}</p>` : ""}
         </div>`);
     }
     res.send(shell(req.user, "enroll", "My Enrollments", "Track your courses, documents and status.",
@@ -1488,7 +1489,7 @@ function mount(app, context) {
   });
 
   function docLink(d, base) {
-    const icon = /pdf$/i.test(d.originalname || "") ? "📕" : "🖼️";
+    const icon = /pdf$/i.test(d.originalname || "") ? "<i class='fa-solid fa-file-pdf'></i>" : "<i class='fa-solid fa-image'></i>";
     return `<div class="file"><span>${icon}</span><span class="nm">${esc(d.originalname || d.relpath)}</span>
       <span class="pill">${esc(d.label || d.kind)}</span>
       <a class="btn ghost sm" href="${base}${esc(d.id)}" target="_blank">Download</a></div>`;
@@ -1511,11 +1512,11 @@ function mount(app, context) {
           <div><div class="muted" style="font-size:.78rem">Balance</div><strong>PKR ${Math.max(0, total - paid).toLocaleString("en-PK")}</strong></div>
         </div>
         ${payments.length ? `<table class="mt"><tr><th>Date</th><th>Amount</th><th>Method</th><th>Note</th><th></th></tr>
-          ${payments.map((p) => `<tr><td>${esc(p.paid_at)}</td><td>PKR ${Number(p.amount).toLocaleString("en-PK")}</td><td>${esc(p.method)}</td><td class="muted">${esc(p.note)}</td><td><a class="btn ghost sm" href="/portal/fees/receipt/${esc(p.id)}" target="_blank">🧾 Receipt</a></td></tr>`).join("")}</table>` : `<p class="muted mt">No payments recorded yet.</p>`}
+          ${payments.map((p) => `<tr><td>${esc(p.paid_at)}</td><td>PKR ${Number(p.amount).toLocaleString("en-PK")}</td><td>${esc(p.method)}</td><td class="muted">${esc(p.note)}</td><td><a class="btn ghost sm" href="/portal/fees/receipt/${esc(p.id)}" target="_blank"><i class="fa-solid fa-receipt"></i> Receipt</a></td></tr>`).join("")}</table>` : `<p class="muted mt">No payments recorded yet.</p>`}
         <div class="row mt">
-          <a class="btn ghost sm" href="/portal/fees/statement/${esc(en.id)}" target="_blank">🖨️ Print statement</a>
-          ${receipt ? `<a class="btn ghost sm" href="/portal/file/${esc(receipt.id)}" target="_blank">🧾 Download receipt</a>` : ""}
-          ${cert ? `<a class="btn ok sm" href="/portal/file/${esc(cert.id)}" target="_blank">🏅 Download certificate</a>` : ""}
+          <a class="btn ghost sm" href="/portal/fees/statement/${esc(en.id)}" target="_blank"><i class="fa-solid fa-print"></i> Print statement</a>
+          ${receipt ? `<a class="btn ghost sm" href="/portal/file/${esc(receipt.id)}" target="_blank"><i class="fa-solid fa-receipt"></i> Download receipt</a>` : ""}
+          ${cert ? `<a class="btn ok sm" href="/portal/file/${esc(cert.id)}" target="_blank"><i class="fa-solid fa-medal"></i> Download certificate</a>` : ""}
         </div>
       </div>`;
     }
@@ -1525,11 +1526,11 @@ function mount(app, context) {
 
   app.get("/portal/documents", requireUser("student", "teacher"), async (req, res) => {
     const docs = await getUserDocuments(req.user.id);
-    const ok = req.query.up ? `<div class="ok">✅ ${Number(req.query.up)} file(s) uploaded.</div>` : "";
+    const ok = req.query.up ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${Number(req.query.up)} file(s) uploaded.</div>` : "";
     const err = req.query.e ? `<div class="err">${esc(req.query.e)}</div>` : "";
     res.send(shell(req.user, "docs", "My Documents", "Upload and manage your documents.",
       `${ok}${err}
-      <div class="panel"><h2>⬆️ Upload documents</h2>
+      <div class="panel"><h2><i class="fa-solid fa-upload"></i> Upload documents</h2>
         <form method="post" action="/portal/documents" enctype="multipart/form-data">
           <div class="grid2">
             <div><label>Document type</label><select name="kind">
@@ -1644,7 +1645,7 @@ function mount(app, context) {
   core.createNotice = createNotice;
   core.makeUpload = makeUpload;
   core.UPLOAD_ROOT = () => UPLOAD_ROOT;
-  console.log("🎒 Portal mounted");
+  console.log(" Portal mounted");
 }
 
 const core = {};

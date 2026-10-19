@@ -29,12 +29,12 @@ const services = [
     s1TitleB: "Built for Scale",
     s1Desc: "Everything you need to move to the cloud and stay there — architecture, migration, cost control and ongoing operations.",
     cards: [
-      ["☁️", "violet", "Cloud Migration", "Lift-and-shift or replatform — zero-downtime migrations to AWS and Azure."],
-      ["🏗️", "indigo", "Landing Zone & Architecture", "Well-architected foundations with security, networking and governance built in."],
-      ["⚙️", "cyan", "Cost Optimization", "Cut cloud waste with rightsizing, autoscaling and reserved capacity planning."],
-      ["🔧", "pink", "Managed Cloud Operations", "Patching, scaling, backups and updates handled around the clock."],
-      ["🔗", "orange", "Hybrid & Networking", "VPN, Direct Connect and multi-cloud networking that just works."],
-      ["🛡️", "green", "Cloud Security", "IAM hardening, guardrails, encryption and continuous compliance checks."],
+      ["<i class='fa-solid fa-cloud'></i>", "violet", "Cloud Migration", "Lift-and-shift or replatform — zero-downtime migrations to AWS and Azure."],
+      ["<i class='fa-solid fa-helmet-safety'></i>", "indigo", "Landing Zone & Architecture", "Well-architected foundations with security, networking and governance built in."],
+      ["<i class='fa-solid fa-gear'></i>", "cyan", "Cost Optimization", "Cut cloud waste with rightsizing, autoscaling and reserved capacity planning."],
+      ["<i class='fa-solid fa-screwdriver-wrench'></i>", "pink", "Managed Cloud Operations", "Patching, scaling, backups and updates handled around the clock."],
+      ["<i class='fa-solid fa-link'></i>", "orange", "Hybrid & Networking", "VPN, Direct Connect and multi-cloud networking that just works."],
+      ["<i class='fa-solid fa-shield-halved'></i>", "green", "Cloud Security", "IAM hardening, guardrails, encryption and continuous compliance checks."],
     ],
     stats: [["99.95%", "Uptime SLA"], ["30%", "Avg. Cost Saved"], ["24×7", "Cloud NOC"]],
     ctaTitle: "Ready to Move to the Cloud?",
@@ -53,12 +53,12 @@ const services = [
     s1TitleB: "Delivered as a Service",
     s1Desc: "Layered defenses across people, process and technology — from detection to recovery.",
     cards: [
-      ["🔒", "violet", "24×7 SOC Monitoring", "Threat detection and response around the clock by security analysts."],
-      ["🎯", "indigo", "Penetration Testing", "Find and fix vulnerabilities before attackers find them."],
-      ["🚨", "cyan", "Incident Response", "Contain, eradicate and recover with a tested response playbook."],
-      ["📋", "pink", "Governance & Compliance", "ISO 27001, SOC 2 and PCI-DSS readiness with audit support."],
-      ["🔑", "orange", "Identity & Access Management", "Zero-trust access controls, MFA and least-privilege enforcement."],
-      ["🧠", "green", "Security Awareness Training", "Turn your employees into a human firewall against phishing."],
+      ["<i class='fa-solid fa-lock'></i>", "violet", "24×7 SOC Monitoring", "Threat detection and response around the clock by security analysts."],
+      ["<i class='fa-solid fa-bullseye'></i>", "indigo", "Penetration Testing", "Find and fix vulnerabilities before attackers find them."],
+      ["<i class='fa-solid fa-triangle-exclamation'></i>", "cyan", "Incident Response", "Contain, eradicate and recover with a tested response playbook."],
+      ["<i class='fa-solid fa-clipboard-list'></i>", "pink", "Governance & Compliance", "ISO 27001, SOC 2 and PCI-DSS readiness with audit support."],
+      ["<i class='fa-solid fa-key'></i>", "orange", "Identity & Access Management", "Zero-trust access controls, MFA and least-privilege enforcement."],
+      ["<i class='fa-solid fa-brain'></i>", "green", "Security Awareness Training", "Turn your employees into a human firewall against phishing."],
     ],
     stats: [["< 15 min", "Incident Response SLA"], ["24×7", "SOC Coverage"], ["100%", "Audit Support"]],
     ctaTitle: "How Secure Is Your Business Today?",
@@ -77,12 +77,12 @@ const services = [
     s1TitleB: "Engineered to Last",
     s1Desc: "Full-cycle development with clean code, automated testing and CI/CD built in from day one.",
     cards: [
-      ["🌐", "violet", "Web Applications", "React, Next.js and Node.js full-stack apps that scale."],
-      ["📱", "indigo", "Mobile Apps", "Flutter and React Native — one codebase, both stores."],
-      ["🔌", "cyan", "API Development", "REST and GraphQL APIs with documentation and versioning."],
-      ["🛒", "pink", "E-Commerce", "Shopify, WooCommerce and fully custom online stores."],
-      ["🧩", "orange", "Enterprise Software", "ERP, CRM and internal tools tailored to your workflow."],
-      ["🔄", "green", "Legacy Modernization", "Rebuild old systems — monolith to microservices, done safely."],
+      ["<i class='fa-solid fa-globe'></i>", "violet", "Web Applications", "React, Next.js and Node.js full-stack apps that scale."],
+      ["<i class='fa-solid fa-mobile-screen-button'></i>", "indigo", "Mobile Apps", "Flutter and React Native — one codebase, both stores."],
+      ["<i class='fa-solid fa-plug'></i>", "cyan", "API Development", "REST and GraphQL APIs with documentation and versioning."],
+      ["<i class='fa-solid fa-cart-shopping'></i>", "pink", "E-Commerce", "Shopify, WooCommerce and fully custom online stores."],
+      ["<i class='fa-solid fa-puzzle-piece'></i>", "orange", "Enterprise Software", "ERP, CRM and internal tools tailored to your workflow."],
+      ["<i class='fa-solid fa-rotate'></i>", "green", "Legacy Modernization", "Rebuild old systems — monolith to microservices, done safely."],
     ],
     stats: [["250+", "Projects Delivered"], ["40+", "Technologies"], ["98%", "On-Time Delivery"]],
     ctaTitle: "Have an Idea to Build?",
@@ -101,12 +101,12 @@ const services = [
     s1TitleB: "IT Career Path",
     s1Desc: "Beginner to advanced programs with lab environments, portfolio projects and exam preparation.",
     cards: [
-      ["🛡️", "violet", "Cybersecurity Courses", "CEH, SOC analyst and ethical hacking with hands-on labs."],
-      ["💻", "indigo", "Development Courses", "Web, mobile and Python programming from zero to portfolio."],
-      ["☁️", "cyan", "Cloud & DevOps", "AWS, Docker, Kubernetes and CI/CD pipelines in real environments."],
-      ["🌐", "pink", "Networking Courses", "CCNA and enterprise networking with packet-tracer labs."],
-      ["📜", "orange", "Certification Prep", "CompTIA, AWS and CISSP exam readiness with mock tests."],
-      ["🏢", "green", "Corporate Training", "Custom upskilling programs for your whole team."],
+      ["<i class='fa-solid fa-shield-halved'></i>", "violet", "Cybersecurity Courses", "CEH, SOC analyst and ethical hacking with hands-on labs."],
+      ["<i class='fa-solid fa-laptop-code'></i>", "indigo", "Development Courses", "Web, mobile and Python programming from zero to portfolio."],
+      ["<i class='fa-solid fa-cloud'></i>", "cyan", "Cloud & DevOps", "AWS, Docker, Kubernetes and CI/CD pipelines in real environments."],
+      ["<i class='fa-solid fa-globe'></i>", "pink", "Networking Courses", "CCNA and enterprise networking with packet-tracer labs."],
+      ["<i class='fa-solid fa-scroll'></i>", "orange", "Certification Prep", "CompTIA, AWS and CISSP exam readiness with mock tests."],
+      ["<i class='fa-solid fa-building'></i>", "green", "Corporate Training", "Custom upskilling programs for your whole team."],
     ],
     stats: [["120+", "Students Trained"], ["10+", "Courses"], ["95%", "Completion Rate"]],
     ctaTitle: "Ready to Start Learning?",
@@ -125,12 +125,12 @@ const services = [
     s1TitleB: "Measurable Results",
     s1Desc: "Full-service digital — from your first logo to campaigns that report real ROI.",
     cards: [
-      ["🎨", "violet", "Brand Identity", "Logos, guidelines and brand systems people remember."],
-      ["🖌️", "indigo", "UI/UX Design", "Research-driven interfaces that are beautiful and convert."],
-      ["🔍", "cyan", "SEO", "Technical and content SEO that climbs Google rankings."],
-      ["📣", "pink", "Social Media", "Content strategy and campaigns that build community."],
-      ["💹", "orange", "Performance Marketing", "Google and Meta ads with transparent ROI tracking."],
-      ["✍️", "green", "Content Creation", "Copywriting, video and graphics that sell."],
+      ["<i class='fa-solid fa-palette'></i>", "violet", "Brand Identity", "Logos, guidelines and brand systems people remember."],
+      ["<i class='fa-solid fa-paintbrush'></i>", "indigo", "UI/UX Design", "Research-driven interfaces that are beautiful and convert."],
+      ["<i class='fa-solid fa-magnifying-glass'></i>", "cyan", "SEO", "Technical and content SEO that climbs Google rankings."],
+      ["<i class='fa-solid fa-bullhorn'></i>", "pink", "Social Media", "Content strategy and campaigns that build community."],
+      ["<i class='fa-solid fa-chart-line'></i>", "orange", "Performance Marketing", "Google and Meta ads with transparent ROI tracking."],
+      ["<i class='fa-solid fa-pen-nib'></i>", "green", "Content Creation", "Copywriting, video and graphics that sell."],
     ],
     stats: [["150+", "Projects Launched"], ["3×", "Average ROI"], ["14 Days", "First Results"]],
     ctaTitle: "Ready to Grow Online?",
@@ -175,6 +175,7 @@ function page(s) {
   <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 
   <link rel="stylesheet" href="../css/style.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 </head>
 <body>
 
@@ -182,7 +183,7 @@ function page(s) {
   <header class="navbar scrolled" id="navbar">
     <div class="container nav-inner">
       <a href="../" class="logo">
-        <span class="logo-mark">◆</span>
+        <span class="logo-mark"><i class="fa-solid fa-shield-halved"></i></span>
         <span class="logo-text">Cyber<span class="accent">Nexa</span></span>
       </a>
 
@@ -237,7 +238,7 @@ function page(s) {
     <div class="hero-grid"></div>
 
     <div class="container hero-content">
-      <a href="/#contact" class="btn btn-ghost reveal">💬 ${s.heroBtn}</a>
+      <a href="/#contact" class="btn btn-ghost reveal"><i class="fa-solid fa-comments"></i> ${s.heroBtn}</a>
       <h1 class="reveal delay-1" style="margin-top: 26px;">
         ${s.h1a}<br />
         <span class="gradient-text">${s.h1b}</span>
@@ -300,8 +301,8 @@ function page(s) {
         <p>${s.ctaDesc}</p>
       </div>
       <div class="cta-actions">
-        <a href="mailto:umair799283@gmail.com" class="btn btn-primary btn-lg">✉️ umair799283@gmail.com</a>
-        <a href="tel:+923237469306" class="btn btn-ghost btn-lg">📞 +92 323 7469306</a>
+        <a href="mailto:umair799283@gmail.com" class="btn btn-primary btn-lg"><i class="fa-solid fa-envelope"></i> umair799283@gmail.com</a>
+        <a href="tel:+923237469306" class="btn btn-ghost btn-lg"><i class="fa-solid fa-phone"></i> +92 323 7469306</a>
       </div>
     </div>
   </section>
@@ -311,14 +312,14 @@ function page(s) {
     <div class="container footer-grid">
       <div class="footer-brand">
         <a href="../" class="logo">
-          <span class="logo-mark">◆</span>
+          <span class="logo-mark"><i class="fa-solid fa-shield-halved"></i></span>
           <span class="logo-text">Cyber<span class="accent">Nexa</span></span>
         </a>
         <p>Your trusted technology partner — delivering secure, scalable IT solutions that simplify operations and empower growth.</p>
         <div class="socials">
-          <a href="#" aria-label="Facebook">ⓕ</a>
-          <a href="#" aria-label="Instagram">◎</a>
-          <a href="#" aria-label="X / Twitter">𝕏</a>
+          <a href="#" aria-label="Facebook"><i class="fa-brands fa-facebook"></i></a>
+          <a href="#" aria-label="Instagram"><i class="fa-brands fa-instagram"></i></a>
+          <a href="#" aria-label="X / Twitter"><i class="fa-brands fa-x-twitter"></i></a>
           <a href="#" aria-label="LinkedIn">in</a>
         </div>
       </div>
@@ -367,7 +368,7 @@ fs.mkdirSync(outDir, { recursive: true });
 for (const s of services) {
   const file = path.join(outDir, `${s.slug}.html`);
   fs.writeFileSync(file, page(s), "utf-8");
-  console.log(`✅ Generated: services/${s.slug}.html`);
+  console.log(` Generated: services/${s.slug}.html`);
 }
 
 console.log("Done — 5 service pages generated.");

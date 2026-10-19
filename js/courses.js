@@ -10,15 +10,15 @@
   "use strict";
 
   var CATEGORY_META = [
-    { name: "Cybersecurity", slug: "cybersecurity", icon: "\uD83D\uDEE1\uFE0F", blurb: "Offensive and defensive security — become the person who stops breaches." },
-    { name: "Networking", slug: "networking", icon: "\uD83C\uDF10", blurb: "Routing, switching and enterprise network engineering." },
-    { name: "DevOps", slug: "devops", icon: "\u2699\uFE0F", blurb: "Build, ship and run software faster with automation and infrastructure as code." },
-    { name: "Linux & Unix", slug: "linux", icon: "\uD83D\uDC27", blurb: "Administration and certification on the world's most used platforms." },
-    { name: "Cloud Computing", slug: "cloud", icon: "\u2601\uFE0F", blurb: "AWS, Azure and GCP — architectures that scale globally." },
-    { name: "System Administration", slug: "sysadmin", icon: "\uD83D\uDDA5\uFE0F", blurb: "Windows Server, AD and enterprise infrastructure operations." },
-    { name: "Digital Marketing", slug: "marketing", icon: "\uD83D\uDCC8", blurb: "SEO, ads and campaigns that turn visitors into customers." },
-    { name: "Programming", slug: "programming", icon: "\uD83D\uDCBB", blurb: "Frontend, backend and languages — build production-ready software." },
-    { name: "Designing", slug: "designing", icon: "\uD83C\uDFA8", blurb: "Visual skills that get hired." }
+    { name: "Cybersecurity", slug: "cybersecurity", icon: '<i class="fa-solid fa-shield-halved"></i>', blurb: "Offensive and defensive security — become the person who stops breaches." },
+    { name: "Networking", slug: "networking", icon: '<i class="fa-solid fa-globe"></i>', blurb: "Routing, switching and enterprise network engineering." },
+    { name: "DevOps", slug: "devops", icon: '<i class="fa-solid fa-gear"></i>', blurb: "Build, ship and run software faster with automation and infrastructure as code." },
+    { name: "Linux & Unix", slug: "linux", icon: '<i class="fa-brands fa-linux"></i>', blurb: "Administration and certification on the world's most used platforms." },
+    { name: "Cloud Computing", slug: "cloud", icon: '<i class="fa-solid fa-cloud"></i>', blurb: "AWS, Azure and GCP — architectures that scale globally." },
+    { name: "System Administration", slug: "sysadmin", icon: '<i class="fa-solid fa-desktop"></i>', blurb: "Windows Server, AD and enterprise infrastructure operations." },
+    { name: "Digital Marketing", slug: "marketing", icon: '<i class="fa-solid fa-chart-line"></i>', blurb: "SEO, ads and campaigns that turn visitors into customers." },
+    { name: "Programming", slug: "programming", icon: '<i class="fa-solid fa-laptop-code"></i>', blurb: "Frontend, backend and languages — build production-ready software." },
+    { name: "Designing", slug: "designing", icon: '<i class="fa-solid fa-palette"></i>', blurb: "Visual skills that get hired." }
   ];
 
   function catMeta(name) {
@@ -27,7 +27,7 @@
     }
     return {
       slug: String(name).toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""),
-      icon: "\uD83D\uDCDA",
+      icon: '<i class="fa-solid fa-book-open"></i>',
       blurb: ""
     };
   }

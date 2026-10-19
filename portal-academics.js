@@ -164,12 +164,12 @@ module.exports = function mountAcademics(app) {
         <a class="btn danger sm" href="/portal/assignments/delete?id=${esc(a.id)}" onclick="return confirm('Delete this assignment and all its submissions?')">Delete</a>
       </td></tr>`).join("");
     res.send(core.shell(u, "assign", "Assignments", "Create coursework and grade your students' submissions.",
-      `${req.query.ok ? `<div class="ok">✅ ${esc(req.query.ok)}</div>` : ""}
-       ${assigned.length ? "" : `<div class="note"><h4>⚠️ No course assigned yet</h4><p>The academy has not assigned you a course. Ask the admin to assign one before creating assignments.</p></div>`}
+      `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
+       ${assigned.length ? "" : `<div class="note"><h4><i class="fa-solid fa-triangle-exclamation"></i> No course assigned yet</h4><p>The academy has not assigned you a course. Ask the admin to assign one before creating assignments.</p></div>`}
        <div class="panel">
          <div class="row" style="justify-content:space-between">
-           <h2 style="margin:0">📝 My assignments (${mine.length})</h2>
-           <a class="btn primary sm" href="/portal/assignments/new">➕ New assignment</a>
+           <h2 style="margin:0"><i class="fa-solid fa-pen-to-square"></i> My assignments (${mine.length})</h2>
+           <a class="btn primary sm" href="/portal/assignments/new"><i class="fa-solid fa-plus"></i> New assignment</a>
          </div>
          ${mine.length ? `<table class="mt"><tr><th>Assignment</th><th>Due</th><th>Marks</th><th>Submissions</th><th>Status</th><th></th></tr>${rows}</table>`
            : `<p class="muted mt">No assignments yet. Click “New assignment” to post your first task.</p>`}
@@ -204,8 +204,8 @@ module.exports = function mountAcademics(app) {
     const pending = list.filter((a) => !a.sub_status).length;
     const done = list.filter((a) => a.sub_status === "graded").length;
     res.send(core.shell(u, "assign", "My Assignments", "Download the task, upload your work and track your marks.",
-      `${req.query.ok ? `<div class="ok">✅ ${esc(req.query.ok)}</div>` : ""}
-       ${req.query.e ? `<div class="err">⚠️ ${esc(req.query.e)}</div>` : ""}
+      `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
+       ${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
        <div class="cards">
          <div class="stat"><b>${list.length}</b><span>Total assignments</span></div>
          <div class="stat"><b>${pending}</b><span>Pending / not submitted</span></div>
@@ -213,7 +213,7 @@ module.exports = function mountAcademics(app) {
          <div class="stat"><b>${done}</b><span>Graded</span></div>
        </div>
        <div class="panel">
-         <h2>📝 All assignments</h2>
+         <h2><i class="fa-solid fa-pen-to-square"></i> All assignments</h2>
          ${list.length ? `<table><tr><th>Assignment</th><th>Due</th><th>Status</th><th>Marks</th><th></th></tr>${rows}</table>`
            : (courses.length
                ? `<p class="muted">No assignments posted for your courses yet.</p>`
@@ -230,8 +230,8 @@ module.exports = function mountAcademics(app) {
       return `<option value="${esc(title)}">${esc(title)}</option>`;
     }).join("");
     res.send(core.shell(req.user, "assign", "New assignment", "Post a task to every student enrolled in the selected course.",
-      `${req.query.e ? `<div class="err">⚠️ ${esc(req.query.e)}</div>` : ""}
-       ${courses.length ? "" : `<div class="note"><h4>⚠️ No course assigned yet</h4><p>You can still post an assignment by picking a course below, but ask the admin to assign you the course for it to reach students.</p></div>`}
+      `${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
+       ${courses.length ? "" : `<div class="note"><h4><i class="fa-solid fa-triangle-exclamation"></i> No course assigned yet</h4><p>You can still post an assignment by picking a course below, but ask the admin to assign you the course for it to reach students.</p></div>`}
        <div class="panel">
          <form method="post" action="/portal/assignments/new" enctype="multipart/form-data">
            <label>Course *</label>
@@ -247,7 +247,7 @@ module.exports = function mountAcademics(app) {
            <label>Attach assignment brief (PDF, DOCX, ZIP, image… optional, max 10 MB)</label>
            <input type="file" name="file">
            <div class="row mt">
-             <button class="btn primary" type="submit">📤 Post assignment</button>
+             <button class="btn primary" type="submit"><i class="fa-solid fa-upload"></i> Post assignment</button>
              <a class="btn ghost" href="/portal/assignments">Cancel</a>
            </div>
          </form>
@@ -283,7 +283,7 @@ module.exports = function mountAcademics(app) {
         });
         await q("UPDATE assignments SET doc_id = ? WHERE id = ?", [docId, id]);
       }
-      await notifyStudents(courseTitle, `📝 New assignment: ${title}`,
+      await notifyStudents(courseTitle, `New assignment: ${title}`,
         `A new assignment has been posted in "${courseTitle}".` + (due ? ` Due: ${due}.` : ""));
       res.redirect("/portal/assignments/view?id=" + encodeURIComponent(id) + "&ok=" + encodeURIComponent("Assignment posted"));
     } catch (err) {
@@ -326,13 +326,13 @@ module.exports = function mountAcademics(app) {
         <td><strong>${esc(s.full_name)}</strong><div class="muted" style="font-size:.78rem">${esc(s.email)}</div></td>
         <td class="muted">${sub ? shortDate(sub.submitted_at) : "—"}</td>
         <td>${sub ? (sub.status === "graded" ? `<span class="badge b-graded">graded ${esc(sub.marks)}/${Number(a.max_marks)}</span>` : badge("submitted")) : `<span class="badge b-rejected">not submitted</span>`}</td>
-        <td>${hasFile ? `<a class="btn ghost sm" href="/portal/submission-file/${esc(sub.doc_id)}" target="_blank">⬇ Download</a>` : `<span class="muted">—</span>`}${sub && sub.note ? `<div class="muted" style="font-size:.76rem;max-width:220px">💬 ${esc(sub.note).slice(0, 160)}</div>` : ""}</td>
+        <td>${hasFile ? `<a class="btn ghost sm" href="/portal/submission-file/${esc(sub.doc_id)}" target="_blank"><i class="fa-solid fa-download"></i> Download</a>` : `<span class="muted">—</span>`}${sub && sub.note ? `<div class="muted" style="font-size:.76rem;max-width:220px"><i class="fa-solid fa-comments"></i> ${esc(sub.note).slice(0, 160)}</div>` : ""}</td>
         <td>${gradeForm}</td>
       </tr>`;
     }).join("");
     const gradedN = subs.filter((s) => s.status === "graded").length;
     res.send(core.shell(req.user, "assign", a.title, `${esc(a.course_title)} · posted ${esc(a.created_at)}`,
-      `${req.query.ok ? `<div class="ok">✅ ${esc(req.query.ok)}</div>` : ""}
+      `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
        <div class="cards">
          <div class="stat"><b>${students.length}</b><span>Students</span></div>
          <div class="stat"><b>${subs.length}</b><span>Submissions</span></div>
@@ -346,7 +346,7 @@ module.exports = function mountAcademics(app) {
            <tr><th>Due</th><td>${esc(a.due_date || "—")}</td></tr>
            <tr><th>Total marks</th><td>${Number(a.max_marks)}</td></tr>
            <tr><th>Status</th><td>${badge(a.status)}</td></tr>
-           <tr><th>Brief</th><td>${doc ? `<a class="btn ghost sm" href="/portal/assignment-file/${esc(doc.id)}" target="_blank">📎 ${esc(doc.originalname || "Download")}</a>` : `<span class="muted">No file attached</span>`}</td></tr>
+           <tr><th>Brief</th><td>${doc ? `<a class="btn ghost sm" href="/portal/assignment-file/${esc(doc.id)}" target="_blank"><i class="fa-solid fa-paperclip"></i> ${esc(doc.originalname || "Download")}</a>` : `<span class="muted">No file attached</span>`}</td></tr>
            <tr><th>Instructions</th><td style="white-space:pre-wrap">${esc(a.description || "—")}</td></tr>
          </table>
          <p class="mt"><a class="btn ghost sm" href="/portal/assignments">All assignments</a>
@@ -366,24 +366,24 @@ module.exports = function mountAcademics(app) {
     const pct = graded && Number(a.max_marks) > 0 ? (Number(sub.marks) / Number(a.max_marks)) * 100 : 0;
     const resultCard = graded ? `
       <div class="panel">
-        <h2>📊 Your result</h2>
+        <h2><i class="fa-solid fa-chart-column"></i> Your result</h2>
         <div class="cards">
           <div class="stat"><b>${esc(sub.marks)} / ${Number(a.max_marks)}</b><span>Marks obtained</span></div>
           <div class="stat"><b>${pct.toFixed(1)}%</b><span>Percentage</span></div>
           <div class="stat"><b>${gradeLetter(pct)}</b><span>Grade</span></div>
           <div class="stat"><b>${gpaPoint(pct).toFixed(1)}</b><span>GPA points</span></div>
         </div>
-        ${sub.feedback ? `<div class="note mt"><h4>👩‍🏫 Teacher feedback</h4><p>${esc(sub.feedback)}</p></div>` : ""}
+        ${sub.feedback ? `<div class="note mt"><h4><i class="fa-solid fa-chalkboard-user"></i> Teacher feedback</h4><p>${esc(sub.feedback)}</p></div>` : ""}
         <p class="muted mt">Graded on ${esc(sub.graded_at || "")}</p>
       </div>` : "";
 
     const submitPanel = graded
-      ? `<div class="panel"><h2>✅ Submitted &amp; graded</h2>
-           ${sub.doc_id ? `<p><a class="btn ghost sm" href="/portal/submission-file/${esc(sub.doc_id)}" target="_blank">⬇ Your submitted file</a></p>` : ""}
-           ${sub.note ? `<p class="muted mt">💬 ${esc(sub.note)}</p>` : ""}
+      ? `<div class="panel"><h2><i class="fa-solid fa-circle-check"></i> Submitted &amp; graded</h2>
+           ${sub.doc_id ? `<p><a class="btn ghost sm" href="/portal/submission-file/${esc(sub.doc_id)}" target="_blank"><i class="fa-solid fa-download"></i> Your submitted file</a></p>` : ""}
+           ${sub.note ? `<p class="muted mt"><i class="fa-solid fa-comments"></i> ${esc(sub.note)}</p>` : ""}
            <p class="muted mt">Contact your teacher if you need to resubmit.</p>
          </div>`
-      : `<div class="panel"><h2>⬆️ ${sub ? "Resubmit your work" : "Upload your work"}</h2>
+      : `<div class="panel"><h2><i class="fa-solid fa-upload"></i> ${sub ? "Resubmit your work" : "Upload your work"}</h2>
            ${sub ? `<p class="muted">You submitted on ${esc(sub.submitted_at)}. You can replace it until it is graded.</p>` : ""}
            <form method="post" action="/portal/assignments/submit" enctype="multipart/form-data">
              <input type="hidden" name="assignment_id" value="${esc(a.id)}">
@@ -391,14 +391,14 @@ module.exports = function mountAcademics(app) {
              <input type="file" name="file" required>
              <label>Note to the teacher (optional)</label>
              <textarea name="note" placeholder="Anything your teacher should know…">${sub ? esc(sub.note || "") : ""}</textarea>
-             <button class="btn primary mt" type="submit">📤 ${sub ? "Replace submission" : "Submit assignment"}</button>
+             <button class="btn primary mt" type="submit"><i class="fa-solid fa-upload"></i> ${sub ? "Replace submission" : "Submit assignment"}</button>
            </form>
-           ${sub && sub.doc_id ? `<p class="mt"><a class="btn ghost sm" href="/portal/submission-file/${esc(sub.doc_id)}" target="_blank">⬇ Download what you submitted</a></p>` : ""}
+           ${sub && sub.doc_id ? `<p class="mt"><a class="btn ghost sm" href="/portal/submission-file/${esc(sub.doc_id)}" target="_blank"><i class="fa-solid fa-download"></i> Download what you submitted</a></p>` : ""}
          </div>`;
 
     res.send(core.shell(req.user, "assign", a.title, `${esc(a.course_title)} · ${a.teacher ? "by " + esc(a.teacher) : ""}`,
-      `${req.query.ok ? `<div class="ok">✅ ${esc(req.query.ok)}</div>` : ""}
-       ${req.query.e ? `<div class="err">⚠️ ${esc(req.query.e)}</div>` : ""}
+      `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
+       ${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
        <div class="panel">
          <h2>Task details</h2>
          <table>
@@ -406,7 +406,7 @@ module.exports = function mountAcademics(app) {
            <tr><th>Due</th><td>${esc(a.due_date || "—")} ${!graded && !sub && isPast(a.due_date) ? `<span class="badge b-rejected">overdue</span>` : ""}</td></tr>
            <tr><th>Total marks</th><td>${Number(a.max_marks)}</td></tr>
            <tr><th>Status</th><td>${graded ? `<span class="badge b-graded">graded</span>` : sub ? badge("submitted") : badge("pending")}</td></tr>
-           <tr><th>Assignment brief</th><td>${doc ? `<a class="btn ghost sm" href="/portal/assignment-file/${esc(doc.id)}" target="_blank">⬇ ${esc(doc.originalname || "Download brief")}</a>` : `<span class="muted">No file attached</span>`}</td></tr>
+           <tr><th>Assignment brief</th><td>${doc ? `<a class="btn ghost sm" href="/portal/assignment-file/${esc(doc.id)}" target="_blank"><i class="fa-solid fa-download"></i> ${esc(doc.originalname || "Download brief")}</a>` : `<span class="muted">No file attached</span>`}</td></tr>
            <tr><th>Instructions</th><td style="white-space:pre-wrap">${esc(a.description || "—")}</td></tr>
          </table>
          <p class="mt"><a class="btn ghost sm" href="/portal/assignments">All assignments</a></p>
@@ -444,7 +444,7 @@ module.exports = function mountAcademics(app) {
         [uid("sub_"), a.id, req.user.id, docId, note]
       );
       try {
-        await core.createNotice("user", a.teacher_id, `📥 New submission: ${a.title}`,
+        await core.createNotice("user", a.teacher_id, `New submission: ${a.title}`,
           `${req.user.full_name} submitted work for "${a.title}" (${a.course_title}).`);
       } catch { /* best effort */ }
       res.redirect("/portal/assignments/view?id=" + encodeURIComponent(a.id) + "&ok=" + encodeURIComponent("Assignment submitted"));
@@ -472,7 +472,7 @@ module.exports = function mountAcademics(app) {
         [uid("sub_"), a.id, studentId, marks, feedback, req.user.id]
       );
       try {
-        await core.createNotice("user", studentId, `✅ Graded: ${a.title}`,
+        await core.createNotice("user", studentId, `Graded: ${a.title}`,
           `Your submission for "${a.title}" (${a.course_title}) was graded: ${marks}/${Number(a.max_marks)}.`);
       } catch { /* best effort */ }
       back("Marks saved");
@@ -546,11 +546,11 @@ module.exports = function mountAcademics(app) {
           <div class="stat"><b>${gradeLetter(pct)}</b><span>Overall grade</span></div>
         </div>
         <div class="panel">
-          <h2>📊 Result card</h2>
+          <h2><i class="fa-solid fa-chart-column"></i> Result card</h2>
           <table><tr><th>Assignment</th><th>Due</th><th>Marks</th><th>%</th><th>Grade</th><th>Feedback</th></tr>${body}</table>
         </div>`
         : `<div class="panel"><p class="empty">No graded assignments yet. Your results will appear here once your teacher checks your work.</p></div>`}
-       <p class="mt"><a class="btn ghost sm" href="/portal/transcript" target="_blank">🖨️ Print result card / transcript</a></p>`));
+       <p class="mt"><a class="btn ghost sm" href="/portal/transcript" target="_blank"><i class="fa-solid fa-print"></i> Print result card / transcript</a></p>`));
   });
 
   // ------------------------------- FILE DOWNLOADS -------------------------------
@@ -582,5 +582,5 @@ module.exports = function mountAcademics(app) {
     core.serveDoc(res, doc);
   });
 
-  console.log("📚 Portal academics mounted");
+  console.log(" Portal academics mounted");
 };

@@ -127,7 +127,7 @@ async function initDb() {
           [m.id, m.name, m.email, m.phone || "", m.message, m.read ? 1 : 0, m.ip || "", m.date]
         );
       }
-      console.log(`🗄️  Migrated ${jsonMsgs.length} message(s) from JSON to MySQL`);
+      console.log(`  Migrated ${jsonMsgs.length} message(s) from JSON to MySQL`);
     }
 
     // Course catalog table + one-time migration from JSON
@@ -150,17 +150,17 @@ async function initDb() {
     const jsonCourses = readCourses();
     if (nc === 0 && jsonCourses.length > 0) {
       for (const c of jsonCourses) await addCourse(c);
-      console.log(`🗄️  Migrated ${jsonCourses.length} course(s) from JSON to MySQL`);
+      console.log(`  Migrated ${jsonCourses.length} course(s) from JSON to MySQL`);
     }
 
     storageMode = "MySQL";
     // Portal tables (users, enrollments, documents, sessions, ...)
     await portal.initSchema(pool);
-    console.log(`🗄️  MySQL connected (${host}:${port}/${database}) — data stored in database`);
+    console.log(`  MySQL connected (${host}:${port}/${database}) — data stored in database`);
   } catch (err) {
     pool = null;
     storageMode = "JSON file (MySQL offline)";
-    console.warn("⚠️  MySQL unavailable — falling back to JSON file storage");
+    console.warn("  MySQL unavailable — falling back to JSON file storage");
     console.warn(`   Reason: ${err.message}`);
     console.warn("   Start MySQL (XAMPP) or Docker, then restart the server to use the database.");
   }
@@ -625,7 +625,7 @@ app.post(
 
   // 1) Always save the request (admin dashboard)
   const attachMeta = buildAttachmentsMeta(files);
-  const msgBody = `🎓 Enrollment request — ${courseName} (${coursePrice})\nEnrollment Type: ${enrollType}\nAttachments: ${attachMeta.length}\n${attachMeta.map((a) => "- " + a.originalname + " → " + a.filename).join("\n")}`;
+  const msgBody = `Enrollment request — ${courseName} (${coursePrice})\nEnrollment Type: ${enrollType}\nAttachments: ${attachMeta.length}\n${attachMeta.map((a) => "- " + a.originalname + " → " + a.filename).join("\n")}`;
 
   try {
     await addMessage({
@@ -681,7 +681,7 @@ app.post(
     console.error("Enrollment notification failed:", err.message);
   }
 
-  console.log(`🎓 Enrollment: ${courseName} — ${displayName} (${displayEmail}) | email: ${mailed || "FAILED (saved to admin only)"}`);
+  console.log(` Enrollment: ${courseName} — ${displayName} (${displayEmail}) | email: ${mailed || "FAILED (saved to admin only)"}`);
   res.json({
     ok: true,
     msg: "Enrollment request sent! We will contact you shortly.",
@@ -717,7 +717,7 @@ app.post("/api/subscribe", async (req, res) => {
              String(m.email || "").toLowerCase() === clean.toLowerCase()
     );
     if (exists) {
-      return res.json({ ok: true, msg: "You're already subscribed — thank you! 🎉" });
+      return res.json({ ok: true, msg: "You're already subscribed — thank you!" });
     }
   } catch (err) {
     console.error("Subscribe duplicate check failed:", err.message);
@@ -729,7 +729,7 @@ app.post("/api/subscribe", async (req, res) => {
       name: "Newsletter Subscriber",
       email: clean,
       phone: "",
-      message: "📬 Newsletter subscription",
+      message: "Newsletter subscription",
       date: new Date().toISOString().slice(0, 19).replace("T", " "),
       ip: req.ip,
     });
@@ -743,10 +743,10 @@ app.post("/api/subscribe", async (req, res) => {
     Time: new Date().toLocaleString("en-PK"),
     IP: String(req.ip),
   }, originOf(req))
-    .then((m) => console.log(`📬 Newsletter: ${clean} | email: ${m || "not sent"}`))
+    .then((m) => console.log(` Newsletter: ${clean} | email: ${m || "not sent"}`))
     .catch((err) => console.error("Newsletter notification failed:", err.message));
 
-  res.json({ ok: true, msg: "Subscribed! You'll hear from us soon. 🎉" });
+  res.json({ ok: true, msg: "Subscribed! You'll hear from us soon." });
 });
 
 // ---------- API: Course catalog (public, active courses only) ----------
@@ -801,6 +801,7 @@ function adminLayout(title, active, body) {
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${title}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
   :root { --bg:#0a0a17; --card:#12122a; --border:#26264a; --violet:#3b82f6; --indigo:#2563eb; --cyan:#60a5fa; --text:#ececf5; --muted:#9a9ab5; --green:#22c55e; }
   * { box-sizing:border-box; margin:0; padding:0; }
@@ -867,18 +868,18 @@ function adminLayout(title, active, body) {
 </head>
 <body>
 <aside class="side">
-  <div class="brand">◆ Cyber<b>Nexa</b></div>
-  <a href="/admin" class="${active === "dash" ? "active" : ""}">📊 Dashboard</a>
-  <a href="/admin/messages" class="${active === "msgs" ? "active" : ""}">📬 Messages</a>
-  <a href="/admin/courses" class="${active === "courses" ? "active" : ""}">🎓 Courses</a>
-  <a href="/admin/students" class="${active === "students" ? "active" : ""}">🎒 Students</a>
-  <a href="/admin/teachers" class="${active === "teachers" ? "active" : ""}">👨‍🏫 Teachers</a>
-  <a href="/admin/enrollments" class="${active === "enrollments" ? "active" : ""}">🗂️ Enrollments</a>
-  <a href="/admin/assignments" class="${active === "assignments" ? "active" : ""}">📝 Assignments</a>
-  <a href="/admin/campus" class="${active === "campus" ? "active" : ""}">🏫 Campus</a>
-  <a href="/admin/notices" class="${active === "notices" ? "active" : ""}">🔔 Notices</a>
-  <a href="/admin/resets" class="${active === "resets" ? "active" : ""}">🔐 Password resets</a>
-  <a href="/" target="_blank">🌐 View Website</a>
+  <div class="brand"><i class="fa-solid fa-shield-halved"></i> Cyber<b>Nexa</b></div>
+  <a href="/admin" class="${active === "dash" ? "active" : ""}"><i class="fa-solid fa-chart-column"></i> Dashboard</a>
+  <a href="/admin/messages" class="${active === "msgs" ? "active" : ""}"><i class="fa-solid fa-envelope"></i> Messages</a>
+  <a href="/admin/courses" class="${active === "courses" ? "active" : ""}"><i class="fa-solid fa-graduation-cap"></i> Courses</a>
+  <a href="/admin/students" class="${active === "students" ? "active" : ""}"><i class="fa-solid fa-user-graduate"></i> Students</a>
+  <a href="/admin/teachers" class="${active === "teachers" ? "active" : ""}"><i class="fa-solid fa-chalkboard-user"></i> Teachers</a>
+  <a href="/admin/enrollments" class="${active === "enrollments" ? "active" : ""}"><i class="fa-solid fa-folder-tree"></i> Enrollments</a>
+  <a href="/admin/assignments" class="${active === "assignments" ? "active" : ""}"><i class="fa-solid fa-pen-to-square"></i> Assignments</a>
+  <a href="/admin/campus" class="${active === "campus" ? "active" : ""}"><i class="fa-solid fa-school"></i> Campus</a>
+  <a href="/admin/notices" class="${active === "notices" ? "active" : ""}"><i class="fa-solid fa-bell"></i> Notices</a>
+  <a href="/admin/resets" class="${active === "resets" ? "active" : ""}"><i class="fa-solid fa-lock"></i> Password resets</a>
+  <a href="/" target="_blank"><i class="fa-solid fa-globe"></i> View Website</a>
   <div class="foot">Signed in as <b>admin</b></div>
 </aside>
 <main class="main">${body}</main>
@@ -929,18 +930,18 @@ app.get("/admin", async (req, res) => {
         <td>${esc(m.email)}</td>
         <td class="msg">${esc(m.message).slice(0, 90)}${String(m.message).length > 90 ? "…" : ""}</td>
         <td>${esc(m.date)}</td>
-        <td>${m.read ? "✅" : "🆕"}</td>
+        <td>${m.read ? "<i class='fa-solid fa-circle-check'></i>" : "<i class='fa-solid fa-envelope'></i>"}</td>
       </tr>`
         )
         .join("")
-    : `<tr><td colspan="5" class="empty">No messages yet. 🙂</td></tr>`;
+    : `<tr><td colspan="5" class="empty">No messages yet. <i class="fa-solid fa-face-smile"></i></td></tr>`;
 
   res.send(
     adminLayout(
       "Admin — Dashboard",
       "dash",
       `
-    <h1>📊 Dashboard</h1>
+    <h1><i class="fa-solid fa-chart-column"></i> Dashboard</h1>
     <p class="sub">Overview of your contact form activity · Storage: ${storageMode}</p>
 
     <div class="stats">
@@ -975,7 +976,7 @@ function attachmentsCell(m) {
   let mm;
   while ((mm = re.exec(txt)) !== null) {
     links.push(
-      `<a class="btn b-read" style="margin:2px 0" href="/admin/file/${encodeURIComponent(mm[2])}" target="_blank" rel="noopener">📎 ${esc(mm[1])}</a>`
+      `<a class="btn b-read" style="margin:2px 0" href="/admin/file/${encodeURIComponent(mm[2])}" target="_blank" rel="noopener"><i class="fa-solid fa-paperclip"></i> ${esc(mm[1])}</a>`
     );
   }
   return links.length ? `<div style="display:flex;flex-direction:column;gap:4px">${links.join("")}</div>` : "-";
@@ -1010,14 +1011,14 @@ app.get("/admin/messages", async (req, res) => {
         <td>
           ${m.read ? "" : `<form method="post" action="/admin/read" style="display:inline">
             <input type="hidden" name="id" value="${esc(m.id)}">
-            <button class="btn b-read" type="submit">✓ Read</button></form>`}
+            <button class="btn b-read" type="submit"><i class="fa-solid fa-check"></i> Read</button></form>`}
           <a class="btn b-del" href="/admin/delete?id=${encodeURIComponent(m.id)}"
-             onclick="return confirm('Delete this message?')">✕ Delete</a>
+             onclick="return confirm('Delete this message?')"><i class="fa-solid fa-xmark"></i> Delete</a>
         </td>
       </tr>`
         )
         .join("")
-    : `<tr><td colspan="8" class="empty">No messages yet. 🙂</td></tr>`;
+    : `<tr><td colspan="8" class="empty">No messages yet. <i class="fa-solid fa-face-smile"></i></td></tr>`;
 
   res.send(
     adminLayout(
@@ -1026,7 +1027,7 @@ app.get("/admin/messages", async (req, res) => {
       `
     <div class="head-row">
       <div>
-        <h1>📬 Messages</h1>
+        <h1><i class="fa-solid fa-envelope"></i> Messages</h1>
         <p class="sub">${messages.length} total · ${unread} unread</p>
       </div>
       <a href="/admin" class="btn b-read">Dashboard</a>
@@ -1076,8 +1077,8 @@ function courseForm(c, addMode) {
       <div style="grid-column:1/-1"><label>Full description (enroll popup)</label><textarea name="description">${v("description", "")}</textarea></div>
     </div>
     <div class="check-row">
-      <label><input type="checkbox" name="featured" value="1" ${c && c.featured ? "checked" : ""}> ⭐ Featured on homepage</label>
-      <label><input type="checkbox" name="active" value="1" ${c ? (c.active ? "checked" : "") : "checked"}> ✅ Active (visible on site)</label>
+      <label><input type="checkbox" name="featured" value="1" ${c && c.featured ? "checked" : ""}> <i class="fa-solid fa-star"></i> Featured on homepage</label>
+      <label><input type="checkbox" name="active" value="1" ${c ? (c.active ? "checked" : "") : "checked"}> <i class="fa-solid fa-circle-check"></i> Active (visible on site)</label>
     </div>
     <p style="margin-top:16px"><button class="btn b-add" type="submit">${addMode ? "Save Course" : "Update Course"}</button>
     ${addMode ? "" : `<a class="btn b-read" href="/admin/courses">Cancel</a>`}</p>
@@ -1091,13 +1092,13 @@ app.get("/admin/courses", async (req, res) => {
   const featuredN = courses.filter((c) => c.featured).length;
   const cats = new Set(courses.map((c) => c.category)).size;
   const msg = req.query.saved
-    ? `<div class="notice">✅ Course saved successfully.</div>`
+    ? `<div class="notice"><i class="fa-solid fa-circle-check"></i> Course saved successfully.</div>`
     : req.query.deleted
-      ? `<div class="notice">🗑️ Course deleted.</div>`
+      ? `<div class="notice"><i class="fa-solid fa-trash"></i> Course deleted.</div>`
       : req.query.added
-        ? `<div class="notice">➕ Course added — it is now live on the website.</div>`
+        ? `<div class="notice"><i class="fa-solid fa-plus"></i> Course added — it is now live on the website.</div>`
         : req.query.error
-          ? `<div class="notice" style="background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.35);color:#f87171">⚠️ ${esc(req.query.error)}</div>`
+          ? `<div class="notice" style="background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.35);color:#f87171"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.error)}</div>`
           : "";
   const rows = courses
     .map(
@@ -1108,11 +1109,11 @@ app.get("/admin/courses", async (req, res) => {
       <td>${esc(c.category)}</td>
       <td class="msg">${esc(c.meta)}</td>
       <td>${esc(c.price)}</td>
-      <td>${c.featured ? `<span class="badge feat">⭐ Featured</span> ` : ""}${c.active ? `<span class="badge on">✅ Active</span>` : `<span class="badge off">⛔ Hidden</span>`}</td>
+      <td>${c.featured ? `<span class="badge feat"><i class="fa-solid fa-star"></i> Featured</span> ` : ""}${c.active ? `<span class="badge on"><i class="fa-solid fa-circle-check"></i> Active</span>` : `<span class="badge off"><i class="fa-solid fa-ban"></i> Hidden</span>`}</td>
       <td style="white-space:nowrap">
-        <a class="btn b-read" href="/admin/courses/edit?id=${encodeURIComponent(c.id)}">✏️ Edit</a>
+        <a class="btn b-read" href="/admin/courses/edit?id=${encodeURIComponent(c.id)}"><i class="fa-solid fa-pen"></i> Edit</a>
         <a class="btn b-del" href="/admin/courses/delete?id=${encodeURIComponent(c.id)}"
-           onclick="return confirm('Delete “${esc(c.title)}”?')">✕ Delete</a>
+           onclick="return confirm('Delete “${esc(c.title)}”?')"><i class="fa-solid fa-xmark"></i> Delete</a>
       </td>
     </tr>`
     )
@@ -1125,21 +1126,21 @@ app.get("/admin/courses", async (req, res) => {
       `
     <div class="head-row">
       <div>
-        <h1>🎓 Courses</h1>
+        <h1><i class="fa-solid fa-graduation-cap"></i> Courses</h1>
         <p class="sub">${total} total · ${activeN} active · ${featuredN} featured · ${cats} categories · Storage: ${storageMode}</p>
       </div>
       <a href="/admin" class="btn b-read">Dashboard</a>
     </div>
     ${msg}
     <div class="panel">
-      <h2>➕ Add New Course</h2>
+      <h2><i class="fa-solid fa-plus"></i> Add New Course</h2>
       ${courseForm(null, true)}
     </div>
     <div class="panel">
       <h2>All Courses (${total})</h2>
       <table>
         <tr><th>Tag</th><th>Title</th><th>Category</th><th>Meta</th><th>Price</th><th>Flags</th><th>Action</th></tr>
-        ${rows || `<tr><td colspan="7" class="empty">No courses yet — add your first course above. 🎓</td></tr>`}
+        ${rows || `<tr><td colspan="7" class="empty">No courses yet — add your first course above. <i class="fa-solid fa-graduation-cap"></i></td></tr>`}
       </table>
     </div>`
     )
@@ -1186,7 +1187,7 @@ app.get("/admin/courses/edit", async (req, res) => {
       "courses",
       `
     <div class="head-row">
-      <div><h1>✏️ Edit Course</h1><p class="sub">${esc(c.title)} · ${esc(c.category)}</p></div>
+      <div><h1><i class="fa-solid fa-pen"></i> Edit Course</h1><p class="sub">${esc(c.title)} · ${esc(c.category)}</p></div>
       <a href="/admin/courses" class="btn b-read">All Courses</a>
     </div>
     <div class="panel">${courseForm(c, false)}</div>`
@@ -1260,7 +1261,7 @@ app.use((req, res) => {
 // Catches errors forwarded by the portal's async-route wrapper (and any other
 // next(err)) so a single bad request can never crash the server.
 app.use((err, req, res, next) => {
-  console.error("❌ Route error:", (err && err.message) || err);
+  console.error(" Route error:", (err && err.message) || err);
   if (res.headersSent) return next(err);
   if (req.path.startsWith("/portal") || req.path.startsWith("/api/")) {
     try {
@@ -1275,8 +1276,8 @@ app.use((err, req, res, next) => {
 });
 
 // Last-resort safety nets: log instead of crashing the live site.
-process.on("unhandledRejection", (err) => console.error("⚠️  Unhandled rejection:", (err && err.message) || err));
-process.on("uncaughtException", (err) => console.error("⚠️  Uncaught exception:", (err && err.stack) || err));
+process.on("unhandledRejection", (err) => console.error("  Unhandled rejection:", (err && err.message) || err));
+process.on("uncaughtException", (err) => console.error("  Uncaught exception:", (err && err.stack) || err));
 
 // Initialize the database (and portal schema) BEFORE accepting traffic, so the
 // very first request never races against table creation. initDb never throws and
@@ -1285,7 +1286,7 @@ const startup = initDb().catch((err) => console.error("Startup init failed:", er
 const deadline = new Promise((resolve) => setTimeout(resolve, 20000));
 Promise.race([startup, deadline]).then(() => {
   app.listen(PORT, () => {
-    console.log(`✅ Server running: http://localhost:${PORT}`);
-    console.log(`📬 Admin panel:    http://localhost:${PORT}/admin`);
+    console.log(` Server running: http://localhost:${PORT}`);
+    console.log(` Admin panel:    http://localhost:${PORT}/admin`);
   });
 });

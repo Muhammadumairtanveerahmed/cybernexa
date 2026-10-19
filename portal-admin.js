@@ -67,7 +67,7 @@ module.exports = function mountAdmin(app) {
       layout(
         "Admin — Students",
         "students",
-        `<div class="head-row"><div><h1>🎒 Students</h1>
+        `<div class="head-row"><div><h1><i class="fa-solid fa-user-graduate"></i> Students</h1>
         <p class="sub">${rows.length} student(s)${search ? ` matching “${esc(search)}”` : ""}</p></div>
         <form method="get" action="/admin/students" style="display:flex;gap:8px">
           <input type="text" name="q" value="${esc(search)}" placeholder="Search name / email / phone">
@@ -87,8 +87,8 @@ module.exports = function mountAdmin(app) {
     const p = (await core.getStudentProfile(u.id)) || {};
     const enrs = await core.getEnrollmentsForUser(u.id);
     const docs = await core.getUserDocuments(u.id);
-    const okMsg = req.query.ok ? `<div class="notice">✅ ${esc(req.query.ok)}</div>` : "";
-    const errMsg = req.query.error ? `<div class="notice" style="background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.35);color:#f87171">⚠️ ${esc(req.query.error)}</div>` : "";
+    const okMsg = req.query.ok ? `<div class="notice"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : "";
+    const errMsg = req.query.error ? `<div class="notice" style="background:rgba(239,68,68,.1);border-color:rgba(239,68,68,.35);color:#f87171"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.error)}</div>` : "";
 
     const rows = enrs
       .map(
@@ -105,7 +105,7 @@ module.exports = function mountAdmin(app) {
         "Admin — Student",
         "students",
         `${okMsg}${errMsg}
-      <div class="head-row"><div><h1>👤 ${esc(u.full_name)}</h1>
+      <div class="head-row"><div><h1><i class="fa-solid fa-user"></i> ${esc(u.full_name)}</h1>
         <p class="sub">${esc(u.email)} · joined ${esc(u.created_at)} · last login ${esc(u.last_login || "-")}</p></div>
         <a class="btn b-read" href="/admin/students">All students</a></div>
 
@@ -131,7 +131,7 @@ module.exports = function mountAdmin(app) {
           </form>
           <form method="post" action="/admin/resets/link">
             <input type="hidden" name="user_id" value="${esc(u.id)}"><input type="hidden" name="back" value="/admin/students/view?id=${esc(u.id)}">
-            <button class="btn b-read" type="submit">🔐 Create reset link</button>
+            <button class="btn b-read" type="submit"><i class="fa-solid fa-lock"></i> Create reset link</button>
           </form>
         </div>
       </div>
@@ -174,7 +174,7 @@ module.exports = function mountAdmin(app) {
       layout(
         "Admin — Teachers",
         "teachers",
-        `<div class="head-row"><div><h1>👨‍🏫 Teachers</h1>
+        `<div class="head-row"><div><h1><i class="fa-solid fa-chalkboard-user"></i> Teachers</h1>
         <p class="sub">${counts.pending || 0} pending · ${counts.active || 0} active · ${counts.rejected || 0} rejected</p></div>
         <div class="row">
           <a class="btn b-read" href="/admin/teachers">All</a>
@@ -199,13 +199,13 @@ module.exports = function mountAdmin(app) {
     const [assigned] = await q("SELECT * FROM teacher_courses WHERE teacher_id = ? ORDER BY created_at DESC", [t.id]);
     const courses = await A().getCourses();
     const opts = courses.map((c) => `<option value="${esc(c.title)}">`).join("");
-    const okMsg = req.query.ok ? `<div class="notice">✅ ${esc(req.query.ok)}</div>` : "";
+    const okMsg = req.query.ok ? `<div class="notice"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : "";
     res.send(
       layout(
         "Admin — Teacher",
         "teachers",
         `${okMsg}
-      <div class="head-row"><div><h1>👨‍🏫 ${esc(t.full_name)}</h1>
+      <div class="head-row"><div><h1><i class="fa-solid fa-chalkboard-user"></i> ${esc(t.full_name)}</h1>
         <p class="sub">${esc(t.email)} · applied ${esc(p.applied_at || t.created_at)}</p></div>
         <a class="btn b-read" href="/admin/teachers">All teachers</a></div>
 
@@ -220,18 +220,18 @@ module.exports = function mountAdmin(app) {
           <tr><th>Availability</th><td>${esc(p.availability) || "-"}</td></tr>
           <tr><th>Portfolio</th><td>${p.portfolio_url ? `<a href="${esc(p.portfolio_url)}" target="_blank">${esc(p.portfolio_url)}</a>` : "-"}</td></tr>
           <tr><th>Bio</th><td class="msg" style="max-width:520px">${esc(p.bio) || "-"}</td></tr>
-          <tr><th>CV</th><td>${cv ? `<a class="btn b-read" href="/admin/doc/${esc(cv.id)}" target="_blank">📎 Download CV</a>` : "-"}</td></tr>
+          <tr><th>CV</th><td>${cv ? `<a class="btn b-read" href="/admin/doc/${esc(cv.id)}" target="_blank"><i class="fa-solid fa-paperclip"></i> Download CV</a>` : "-"}</td></tr>
         </table>
         <div class="row mt">
           ${t.status !== "active"
             ? `<form method="post" action="/admin/teachers/decision">
                  <input type="hidden" name="id" value="${esc(t.id)}"><input type="hidden" name="action" value="approve">
-                 <button class="btn" style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#86efac" type="submit">✅ Approve teacher</button>
+                 <button class="btn" style="background:rgba(34,197,94,.15);border:1px solid rgba(34,197,94,.4);color:#86efac" type="submit"><i class="fa-solid fa-circle-check"></i> Approve teacher</button>
                </form>` : ""}
           ${t.status !== "rejected"
             ? `<form method="post" action="/admin/teachers/decision" onsubmit="return confirm('Reject this application?')">
                  <input type="hidden" name="id" value="${esc(t.id)}"><input type="hidden" name="action" value="reject">
-                 <button class="btn b-del" type="submit">✕ Reject</button>
+                 <button class="btn b-del" type="submit"><i class="fa-solid fa-xmark"></i> Reject</button>
                </form>` : ""}
         </div>
       </div>
@@ -262,7 +262,7 @@ module.exports = function mountAdmin(app) {
     if (action === "approve") {
       await q("UPDATE users SET status='active', updated_at=NOW() WHERE id=?", [id]);
       await q("UPDATE teacher_profiles SET reviewed_at=NOW() WHERE user_id=?", [id]);
-      await core.createNotice("user", id, "✅ Application approved", "Congratulations! Your teacher account has been approved. You can now be assigned courses.");
+      await core.createNotice("user", id, "Application approved", "Congratulations! Your teacher account has been approved. You can now be assigned courses.");
     } else if (action === "reject") {
       await q("UPDATE users SET status='rejected', updated_at=NOW() WHERE id=?", [id]);
       await q("UPDATE teacher_profiles SET reviewed_at=NOW(), rejection_reason=? WHERE user_id=?", [String(req.body.reason || "").slice(0, 240), id]);
@@ -276,7 +276,7 @@ module.exports = function mountAdmin(app) {
     const title = String(req.body.course_title || "").trim();
     if (title) {
       await q("INSERT INTO teacher_courses (id, teacher_id, course_title, created_at) VALUES (?,?,?,NOW())", [uid("tc_"), tid, title]);
-      await core.createNotice("user", tid, "📚 New course assigned", `You have been assigned: " + ${JSON.stringify(title)} + ".`);
+      await core.createNotice("user", tid, "New course assigned", `You have been assigned: " + ${JSON.stringify(title)} + ".`);
     }
     res.redirect("/admin/teachers/view?id=" + encodeURIComponent(tid) + "&ok=Course+assigned");
   });
@@ -312,7 +312,7 @@ module.exports = function mountAdmin(app) {
       layout(
         "Admin — Enrollments",
         "enrollments",
-        `<div class="head-row"><div><h1>🎓 Enrollments</h1><p class="sub">${rows.length} record(s)</p></div>
+        `<div class="head-row"><div><h1><i class="fa-solid fa-graduation-cap"></i> Enrollments</h1><p class="sub">${rows.length} record(s)</p></div>
         <div class="row">
           <a class="btn b-read" href="/admin/enrollments">All</a>
           <a class="btn b-read" href="/admin/enrollments?status=pending">Pending</a>
@@ -334,7 +334,7 @@ module.exports = function mountAdmin(app) {
     const docs = await core.getEnrollmentDocs(e.id);
     const payments = await core.getPayments(e.id);
     const paid = await core.paidTotal(e.id);
-    const okMsg = req.query.ok ? `<div class="notice">✅ ${esc(req.query.ok)}</div>` : "";
+    const okMsg = req.query.ok ? `<div class="notice"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : "";
     const receipt = docs.filter((d) => d.kind === "receipt");
     const cert = docs.filter((d) => d.kind === "certificate");
     const normal = docs.filter((d) => !["receipt", "certificate"].includes(d.kind));
@@ -343,7 +343,7 @@ module.exports = function mountAdmin(app) {
         "Admin — Enrollment",
         "enrollments",
         `${okMsg}
-      <div class="head-row"><div><h1>🎓 ${esc(e.course_title)}</h1>
+      <div class="head-row"><div><h1><i class="fa-solid fa-graduation-cap"></i> ${esc(e.course_title)}</h1>
         <p class="sub">${esc(e.enrollment_type)} · ${esc(e.price)} · ${esc(e.created_at)}</p></div>
         <a class="btn b-read" href="/admin/enrollments">All enrollments</a></div>
 
@@ -405,8 +405,8 @@ module.exports = function mountAdmin(app) {
           </form>
         </div>
         <div class="row mt">
-          ${receipt.map((d) => `<span class="file">🧾 ${esc(d.originalname)} <a class="btn b-read" href="/admin/doc/${esc(d.id)}" target="_blank">Open</a></span>`).join("")}
-          ${cert.map((d) => `<span class="file">🏅 ${esc(d.originalname)} <a class="btn b-read" href="/admin/doc/${esc(d.id)}" target="_blank">Open</a></span>`).join("")}
+          ${receipt.map((d) => `<span class="file"><i class="fa-solid fa-receipt"></i> ${esc(d.originalname)} <a class="btn b-read" href="/admin/doc/${esc(d.id)}" target="_blank">Open</a></span>`).join("")}
+          ${cert.map((d) => `<span class="file"><i class="fa-solid fa-medal"></i> ${esc(d.originalname)} <a class="btn b-read" href="/admin/doc/${esc(d.id)}" target="_blank">Open</a></span>`).join("")}
         </div>
       </div>
 
@@ -465,7 +465,7 @@ module.exports = function mountAdmin(app) {
     );
     const base = A().originOf(req);
     const link = req.query.link
-      ? `<div class="notice">🔐 Reset link (send it to the student):<br><code style="user-select:all;word-break:break-all">${esc(req.query.link)}</code></div>`
+      ? `<div class="notice"><i class="fa-solid fa-lock"></i> Reset link (send it to the student):<br><code style="user-select:all;word-break:break-all">${esc(req.query.link)}</code></div>`
       : "";
     const body = rows
       .map(
@@ -483,7 +483,7 @@ module.exports = function mountAdmin(app) {
         "Admin — Password resets",
         "resets",
         `${link}
-      <div class="head-row"><div><h1>🔐 Password reset requests</h1>
+      <div class="head-row"><div><h1><i class="fa-solid fa-lock"></i> Password reset requests</h1>
         <p class="sub">${rows.length} open request(s). Send the link to the student, or set a password directly from their profile.</p></div>
         <a class="btn b-read" href="/admin">Dashboard</a></div>
       <div class="panel"><table>
@@ -507,7 +507,7 @@ module.exports = function mountAdmin(app) {
   // ============================ NOTICES ============================
   app.get("/admin/notices", async (req, res) => {
     const [rows] = await q("SELECT * FROM notices WHERE audience <> 'user' ORDER BY created_at DESC LIMIT 100");
-    const okMsg = req.query.ok ? `<div class="notice">✅ ${esc(req.query.ok)}</div>` : "";
+    const okMsg = req.query.ok ? `<div class="notice"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : "";
     const body = rows
       .map(
         (n) => `<tr><td><strong>${esc(n.title)}</strong><div class="muted" style="font-size:.82rem;white-space:pre-wrap">${esc(n.body)}</div></td>
@@ -520,9 +520,9 @@ module.exports = function mountAdmin(app) {
         "Admin — Notices",
         "notices",
         `${okMsg}
-      <div class="head-row"><div><h1>🔔 Notices</h1><p class="sub">Announcements shown in the student & teacher portals.</p></div>
+      <div class="head-row"><div><h1><i class="fa-solid fa-bell"></i> Notices</h1><p class="sub">Announcements shown in the student & teacher portals.</p></div>
       <a class="btn b-read" href="/admin">Dashboard</a></div>
-      <div class="panel"><h2>➕ Post a notice</h2>
+      <div class="panel"><h2><i class="fa-solid fa-plus"></i> Post a notice</h2>
         <form method="post" action="/admin/notices">
           <div class="form-grid">
             <div><label>Audience</label><select name="audience">
@@ -574,7 +574,7 @@ module.exports = function mountAdmin(app) {
       layout(
         "Admin — Assignments",
         "assignments",
-        `<div class="head-row"><div><h1>📝 Assignments</h1>
+        `<div class="head-row"><div><h1><i class="fa-solid fa-pen-to-square"></i> Assignments</h1>
         <p class="sub">${rows.length} assignment(s) posted by teachers.</p></div>
         <a class="btn b-read" href="/admin">Dashboard</a></div>
         <div class="panel"><table>
@@ -612,7 +612,7 @@ module.exports = function mountAdmin(app) {
       layout(
         "Admin — Assignment",
         "assignments",
-        `<div class="head-row"><div><h1>📝 ${esc(a.title)}</h1>
+        `<div class="head-row"><div><h1><i class="fa-solid fa-pen-to-square"></i> ${esc(a.title)}</h1>
         <p class="sub">${esc(a.course_title)} · teacher ${esc((teacher && teacher.full_name) || "-")} · posted ${esc(a.created_at)}</p></div>
         <a class="btn b-read" href="/admin/assignments">All assignments</a></div>
         <div class="panel"><h2>Details</h2>
@@ -621,7 +621,7 @@ module.exports = function mountAdmin(app) {
             <tr><th>Due</th><td>${esc(a.due_date) || "-"}</td></tr>
             <tr><th>Total marks</th><td>${Number(a.max_marks)}</td></tr>
             <tr><th>Status</th><td>${badge(a.status)}</td></tr>
-            <tr><th>Brief</th><td>${doc ? `<a class="btn b-read" href="/admin/doc/${esc(doc.id)}" target="_blank">📎 ${esc(doc.originalname)}</a>` : "-"}</td></tr>
+            <tr><th>Brief</th><td>${doc ? `<a class="btn b-read" href="/admin/doc/${esc(doc.id)}" target="_blank"><i class="fa-solid fa-paperclip"></i> ${esc(doc.originalname)}</a>` : "-"}</td></tr>
             <tr><th>Instructions</th><td class="msg" style="white-space:pre-wrap">${esc(a.description) || "-"}</td></tr>
           </table>
         </div>
@@ -681,7 +681,7 @@ module.exports = function mountAdmin(app) {
         <strong>${DAYS[d]}</strong>
         ${list.length ? list.map((s) => `<div style="display:flex;justify-content:space-between;gap:8px;align-items:center;border-bottom:1px solid var(--border);padding:6px 0;font-size:.85rem">
             <span><span style="color:var(--cyan)">${esc(String(s.start_time).slice(0, 5))}–${esc(String(s.end_time).slice(0, 5))}</span> ${esc(s.course_title)}${s.room ? ` <span style="color:var(--muted)">(${esc(s.room)})</span>` : ""}</span>
-            <a class="btn b-del" href="/admin/campus/timetable/delete?id=${esc(s.id)}" onclick="return confirm('Remove this slot?')">✕</a>
+            <a class="btn b-del" href="/admin/campus/timetable/delete?id=${esc(s.id)}" onclick="return confirm('Remove this slot?')"><i class="fa-solid fa-xmark"></i></a>
           </div>`).join("") : `<div style="color:var(--muted);font-size:.82rem;padding:6px 0">No classes</div>`}
       </div>`;
     }).join("");
@@ -717,7 +717,7 @@ module.exports = function mountAdmin(app) {
       layout(
         "Admin — Campus",
         "campus",
-        `<div class="head-row"><div><h1>🏫 Campus</h1>
+        `<div class="head-row"><div><h1><i class="fa-solid fa-school"></i> Campus</h1>
           <p class="sub">Attendance, timetable, course materials, quizzes and announcements across the academy.</p></div>
           <a class="btn b-read" href="/admin">Dashboard</a></div>
         <div class="stats">
@@ -726,7 +726,7 @@ module.exports = function mountAdmin(app) {
           <div class="box g"><b>${Number(stats.materials)}</b><span>Materials</span></div>
           <div class="box o"><b>${Number(stats.quizzes)}</b><span>Quizzes (${Number(stats.attempts)} attempts)</span></div>
         </div>
-        <div class="panel"><h2>🗓️ Timetable</h2>
+        <div class="panel"><h2><i class="fa-solid fa-calendar-days"></i> Timetable</h2>
           <form method="post" action="/admin/campus/timetable/add" class="form-grid">
             <div><label>Course</label><select name="course_title" required><option value="">— select —</option>${courseOpts}</select></div>
             <div><label>Day</label><select name="day_of_week">${[1, 2, 3, 4, 5, 6].map((d) => `<option value="${d}">${DAYS[d]}</option>`).join("")}</select></div>
@@ -737,16 +737,16 @@ module.exports = function mountAdmin(app) {
           </form>
           <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:20px">${dayCols}</div>
         </div>
-        <div class="panel"><h2>✅ Recent attendance sessions (${sessions.length})</h2>
+        <div class="panel"><h2><i class="fa-solid fa-circle-check"></i> Recent attendance sessions (${sessions.length})</h2>
           <table><tr><th>Date</th><th>Course</th><th>Teacher</th><th>Present</th></tr>${sessRows || `<tr><td colspan="4" class="empty">No attendance taken yet.</td></tr>`}</table>
         </div>
-        <div class="panel"><h2>📁 Course materials (${materials.length})</h2>
+        <div class="panel"><h2><i class="fa-solid fa-folder"></i> Course materials (${materials.length})</h2>
           <table><tr><th>Resource</th><th>Teacher</th><th>Added</th><th></th></tr>${matRows || `<tr><td colspan="4" class="empty">No materials shared yet.</td></tr>`}</table>
         </div>
-        <div class="panel"><h2>🧪 Quizzes (${quizzes.length})</h2>
+        <div class="panel"><h2><i class="fa-solid fa-flask"></i> Quizzes (${quizzes.length})</h2>
           <table><tr><th>Quiz</th><th>Teacher</th><th>Questions</th><th>Attempts</th><th>Status</th></tr>${qzRows || `<tr><td colspan="5" class="empty">No quizzes created yet.</td></tr>`}</table>
         </div>
-        <div class="panel"><h2>📢 Announcements (${anns.length})</h2>
+        <div class="panel"><h2><i class="fa-solid fa-bullhorn"></i> Announcements (${anns.length})</h2>
           <table><tr><th>Title</th><th>Course</th><th>Teacher</th><th>Posted</th></tr>${annRows || `<tr><td colspan="4" class="empty">No announcements yet.</td></tr>`}</table>
         </div>`
       )
@@ -788,5 +788,5 @@ module.exports = function mountAdmin(app) {
     res.download(full, doc.originalname || path.basename(full));
   });
 
-  console.log("🛠️  Portal admin mounted");
+  console.log("  Portal admin mounted");
 };
