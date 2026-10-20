@@ -209,7 +209,10 @@ module.exports = function mountCampus(app) {
     const u = req.user;
     const courses = await teacherCourseTitles(u.id);
     const all = await allCourseTitles();
-    const course = String(req.query.course || "").trim();
+    let course = String(req.query.course || "").trim();
+    // Show today's roster straight away so teachers see their students without
+    // having to pick a course first.
+    if (!course && courses.length) course = courses[0];
     const date = (String(req.query.date || "").slice(0, 10)) || today();
     const ok = req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : "";
     const err = req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : "";
@@ -238,11 +241,15 @@ module.exports = function mountCampus(app) {
           <input type="hidden" name="session_date" value="${esc(date)}">
           <label>Today's topic (optional)</label>
           <input name="topic" maxlength="200" value="${esc((sess && sess.topic) || "")}" placeholder="e.g. Subnetting practice">
-          ${list.length ? `<table class="mt"><tr><th>Student</th><th>Status</th></tr>${rows}</table>`
+          ${list.length ? `<table class="mt"><tr><th>Student</th><th>Status</th></tr>${rows}</table>
+            <div class="row mt" style="gap:8px">
+              <button type="button" class="btn ghost sm" onclick="document.querySelectorAll('input[type=radio][value=present]').forEach(function(r){r.checked=true})"><i class="fa-solid fa-circle-check"></i> All present</button>
+              <button type="button" class="btn ghost sm" onclick="document.querySelectorAll('input[type=radio][value=absent]').forEach(function(r){r.checked=true})"><i class="fa-solid fa-circle-xmark"></i> All absent</button>
+            </div>`
             : `<p class="muted mt">No students enrolled in this course yet.</p>`}
           <div class="row mt">
             <button class="btn primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save attendance</button>
-            <a class="btn ghost" href="/portal/attendance">Clear</a>
+            <a class="btn ghost" href="/portal/attendance">Reset</a>
           </div>
         </form>
       </div>`;
