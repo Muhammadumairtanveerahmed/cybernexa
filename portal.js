@@ -386,8 +386,29 @@ async function initSchema(pool) {
       marks DECIMAL(6,2) NOT NULL DEFAULT 0,
       INDEX idx_attempt (attempt_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    `CREATE TABLE IF NOT EXISTS login_logs (
+      id BIGINT AUTO_INCREMENT PRIMARY KEY,
+      user_id VARCHAR(40) NULL,
+      email VARCHAR(190) NOT NULL DEFAULT '',
+      role VARCHAR(20) NOT NULL DEFAULT '',
+      full_name VARCHAR(120) NOT NULL DEFAULT '',
+      status ENUM('success','failed','suspended','blocked') NOT NULL DEFAULT 'success',
+      ip VARCHAR(64) DEFAULT '',
+      user_agent VARCHAR(255) DEFAULT '',
+      created_at DATETIME NOT NULL,
+      INDEX idx_created (created_at),
+      INDEX idx_email (email),
+      INDEX idx_status (status)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   ];
   for (const sql of t) await pool.query(sql);
+  // Keep the audit trail for 180 days only.
+  try {
+    await pool.query("DELETE FROM login_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 180 DAY)");
+  } catch {
+    /* ignore */
+  }
   console.log(" Portal schema ready");
 }
 
@@ -395,6 +416,34 @@ async function initSchema(pool) {
 // Data accessors
 // ---------------------------------------------------------------------------
 const q = (sql, params) => getPool().query(sql, params);
+
+// ---------------------------------------------------------------------------
+// Login audit trail
+// ---------------------------------------------------------------------------
+async function logLogin(entry) {
+  try {
+    const pool = getPool();
+    if (!pool) return;
+    const status = ["success", "failed", "suspended", "blocked"].includes(entry.status)
+      ? entry.status
+      : "success";
+    await pool.query(
+      `INSERT INTO login_logs (user_id, email, role, full_name, status, ip, user_agent, created_at)
+       VALUES (?,?,?,?,?,?,?,NOW())`,
+      [
+        entry.userId || null,
+        String(entry.email || "").slice(0, 190),
+        String(entry.role || "").slice(0, 20),
+        String(entry.fullName || "").slice(0, 120),
+        status,
+        String(entry.ip || "").slice(0, 64),
+        String(entry.userAgent || "").slice(0, 255),
+      ]
+    );
+  } catch {
+    // Never let audit logging break authentication.
+  }
+}
 
 async function getUserById(id) {
   const [r] = await q("SELECT * FROM users WHERE id = ? LIMIT 1", [id]);
@@ -859,12 +908,42 @@ function mount(app, context) {
     const next = String(req.body.next || "");
     try {
       const user = await getUserByEmail(email);
+      const ua = req.headers["user-agent"];
       if (!user || !verifyPassword(password, user.password_hash)) {
+        await logLogin({
+          userId: user ? user.id : null,
+          email,
+          role: user ? user.role : "",
+          fullName: user ? user.full_name : "",
+          status: "failed",
+          ip: req.ip,
+          userAgent: ua,
+        });
         return res.redirect("/portal/login?e=" + encodeURIComponent("Wrong email or password") + (next ? "&next=" + encodeURIComponent(next) : ""));
       }
-      if (user.status === "suspended") return res.redirect("/portal/login?e=" + encodeURIComponent("Account suspended — contact the academy"));
+      if (user.status === "suspended") {
+        await logLogin({
+          userId: user.id,
+          email: user.email,
+          role: user.role,
+          fullName: user.full_name,
+          status: "suspended",
+          ip: req.ip,
+          userAgent: ua,
+        });
+        return res.redirect("/portal/login?e=" + encodeURIComponent("Account suspended — contact the academy"));
+      }
       const sid = await createSession(user.id, req.ip, req.headers["user-agent"]);
       await q("UPDATE users SET last_login = NOW() WHERE id = ?", [user.id]);
+      await logLogin({
+        userId: user.id,
+        email: user.email,
+        role: user.role,
+        fullName: user.full_name,
+        status: "success",
+        ip: req.ip,
+        userAgent: ua,
+      });
       setSessionCookie(res, sid);
       res.redirect(next && next.startsWith("/") ? next : "/portal/dashboard");
     } catch (err) {
@@ -1596,8 +1675,15 @@ function mount(app, context) {
         [c.course_title]
       );
       blocks.push(`<div class="panel"><h2>${esc(c.course_title)}</h2>
-        ${students.length ? `<table><tr><th>Student</th><th>Email</th><th>Phone</th><th>Status</th></tr>
-          ${students.map((s) => `<tr><td>${esc(s.full_name)}</td><td>${esc(s.email)}</td><td>${esc(s.phone)}</td><td>${statusBadge(s.status)}</td></tr>`).join("")}</table>`
+        ${students.length ? `<table><tr><th>Student</th><th>Email</th><th>Phone</th><th>Status</th><th>Last login (PKT)</th></tr>
+          ${students.map((s) => {
+            let seen = "-";
+            if (s.last_login) {
+              const d = new Date(new Date(s.last_login).getTime() + 5 * 3600 * 1000);
+              seen = isNaN(d) ? "-" : d.toISOString().slice(0, 16).replace("T", " ");
+            }
+            return `<tr><td>${esc(s.full_name)}</td><td>${esc(s.email)}</td><td>${esc(s.phone)}</td><td>${statusBadge(s.status)}</td><td class="muted">${seen}</td></tr>`;
+          }).join("")}</table>`
         : `<p class="muted">No students enrolled in this course yet.</p>`}</div>`);
     }
     res.send(shell(req.user, "courses", "My Courses", "Courses assigned to you and their students.",
@@ -1618,6 +1704,7 @@ function mount(app, context) {
   core.ctx = ctx;
   core.esc = esc;
   core.q = q;
+  core.logLogin = logLogin;
   core.uid = uid;
   core.shell = shell;
   core.requireUser = requireUser;
@@ -1650,4 +1737,4 @@ function mount(app, context) {
 
 const core = {};
 
-module.exports = { mount, initSchema, recordEnrollment, attachUser, core, hashPassword, verifyPassword };
+module.exports = { mount, initSchema, recordEnrollment, attachUser, core, hashPassword, verifyPassword, logLogin };

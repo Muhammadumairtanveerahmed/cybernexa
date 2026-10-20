@@ -886,7 +886,9 @@ app.get("/admin/login", (req, res) => {
 });
 app.post("/admin/login", express.urlencoded({ extended: false }), (req, res) => {
   const ip = req.ip;
+  const ua = req.headers["user-agent"];
   if (adminRateLimited(ip)) {
+    portal.logLogin({ email: "admin@cybernexa.local", role: "admin", fullName: "Administrator", status: "blocked", ip, userAgent: ua });
     return res.status(429).send(adminLoginPage("Too many attempts. Please wait 15 minutes and try again."));
   }
   const pw = String(req.body.password || "").trim().toLowerCase();
@@ -896,11 +898,13 @@ app.post("/admin/login", express.urlencoded({ extended: false }), (req, res) => 
       "Set-Cookie",
       `${ADMIN_COOKIE}=${encodeURIComponent(adminToken())}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ADMIN_TTL_MS / 1000)}`
     );
+    portal.logLogin({ email: "admin@cybernexa.local", role: "admin", fullName: "Administrator", status: "success", ip, userAgent: ua });
     return res.redirect("/admin/dashboard");
   }
   const list = adminFails.get(ip) || [];
   list.push(Date.now());
   adminFails.set(ip, list);
+  portal.logLogin({ email: "admin@cybernexa.local", role: "admin", fullName: "Administrator", status: "failed", ip, userAgent: ua });
   res.status(401).send(adminLoginPage("Wrong password. Please try again."));
 });
 app.post("/admin/logout", (req, res) => {
@@ -1007,6 +1011,7 @@ function adminLayout(title, active, body) {
   <a href="/admin/campus" class="${active === "campus" ? "active" : ""}"><i class="fa-solid fa-school"></i> Campus</a>
   <a href="/admin/notices" class="${active === "notices" ? "active" : ""}"><i class="fa-solid fa-bell"></i> Notices</a>
   <a href="/admin/resets" class="${active === "resets" ? "active" : ""}"><i class="fa-solid fa-lock"></i> Password resets</a>
+  <a href="/admin/logs" class="${active === "logs" ? "active" : ""}"><i class="fa-solid fa-clock-rotate-left"></i> Login activity</a>
   <a href="/" target="_blank"><i class="fa-solid fa-globe"></i> View Website</a>
   <form method="post" action="/admin/logout"><button type="submit" class="logout-btn"><i class="fa-solid fa-power-off"></i> Log out</button></form>
   <div class="foot">Signed in as <b>admin</b></div>
@@ -1065,6 +1070,34 @@ app.get("/admin/dashboard", async (req, res) => {
         .join("")
     : `<tr><td colspan="5" class="empty">No messages yet. <i class="fa-solid fa-face-smile"></i></td></tr>`;
 
+  // ---- latest sign-ins (portal + admin) ----
+  let signinRows = `<tr><td colspan="4" class="empty">No sign-ins recorded yet.</td></tr>`;
+  if (pool) {
+    try {
+      const [si] = await pool.query(
+        `SELECT full_name, email, role, status,
+                DATE_FORMAT(DATE_ADD(created_at, INTERVAL 5 HOUR), '%d %b %Y, %h:%i %p') AS at_pkt
+         FROM login_logs ORDER BY id DESC LIMIT 6`
+      );
+      if (si.length) {
+        signinRows = si.map((r) => `<tr>
+          <td><strong>${esc(r.full_name) || "Unknown"}</strong><div class="muted" style="font-size:.78rem">${esc(r.email)}</div></td>
+          <td>${esc(r.role) || "-"}</td>
+          <td>${r.status === "success"
+            ? '<span style="color:#22c55e;font-weight:700">Success</span>'
+            : r.status === "suspended"
+              ? '<span style="color:#fb923c;font-weight:700">Suspended</span>'
+              : r.status === "blocked"
+                ? '<span style="color:#94a3b8;font-weight:700">Blocked</span>'
+                : '<span style="color:#f87171;font-weight:700">Failed</span>'}</td>
+          <td class="muted" style="white-space:nowrap">${esc(r.at_pkt)}</td>
+        </tr>`).join("");
+      }
+    } catch {
+      /* table not ready yet */
+    }
+  }
+
   res.send(
     adminLayout(
       "Admin — Dashboard",
@@ -1092,6 +1125,15 @@ app.get("/admin/dashboard", async (req, res) => {
         ${recentRows}
       </table>
       <p style="margin-top:16px"><a href="/admin/messages" style="font-weight:600">View all messages</a></p>
+    </div>
+
+    <div class="panel">
+      <h2>Latest sign-ins</h2>
+      <table>
+        <tr><th>Person</th><th>Role</th><th>Result</th><th>Time (PKT)</th></tr>
+        ${signinRows}
+      </table>
+      <p style="margin-top:16px"><a href="/admin/logs" style="font-weight:600">View full login activity</a></p>
     </div>`
     )
   );

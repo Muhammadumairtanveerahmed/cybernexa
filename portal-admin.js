@@ -771,6 +771,148 @@ module.exports = function mountAdmin(app) {
     res.redirect("/admin/campus");
   });
 
+  // ============================ LOGIN ACTIVITY ============================
+  const pktTime = (col) => `DATE_FORMAT(DATE_ADD(${col}, INTERVAL 5 HOUR), '%d %b %Y, %h:%i %p')`;
+
+  function resultPill(s) {
+    const map = {
+      success: ["rgba(34,197,94,.15)", "#22c55e", "rgba(34,197,94,.4)", "Success"],
+      failed: ["rgba(239,68,68,.15)", "#f87171", "rgba(239,68,68,.4)", "Failed"],
+      suspended: ["rgba(249,115,22,.15)", "#fb923c", "rgba(249,115,22,.4)", "Suspended"],
+      blocked: ["rgba(148,163,184,.15)", "#94a3b8", "rgba(148,163,184,.4)", "Blocked"],
+    };
+    const m = map[s] || map.failed;
+    return `<span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;background:${m[0]};color:${m[1]};border:1px solid ${m[2]}">${m[3]}</span>`;
+  }
+
+  function deviceOf(ua) {
+    const s = String(ua || "");
+    const os = /Windows/i.test(s) ? "Windows"
+      : /Android/i.test(s) ? "Android"
+      : /iPhone|iPad|iPod/i.test(s) ? "iOS"
+      : /Mac OS X/i.test(s) ? "macOS"
+      : /Linux/i.test(s) ? "Linux"
+      : "Other";
+    const br = /Edg\//i.test(s) ? "Edge"
+      : /OPR\/|Opera/i.test(s) ? "Opera"
+      : /Chrome\//i.test(s) ? "Chrome"
+      : /Firefox\//i.test(s) ? "Firefox"
+      : /Safari\//i.test(s) ? "Safari"
+      : "Browser";
+    return s ? os + " / " + br : "-";
+  }
+
+  function logFilters(req) {
+    const status = ["success", "failed", "suspended", "blocked"].includes(String(req.query.status))
+      ? String(req.query.status) : "all";
+    const role = ["student", "teacher", "admin"].includes(String(req.query.role))
+      ? String(req.query.role) : "all";
+    const days = [1, 7, 30, 90, 180].includes(Number(req.query.days)) ? Number(req.query.days) : 7;
+    const search = String(req.query.q || "").trim();
+    const where = [];
+    const params = [];
+    if (status !== "all") { where.push("status = ?"); params.push(status); }
+    if (role !== "all") { where.push("role = ?"); params.push(role); }
+    if (search) {
+      where.push("(email LIKE ? OR full_name LIKE ? OR ip LIKE ?)");
+      const like = "%" + search + "%";
+      params.push(like, like, like);
+    }
+    where.push("created_at >= DATE_SUB(NOW(), INTERVAL ? DAY)");
+    params.push(days);
+    return { status, role, days, search, where: where.join(" AND "), params };
+  }
+
+  app.get("/admin/logs", async (req, res) => {
+    const f = logFilters(req);
+    const [rows] = await q(
+      `SELECT *, ${pktTime("created_at")} AS at_pkt FROM login_logs
+       WHERE ${f.where} ORDER BY id DESC LIMIT 300`,
+      f.params
+    );
+
+    const [[today]] = await q(
+      `SELECT COUNT(*) AS total,
+              COALESCE(SUM(status='success'),0) AS ok,
+              COALESCE(SUM(status='failed'),0) AS bad,
+              COALESCE(SUM(status='suspended'),0) AS susp,
+              COALESCE(SUM(status='blocked'),0) AS blk,
+              COUNT(DISTINCT CASE WHEN status='success' THEN email END) AS people
+       FROM login_logs WHERE created_at >= DATE_SUB(CURDATE(), INTERVAL 5 HOUR)`
+    );
+
+    const rowHtml = rows.map((r) => `<tr>
+        <td class="muted" style="white-space:nowrap">${esc(r.at_pkt || "-")}</td>
+        <td><strong>${esc(r.full_name) || "Unknown"}</strong><div class="muted" style="font-size:.78rem">${esc(r.email)}</div></td>
+        <td>${esc(r.role) || "-"}</td>
+        <td>${resultPill(r.status)}</td>
+        <td class="muted">${esc(r.ip) || "-"}</td>
+        <td class="muted" style="font-size:.8rem">${esc(deviceOf(r.user_agent))}</td>
+      </tr>`).join("");
+
+    const opt = (val, label, cur) =>
+      `<option value="${esc(val)}"${String(cur) === String(val) ? " selected" : ""}>${esc(label)}</option>`;
+
+    const failedToday = Number(today.bad || 0) + Number(today.susp || 0) + Number(today.blk || 0);
+
+    res.send(layout("Admin — Login activity", "logs", `
+      <div class="head-row"><div>
+        <h1><i class="fa-solid fa-clock-rotate-left"></i> Login activity</h1>
+        <p class="sub">Every sign-in attempt on the website, student portal, teacher portal and admin panel.</p>
+      </div>
+      <a class="btn b-read" href="/admin/logs.csv?status=${esc(f.status)}&role=${esc(f.role)}&days=${esc(f.days)}&q=${encodeURIComponent(f.search)}"><i class="fa-solid fa-download"></i> Export CSV</a></div>
+
+      <div class="stats">
+        <div class="box"><b>${Number(today.total || 0)}</b><span>Attempts today</span></div>
+        <div class="box g"><b>${Number(today.ok || 0)}</b><span>Successful today</span></div>
+        <div class="box o"><b>${failedToday}</b><span>Failed / blocked today</span></div>
+        <div class="box v"><b>${Number(today.people || 0)}</b><span>Unique users today</span></div>
+      </div>
+
+      <div class="panel">
+        <form method="get" action="/admin/logs" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px">
+          <div style="flex:2;min-width:180px"><label>Search</label><input type="text" name="q" value="${esc(f.search)}" placeholder="Name, email or IP"></div>
+          <div style="flex:1;min-width:130px"><label>Result</label><select name="status">
+            ${opt("all", "All results", f.status)}${opt("success", "Success", f.status)}${opt("failed", "Failed", f.status)}${opt("suspended", "Suspended", f.status)}${opt("blocked", "Blocked", f.status)}
+          </select></div>
+          <div style="flex:1;min-width:120px"><label>Role</label><select name="role">
+            ${opt("all", "All roles", f.role)}${opt("student", "Student", f.role)}${opt("teacher", "Teacher", f.role)}${opt("admin", "Admin", f.role)}
+          </select></div>
+          <div style="flex:1;min-width:120px"><label>Period</label><select name="days">
+            ${opt(1, "Today", f.days)}${opt(7, "Last 7 days", f.days)}${opt(30, "Last 30 days", f.days)}${opt(90, "Last 90 days", f.days)}${opt(180, "Last 180 days", f.days)}
+          </select></div>
+          <div><label>&nbsp;</label><button class="btn b-add" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Filter</button></div>
+        </form>
+
+        <table>
+          <tr><th>Time (PKT)</th><th>Person</th><th>Role</th><th>Result</th><th>IP</th><th>Device</th></tr>
+          ${rowHtml || `<tr><td colspan="6" class="empty">No login attempts in this period.</td></tr>`}
+        </table>
+        <p class="sub" style="margin:16px 0 0">Showing the latest ${rows.length} record(s). Logs are kept for 180 days.</p>
+      </div>
+    `));
+  });
+
+  app.get("/admin/logs.csv", async (req, res) => {
+    const f = logFilters(req);
+    const [rows] = await q(
+      `SELECT *, ${pktTime("created_at")} AS at_pkt FROM login_logs
+       WHERE ${f.where} ORDER BY id DESC LIMIT 5000`,
+      f.params
+    );
+    const cell = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+    const lines = [["Time (PKT)", "Name", "Email", "Role", "Result", "IP", "Device"].map(cell).join(",")];
+    for (const r of rows) {
+      lines.push([
+        r.at_pkt || "", r.full_name || "", r.email || "", r.role || "",
+        r.status || "", r.ip || "", deviceOf(r.user_agent),
+      ].map(cell).join(","));
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="login-activity.csv"');
+    res.send("\uFEFF" + lines.join("\r\n"));
+  });
+
   // ============================ SHARED ACTIONS ============================
   app.post("/admin/account/status", form, async (req, res) => {
     await q("UPDATE users SET status = ?, updated_at = NOW() WHERE id = ? AND role <> 'admin'", [String(req.body.status || "active"), String(req.body.user_id || req.body.id || "")]);
