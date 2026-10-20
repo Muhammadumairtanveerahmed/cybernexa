@@ -1254,12 +1254,12 @@ app.use("/uploads", (req, res) => res.status(403).send("<h1>403 — Forbidden</h
 // Only the public front-end is served. Anything else that happens to sit in the
 // project root (server.js, portal*.js, package.json, data/, deploy/, k8s/,
 // scripts/, docs, handover/) is private and must never be downloadable.
-const PUBLIC_ROOT_PAGES = new Set([
-  "/index.html",
-  "/about.html",
-  "/courses.html",
-  "/industries.html",
-  "/legal.html",
+const PUBLIC_PAGES = new Set([
+  "/", "/index", "/index.html",
+  "/about", "/about.html",
+  "/courses", "/courses.html",
+  "/industries", "/industries.html",
+  "/legal", "/legal.html",
 ]);
 const PUBLIC_DIRS = ["/css/", "/js/", "/services/"];
 app.use((req, res, next) => {
@@ -1273,9 +1273,7 @@ app.use((req, res, next) => {
   p = path.posix.normalize(p);
   if (p.length > 1 && p.endsWith("/")) p = p.slice(0, -1);
 
-  if (p === "/") return next();                    // -> index.html
-  if (PUBLIC_ROOT_PAGES.has(p)) return next();     // explicit .html page
-  if (/^\/[A-Za-z0-9_-]+$/.test(p)) return next(); // extensionless page (/about, /legal, ...)
+  if (PUBLIC_PAGES.has(p)) return next();
   if (PUBLIC_DIRS.some((dir) => p.startsWith(dir))) return next();
   return res.status(404).send("<h1>404 — Page not found</h1>");
 });
