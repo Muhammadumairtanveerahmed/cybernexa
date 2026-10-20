@@ -1278,7 +1278,7 @@ function mount(app, context) {
       <td>${esc(en.price)}</td><td>${statusBadge(en.status)}</td><td>${statusBadge(en.payment_status)}</td>
       <td>${esc(en.created_at)}</td></tr>`).join("");
     const welcome = req.query.applied ? `<div class="ok"><i class="fa-solid fa-champagne-glasses"></i> Welcome! Your account is ready.</div>` : "";
-    res.send(shell(u, "dash", "Welcome, " + u.full_name.split(" ")[0] + " <i class='fa-solid fa-hand'></i>",
+    res.send(shell(u, "dash", "Welcome, " + u.full_name.split(" ")[0],
       "Here is your learning overview.",
       `${welcome}
       <div class="cards">
@@ -1386,7 +1386,7 @@ function mount(app, context) {
     const rows = mine
       .map((c) => `<tr><td><strong>${esc(c.course_title)}</strong></td><td class="muted">${esc(c.created_at)}</td></tr>`)
       .join("");
-    res.send(shell(u, "dash", "Welcome, " + u.full_name.split(" ")[0] + " <i class='fa-solid fa-hand'></i>", "Your instructor dashboard.",
+    res.send(shell(u, "dash", "Welcome, " + u.full_name.split(" ")[0], "Your instructor dashboard.",
       `${req.query.applied ? `<div class="ok"><i class="fa-solid fa-champagne-glasses"></i> Application submitted! Our academy team will review it soon.</div>` : ""}
       ${u.status === "pending" ? `<div class="note"><h4><i class="fa-solid fa-hourglass-half"></i> Application under review</h4><p>You can complete your profile meanwhile. An admin will approve your account before you start teaching.</p></div>` : ""}
       ${u.status === "active" ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> Your teacher account is approved.</div>` : ""}
