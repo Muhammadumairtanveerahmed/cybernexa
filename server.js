@@ -876,8 +876,8 @@ app.post("/admin/login", express.urlencoded({ extended: false }), (req, res) => 
   if (adminRateLimited(ip)) {
     return res.status(429).send(adminLoginPage("Too many attempts. Please wait 15 minutes and try again."));
   }
-  const pw = String(req.body.password || "").trim();
-  if (pw && pw === ADMIN_PASSWORD) {
+  const pw = String(req.body.password || "").trim().toLowerCase();
+  if (pw && pw === String(ADMIN_PASSWORD).trim().toLowerCase()) {
     adminFails.delete(ip);
     res.setHeader(
       "Set-Cookie",
