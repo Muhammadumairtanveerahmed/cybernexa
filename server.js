@@ -814,18 +814,8 @@ function adminTokenValid(token) {
   }
 }
 function isAdmin(req) {
-  // Basic Auth stays supported for scripts/curl — but we never send the
-  // WWW-Authenticate header, so visitors get our login page instead of a popup.
-  const auth = req.headers.authorization || "";
-  if (auth.startsWith("Basic ")) {
-    try {
-      const decoded = Buffer.from(auth.slice(6), "base64").toString("utf-8");
-      const pass = decoded.substring(decoded.indexOf(":") + 1);
-      if (pass === ADMIN_PASSWORD) return true;
-    } catch {
-      /* ignore */
-    }
-  }
+  // Credentials are only accepted through the login form — never from a
+  // remembered Basic-Auth header — so the admin is asked every single time.
   return adminTokenValid(adminCookie(req.headers.cookie || "", ADMIN_COOKIE));
 }
 function adminAuth(req, res, next) {
@@ -879,7 +869,6 @@ function adminLoginPage(error) {
 }
 
 app.get("/admin/login", (req, res) => {
-  if (isAdmin(req)) return res.redirect("/admin");
   res.send(adminLoginPage(""));
 });
 app.post("/admin/login", express.urlencoded({ extended: false }), (req, res) => {
@@ -894,7 +883,7 @@ app.post("/admin/login", express.urlencoded({ extended: false }), (req, res) => 
       "Set-Cookie",
       `${ADMIN_COOKIE}=${encodeURIComponent(adminToken())}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ADMIN_TTL_MS / 1000)}`
     );
-    return res.redirect("/admin");
+    return res.redirect("/admin/dashboard");
   }
   const list = adminFails.get(ip) || [];
   list.push(Date.now());
@@ -910,6 +899,12 @@ app.post("/admin/logout", (req, res) => {
 app.use("/admin", (req, res, next) => {
   if (req.path === "/login" || req.path === "/logout") return next();
   return adminAuth(req, res, next);
+});
+
+// Opening the bare /admin URL always asks for credentials again.
+app.get("/admin", (req, res) => {
+  res.setHeader("Set-Cookie", `${ADMIN_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+  res.redirect("/admin/login");
 });
 
 function adminLayout(title, active, body) {
@@ -989,7 +984,7 @@ function adminLayout(title, active, body) {
 <body>
 <aside class="side">
   <div class="brand"><i class="fa-solid fa-shield-halved"></i> Cyber<b>Nexa</b></div>
-  <a href="/admin" class="${active === "dash" ? "active" : ""}"><i class="fa-solid fa-chart-column"></i> Dashboard</a>
+  <a href="/admin/dashboard" class="${active === "dash" ? "active" : ""}"><i class="fa-solid fa-chart-column"></i> Dashboard</a>
   <a href="/admin/messages" class="${active === "msgs" ? "active" : ""}"><i class="fa-solid fa-envelope"></i> Messages</a>
   <a href="/admin/courses" class="${active === "courses" ? "active" : ""}"><i class="fa-solid fa-graduation-cap"></i> Courses</a>
   <a href="/admin/students" class="${active === "students" ? "active" : ""}"><i class="fa-solid fa-user-graduate"></i> Students</a>
@@ -1009,7 +1004,7 @@ function adminLayout(title, active, body) {
 }
 
 // ---------- Admin: Dashboard home ----------
-app.get("/admin", async (req, res) => {
+app.get("/admin/dashboard", async (req, res) => {
   const messages = await getMessages();
   const total = messages.length;
   const unread = messages.filter((m) => !m.read).length;
@@ -1151,7 +1146,7 @@ app.get("/admin/messages", async (req, res) => {
         <h1><i class="fa-solid fa-envelope"></i> Messages</h1>
         <p class="sub">${messages.length} total · ${unread} unread</p>
       </div>
-      <a href="/admin" class="btn b-read">Dashboard</a>
+      <a href="/admin/dashboard" class="btn b-read">Dashboard</a>
     </div>
     <div class="panel">
       <table>
@@ -1250,7 +1245,7 @@ app.get("/admin/courses", async (req, res) => {
         <h1><i class="fa-solid fa-graduation-cap"></i> Courses</h1>
         <p class="sub">${total} total · ${activeN} active · ${featuredN} featured · ${cats} categories · Storage: ${storageMode}</p>
       </div>
-      <a href="/admin" class="btn b-read">Dashboard</a>
+      <a href="/admin/dashboard" class="btn b-read">Dashboard</a>
     </div>
     ${msg}
     <div class="panel">

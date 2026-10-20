@@ -485,7 +485,7 @@ module.exports = function mountAdmin(app) {
         `${link}
       <div class="head-row"><div><h1><i class="fa-solid fa-lock"></i> Password reset requests</h1>
         <p class="sub">${rows.length} open request(s). Send the link to the student, or set a password directly from their profile.</p></div>
-        <a class="btn b-read" href="/admin">Dashboard</a></div>
+        <a class="btn b-read" href="/admin/dashboard">Dashboard</a></div>
       <div class="panel"><table>
         <tr><th>User</th><th>Requested</th><th>Expires</th><th>Action</th></tr>
         ${body || `<tr><td colspan="4" class="empty">No open requests.</td></tr>`}
@@ -521,7 +521,7 @@ module.exports = function mountAdmin(app) {
         "notices",
         `${okMsg}
       <div class="head-row"><div><h1><i class="fa-solid fa-bell"></i> Notices</h1><p class="sub">Announcements shown in the student & teacher portals.</p></div>
-      <a class="btn b-read" href="/admin">Dashboard</a></div>
+      <a class="btn b-read" href="/admin/dashboard">Dashboard</a></div>
       <div class="panel"><h2><i class="fa-solid fa-plus"></i> Post a notice</h2>
         <form method="post" action="/admin/notices">
           <div class="form-grid">
@@ -576,7 +576,7 @@ module.exports = function mountAdmin(app) {
         "assignments",
         `<div class="head-row"><div><h1><i class="fa-solid fa-pen-to-square"></i> Assignments</h1>
         <p class="sub">${rows.length} assignment(s) posted by teachers.</p></div>
-        <a class="btn b-read" href="/admin">Dashboard</a></div>
+        <a class="btn b-read" href="/admin/dashboard">Dashboard</a></div>
         <div class="panel"><table>
         <tr><th>Assignment</th><th>Teacher</th><th>Due</th><th>Submissions</th><th>Status</th><th></th></tr>
         ${body || `<tr><td colspan="6" class="empty">No assignments posted yet.</td></tr>`}
@@ -719,7 +719,7 @@ module.exports = function mountAdmin(app) {
         "campus",
         `<div class="head-row"><div><h1><i class="fa-solid fa-school"></i> Campus</h1>
           <p class="sub">Attendance, timetable, course materials, quizzes and announcements across the academy.</p></div>
-          <a class="btn b-read" href="/admin">Dashboard</a></div>
+          <a class="btn b-read" href="/admin/dashboard">Dashboard</a></div>
         <div class="stats">
           <div class="box"><b>${Number(stats.sessions)}</b><span>Attendance sessions</span></div>
           <div class="box v"><b>${Number(stats.slots)}</b><span>Timetable slots</span></div>
