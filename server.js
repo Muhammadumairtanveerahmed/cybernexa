@@ -1247,9 +1247,38 @@ mountPortalAdmin(app);
 mountPortalAcademics(app);
 mountPortalCampus(app);
 
-// ---------- Static frontend ----------
+// ---------- Static frontend (public allow-list only) ----------
 // Uploaded enrollment documents must NOT be publicly reachable.
 app.use("/uploads", (req, res) => res.status(403).send("<h1>403 — Forbidden</h1>"));
+
+// Only the public front-end is served. Anything else that happens to sit in the
+// project root (server.js, portal*.js, package.json, data/, deploy/, k8s/,
+// scripts/, docs, handover/) is private and must never be downloadable.
+const PUBLIC_ROOT_PAGES = new Set([
+  "/index.html",
+  "/about.html",
+  "/courses.html",
+  "/industries.html",
+  "/legal.html",
+]);
+const PUBLIC_DIRS = ["/css/", "/js/", "/services/"];
+app.use((req, res, next) => {
+  let p = req.path;
+  try {
+    p = decodeURIComponent(p);
+  } catch (_) {
+    return res.status(400).send("<h1>400 — Bad request</h1>");
+  }
+  // Normalise so tricks like /js/../server.js or /%2e%2e/server.js cannot pass.
+  p = path.posix.normalize(p);
+  if (p.length > 1 && p.endsWith("/")) p = p.slice(0, -1);
+
+  if (p === "/") return next();                    // -> index.html
+  if (PUBLIC_ROOT_PAGES.has(p)) return next();     // explicit .html page
+  if (/^\/[A-Za-z0-9_-]+$/.test(p)) return next(); // extensionless page (/about, /legal, ...)
+  if (PUBLIC_DIRS.some((dir) => p.startsWith(dir))) return next();
+  return res.status(404).send("<h1>404 — Page not found</h1>");
+});
 app.use(express.static(__dirname, { extensions: ["html"] }));
 
 // ---------- 404 ----------
