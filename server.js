@@ -5,6 +5,7 @@
 const express = require("express");
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 
 // ---------- .env loader (no external dependency) ----------
 const ENV_FILE = path.join(__dirname, ".env");
@@ -773,26 +774,143 @@ app.get("/api/courses", async (req, res) => {
   }
 });
 
-// ---------- Admin authentication (Basic Auth) ----------
+// ---------- Admin authentication (form login, no browser popup) ----------
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
+const ADMIN_COOKIE = "cnx_admin";
+const ADMIN_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
+const ADMIN_SECRET = crypto
+  .createHmac("sha256", "cybernexa-admin-session-v1")
+  .update(String(ADMIN_PASSWORD))
+  .digest("hex");
+const adminFails = new Map();
 
-function adminAuth(req, res, next) {
+function adminCookie(header, name) {
+  const parts = String(header || "").split(";");
+  for (const part of parts) {
+    const i = part.indexOf("=");
+    if (i > -1 && part.slice(0, i).trim() === name) {
+      try {
+        return decodeURIComponent(part.slice(i + 1).trim());
+      } catch {
+        return "";
+      }
+    }
+  }
+  return "";
+}
+function adminToken() {
+  const exp = Date.now() + ADMIN_TTL_MS;
+  const sig = crypto.createHmac("sha256", ADMIN_SECRET).update(String(exp)).digest("hex");
+  return exp + "." + sig;
+}
+function adminTokenValid(token) {
+  try {
+    const [exp, sig] = String(token || "").split(".");
+    if (!exp || !sig || Number(exp) < Date.now()) return false;
+    const good = crypto.createHmac("sha256", ADMIN_SECRET).update(String(exp)).digest("hex");
+    return sig.length === good.length && crypto.timingSafeEqual(Buffer.from(sig), Buffer.from(good));
+  } catch {
+    return false;
+  }
+}
+function isAdmin(req) {
+  // Basic Auth stays supported for scripts/curl — but we never send the
+  // WWW-Authenticate header, so visitors get our login page instead of a popup.
   const auth = req.headers.authorization || "";
   if (auth.startsWith("Basic ")) {
     try {
       const decoded = Buffer.from(auth.slice(6), "base64").toString("utf-8");
       const pass = decoded.substring(decoded.indexOf(":") + 1);
-      if (pass === ADMIN_PASSWORD) return next();
+      if (pass === ADMIN_PASSWORD) return true;
     } catch {
-      /* fall through to 401 */
+      /* ignore */
     }
   }
-  res.setHeader("WWW-Authenticate", 'Basic realm="CyberNexa Admin", charset="UTF-8"');
-  res.status(401).send("<h1>401 — Unauthorized</h1><p>Valid admin password required.</p>");
+  return adminTokenValid(adminCookie(req.headers.cookie || "", ADMIN_COOKIE));
+}
+function adminAuth(req, res, next) {
+  if (isAdmin(req)) return next();
+  return res.redirect("/admin/login");
+}
+function adminRateLimited(ip) {
+  const now = Date.now();
+  const list = (adminFails.get(ip) || []).filter((t) => now - t < 15 * 60 * 1000);
+  adminFails.set(ip, list);
+  return list.length >= 10;
+}
+function adminLoginPage(error) {
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Admin login | CyberNexa</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<style>
+  :root { --bg:#0a0a17; --card:#12122a; --border:#26264a; --violet:#3b82f6; --indigo:#2563eb; --cyan:#60a5fa; --text:#ececf5; --muted:#9a9ab5; }
+  * { box-sizing:border-box; margin:0; padding:0; }
+  body { min-height:100vh; display:grid; place-items:center; padding:24px; background:radial-gradient(900px 500px at 15% 0%, rgba(59,130,246,.16), transparent 60%), radial-gradient(700px 500px at 100% 100%, rgba(37,99,235,.14), transparent 55%), var(--bg); color:var(--text); font-family:system-ui,-apple-system,"Segoe UI",sans-serif; }
+  .card { width:100%; max-width:410px; background:var(--card); border:1px solid var(--border); border-radius:18px; padding:34px 30px; box-shadow:0 30px 80px -40px rgba(0,0,0,.9); }
+  .brand { display:flex; align-items:center; gap:10px; font-weight:800; font-size:1.25rem; margin-bottom:6px; }
+  .brand i, .brand b { color:var(--violet); }
+  .sub { color:var(--muted); font-size:.88rem; margin-bottom:24px; }
+  label { display:block; font-size:.78rem; color:var(--muted); margin:0 0 6px; }
+  input { width:100%; background:#0d0d22; border:1px solid var(--border); color:var(--text); padding:11px 13px; border-radius:10px; font-size:.95rem; outline:none; }
+  input:focus { border-color:var(--violet); box-shadow:0 0 0 3px rgba(59,130,246,.18); }
+  .btn { width:100%; margin-top:18px; padding:12px; border:0; border-radius:10px; background:linear-gradient(120deg,var(--violet),var(--indigo)); color:#fff; font-size:.95rem; font-weight:700; cursor:pointer; font-family:inherit; }
+  .btn:hover { filter:brightness(1.08); }
+  .err { background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.35); color:#f87171; padding:10px 13px; border-radius:10px; font-size:.85rem; margin-bottom:16px; }
+  .back { display:block; text-align:center; margin-top:18px; color:var(--muted); font-size:.83rem; text-decoration:none; }
+  .back:hover { color:var(--cyan); }
+</style>
+</head>
+<body>
+  <form class="card" method="post" action="/admin/login">
+    <div class="brand"><i class="fa-solid fa-shield-halved"></i> Cyber<b>Nexa</b> Admin</div>
+    <div class="sub">Sign in to manage the website, students and academy.</div>
+    ${error ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${error}</div>` : ""}
+    <label for="password">Admin password</label>
+    <input id="password" type="password" name="password" required autofocus autocomplete="current-password" placeholder="Enter admin password">
+    <button class="btn" type="submit"><i class="fa-solid fa-key"></i> Sign in</button>
+    <a class="back" href="/"><i class="fa-solid fa-globe"></i> Back to website</a>
+  </form>
+</body>
+</html>`;
 }
 
+app.get("/admin/login", (req, res) => {
+  if (isAdmin(req)) return res.redirect("/admin");
+  res.send(adminLoginPage(""));
+});
+app.post("/admin/login", express.urlencoded({ extended: false }), (req, res) => {
+  const ip = req.ip;
+  if (adminRateLimited(ip)) {
+    return res.status(429).send(adminLoginPage("Too many attempts. Please wait 15 minutes and try again."));
+  }
+  const pw = String(req.body.password || "");
+  if (pw && pw === ADMIN_PASSWORD) {
+    adminFails.delete(ip);
+    res.setHeader(
+      "Set-Cookie",
+      `${ADMIN_COOKIE}=${encodeURIComponent(adminToken())}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ADMIN_TTL_MS / 1000)}`
+    );
+    return res.redirect("/admin");
+  }
+  const list = adminFails.get(ip) || [];
+  list.push(Date.now());
+  adminFails.set(ip, list);
+  res.status(401).send(adminLoginPage("Wrong password. Please try again."));
+});
+app.post("/admin/logout", (req, res) => {
+  res.setHeader("Set-Cookie", `${ADMIN_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
+  res.redirect("/admin/login");
+});
+
 // ---------- Admin: Dashboard ----------
-app.use("/admin", adminAuth);
+app.use("/admin", (req, res, next) => {
+  if (req.path === "/login" || req.path === "/logout") return next();
+  return adminAuth(req, res, next);
+});
 
 function adminLayout(title, active, body) {
   return `<!DOCTYPE html>
@@ -813,6 +931,8 @@ function adminLayout(title, active, body) {
   .side a:hover { background:rgba(255,255,255,.05); color:var(--text); }
   .side a.active { background:linear-gradient(120deg,var(--violet),var(--indigo)); color:#fff; }
   .side .foot { margin-top:auto; font-size:.78rem; color:var(--muted); border-top:1px solid var(--border); padding-top:14px; }
+  .side .logout-btn { display:block; width:100%; text-align:left; background:transparent; border:0; padding:11px 14px; border-radius:10px; color:var(--muted); font-size:.93rem; font-family:inherit; cursor:pointer; margin-bottom:5px; transition:.2s; }
+  .side .logout-btn:hover { background:rgba(239,68,68,.12); color:#f87171; }
   .main { flex:1; padding:34px; min-width:0; }
   h1 { font-size:1.5rem; margin-bottom:4px; }
   .sub { color:var(--muted); margin-bottom:26px; font-size:.92rem; }
@@ -880,6 +1000,7 @@ function adminLayout(title, active, body) {
   <a href="/admin/notices" class="${active === "notices" ? "active" : ""}"><i class="fa-solid fa-bell"></i> Notices</a>
   <a href="/admin/resets" class="${active === "resets" ? "active" : ""}"><i class="fa-solid fa-lock"></i> Password resets</a>
   <a href="/" target="_blank"><i class="fa-solid fa-globe"></i> View Website</a>
+  <form method="post" action="/admin/logout"><button type="submit" class="logout-btn"><i class="fa-solid fa-power-off"></i> Log out</button></form>
   <div class="foot">Signed in as <b>admin</b></div>
 </aside>
 <main class="main">${body}</main>
