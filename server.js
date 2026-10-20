@@ -852,6 +852,8 @@ function adminLoginPage(error) {
   .err { background:rgba(239,68,68,.12); border:1px solid rgba(239,68,68,.35); color:#f87171; padding:10px 13px; border-radius:10px; font-size:.85rem; margin-bottom:16px; }
   .back { display:block; text-align:center; margin-top:18px; color:var(--muted); font-size:.83rem; text-decoration:none; }
   .back:hover { color:var(--cyan); }
+  .show { display:flex; align-items:center; gap:8px; margin-top:11px; font-size:.8rem; color:var(--muted); cursor:pointer; user-select:none; }
+  .show input { width:auto; margin:0; accent-color:var(--violet); cursor:pointer; }
 </style>
 </head>
 <body>
@@ -860,10 +862,21 @@ function adminLoginPage(error) {
     <div class="sub">Sign in to manage the website, students and academy.</div>
     ${error ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${error}</div>` : ""}
     <label for="password">Admin password</label>
-    <input id="password" type="password" name="password" required autofocus autocomplete="current-password" placeholder="Enter admin password">
+    <input id="password" type="password" name="password" required autofocus autocomplete="off" autocapitalize="none" autocorrect="off" spellcheck="false" placeholder="Enter admin password">
+    <label class="show" for="showpw"><input type="checkbox" id="showpw"> Show password</label>
     <button class="btn" type="submit"><i class="fa-solid fa-key"></i> Sign in</button>
     <a class="back" href="/"><i class="fa-solid fa-globe"></i> Back to website</a>
   </form>
+  <script>
+    (function () {
+      var box = document.getElementById("showpw");
+      var pw = document.getElementById("password");
+      if (!box || !pw) return;
+      box.addEventListener("change", function () {
+        pw.type = box.checked ? "text" : "password";
+      });
+    })();
+  </script>
 </body>
 </html>`;
 }
