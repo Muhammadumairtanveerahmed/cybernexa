@@ -30,7 +30,7 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 
 // Behind the k3s ingress (traefik) — trust one proxy hop so req.ip is the real client IP.
-app.set("trust proxy", 1);
+app.set("trust proxy", true);
 
 const DATA_FILE = path.join(__dirname, "data", "messages.json");
 
