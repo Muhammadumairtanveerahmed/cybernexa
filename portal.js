@@ -982,12 +982,22 @@ function mount(app, context) {
         <h1>Sign in</h1>
         <p class="muted" style="margin-bottom:16px">One login for students, teachers and the admin panel.</p>
         ${notice}${err}
-        <form method="post" action="/portal/login">
+        <form method="post" action="/portal/login" autocomplete="off">
           <input type="hidden" name="next" value="${esc(req.query.next || "")}">
-          <label>Email</label><input type="email" name="email" required autocomplete="email">
-          <label>Password</label><input type="password" name="password" required autocomplete="current-password">
+          <label>Email</label><input type="email" name="email" required autocomplete="off" autocapitalize="none" spellcheck="false">
+          <label>Password</label><input type="password" name="password" id="pw" required autocomplete="off">
+          <label style="display:flex;align-items:center;gap:8px;color:var(--mut);font-weight:400;margin-top:10px">
+            <input type="checkbox" id="showpw" style="width:auto;height:auto"> Show password
+          </label>
           <button class="btn primary mt" style="width:100%" type="submit">Sign in</button>
         </form>
+        <script>
+          (function(){
+            var b = document.getElementById("showpw"), p = document.getElementById("pw");
+            if (!b || !p) return;
+            b.addEventListener("change", function(){ p.type = b.checked ? "text" : "password"; });
+          })();
+        </script>
         <p class="mt center-txt"><a class="muted" href="/portal/forgot">Forgot password?</a></p>
         <p class="mt center-txt muted">New here? <a href="/portal/register">Create an account</a></p>
       </div>`));
