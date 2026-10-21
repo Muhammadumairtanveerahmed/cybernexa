@@ -153,6 +153,11 @@ module.exports = function mountAcademics(app) {
       [u.id]
     ))[0];
     const assigned = await teacherCourseTitles(u.id);
+    const allCourses = await core.ctx.getCourses();
+    const courseOpts = (assigned.length ? assigned : allCourses).map((c) => {
+      const title = c.course_title || c.title;
+      return `<option value="${esc(title)}">${esc(title)}</option>`;
+    }).join("");
     const rows = mine.map((a) => `<tr>
       <td><strong>${esc(a.title)}</strong><div class="muted" style="font-size:.78rem">${esc(a.course_title)}</div></td>
       <td class="muted">${shortDate(a.due_date)}</td>
@@ -169,11 +174,29 @@ module.exports = function mountAcademics(app) {
        <div class="panel">
          <div class="row" style="justify-content:space-between">
            <h2 style="margin:0"><i class="fa-solid fa-pen-to-square"></i> My assignments (${mine.length})</h2>
-           <a class="btn primary sm" href="/portal/assignments/new"><i class="fa-solid fa-plus"></i> New assignment</a>
+           <button type="button" class="btn primary sm" data-open="#m-assign"><i class="fa-solid fa-plus"></i> New assignment</button>
          </div>
          ${mine.length ? `<table class="mt"><tr><th>Assignment</th><th>Due</th><th>Marks</th><th>Submissions</th><th>Status</th><th></th></tr>${rows}</table>`
            : `<p class="muted mt">No assignments yet. Click “New assignment” to post your first task.</p>`}
-       </div>`));
+       </div>
+       <div class="modal${req.query.new ? " open" : ""}" id="m-assign"><div class="modal-box">
+         <div class="modal-head"><h3><i class="fa-solid fa-plus"></i> New assignment</h3><button type="button" class="modal-close" data-close>&times;</button></div>
+         <form method="post" action="/portal/assignments/new" enctype="multipart/form-data">
+           <label>Course *</label>
+           <select name="course_title" required>${courseOpts}</select>
+           <label>Assignment title *</label>
+           <input name="title" required maxlength="200" placeholder="e.g. Lab 3 - Subnetting exercise">
+           <label>Instructions / description</label>
+           <textarea name="description" placeholder="Explain the task, deliverables and marking scheme."></textarea>
+           <div class="grid2">
+             <div><label>Due date &amp; time</label><input type="datetime-local" name="due_date"></div>
+             <div><label>Total marks *</label><input type="number" name="max_marks" min="1" max="1000" value="100" required></div>
+           </div>
+           <label>Attach assignment brief (PDF, DOCX, ZIP, image, optional, max 10 MB)</label>
+           <input type="file" name="file">
+           <div class="row mt"><button class="btn primary" type="submit"><i class="fa-solid fa-upload"></i> Post assignment</button><button type="button" class="btn ghost" data-close>Cancel</button></div>
+         </form>
+       </div></div>`));
   }
 
   async function studentList(req, res) {

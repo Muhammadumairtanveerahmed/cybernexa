@@ -764,8 +764,8 @@ tr:last-child td{border-bottom:0}
 .tag{font-size:.7rem;padding:2px 8px;border-radius:6px;background:rgba(148,163,255,.12);color:var(--mut);border:1px solid var(--line)}
 @media(max-width:860px){.shell{grid-template-columns:1fr}.side{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);align-items:center;position:static;height:auto}.side .brand,.side .who{display:none}.grid2{grid-template-columns:1fr}.main{padding:18px}}
 /* Modals */
-.modal{position:fixed;inset:0;background:rgba(3,6,15,.72);display:none;align-items:center;justify-content:center;z-index:120;padding:20px}
-.modal.open{display:flex}
+.topline{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:12px}
+.modal{position:fixed;inset:0;background:rgba(3,6,15,.72);display:none;align-items:center;justify-content:center;z-index:120;padding:20px}.modal.open{display:flex}
 .modal-box{background:var(--bg2);border:1px solid var(--line);border-radius:6px;width:100%;max-width:620px;max-height:90vh;overflow:auto;padding:22px}
 .modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
 .modal-head h3{font-size:1.02rem}
@@ -882,6 +882,10 @@ function shell(user, active, title, sub, body, extraNav = "") {
     </div>
   </aside>
   <main class="main">
+    <div class="topline">
+      <span class="muted" style="font-size:12px">${esc(user.email)}</span>
+      <form method="post" action="/portal/logout"><button class="btn ghost sm" type="submit">Sign out</button></form>
+    </div>
     <h1>${esc(title)}</h1>
     <p class="sub">${sub}</p>
     ${pending}
@@ -1498,7 +1502,7 @@ function mount(app, context) {
       <div class="panel">
         <h2><i class="fa-solid fa-pen-to-square"></i> Recent assignments</h2>
         ${recentAsg.length ? `<table><tr><th>Assignment</th><th>Due</th><th>Submissions</th><th></th></tr>${asgRows}</table>` : `<p class="muted">No assignments posted yet.</p>`}
-        <p class="mt"><a class="btn primary sm" href="/portal/assignments/new"><i class="fa-solid fa-plus"></i> Create assignment</a>
+        <p class="mt"><a class="btn primary sm" href="/portal/assignments?new=1"><i class="fa-solid fa-plus"></i> Create assignment</a>
           <a class="btn ghost sm" href="/portal/assignments">Manage all</a></p>
       </div>
       <div class="panel"><h2>My courses</h2>
@@ -1515,7 +1519,7 @@ function mount(app, context) {
           : `<p class="muted">No classes scheduled for today. <a href="/portal/timetable">Manage timetable</a></p>`}
       </div>
       <div class="panel"><h2>Quick actions</h2><div class="row">
-        <a class="btn primary sm" href="/portal/assignments/new"><i class="fa-solid fa-pen-to-square"></i> New assignment</a>
+        <a class="btn primary sm" href="/portal/assignments?new=1"><i class="fa-solid fa-pen-to-square"></i> New assignment</a>
         <a class="btn ghost sm" href="/portal/quizzes/new"><i class="fa-solid fa-flask"></i> New quiz</a>
         <a class="btn ghost sm" href="/portal/materials"><i class="fa-solid fa-folder"></i> Share material</a>
         <a class="btn ghost sm" href="/portal/attendance"><i class="fa-solid fa-circle-check"></i> Attendance</a>

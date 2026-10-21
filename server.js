@@ -1019,6 +1019,7 @@ function adminLayout(title, active, body) {
     .main { padding:22px 16px; }
   }
   /* Modals */
+  .topline { display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:12px; }
   .modal { position:fixed; inset:0; background:rgba(3,6,15,.72); display:none; align-items:center; justify-content:center; z-index:120; padding:20px; }
   .modal.open { display:flex; }
   .modal-box { background:var(--card); border:1px solid var(--border); border-radius:6px; width:100%; max-width:620px; max-height:90vh; overflow:auto; padding:22px; }
@@ -1060,7 +1061,12 @@ function adminLayout(title, active, body) {
   <form method="post" action="/admin/logout"><button type="submit" class="logout-btn"><i class="fa-solid fa-power-off"></i> Log out</button></form>
   <div class="foot">Signed in as <b>${esc(ADMIN_EMAIL)}</b></div>
 </aside>
-<main class="main">${body}</main>
+<main class="main">
+<div class="topline">
+  <span style="font-size:12px;color:var(--muted)">${esc(ADMIN_EMAIL)}</span>
+  <form method="post" action="/admin/logout"><button class="btn b-read" type="submit">Log out</button></form>
+</div>
+${body}</main>
 <script>
 (function(){
   document.addEventListener("click",function(e){
