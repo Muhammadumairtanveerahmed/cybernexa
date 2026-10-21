@@ -776,6 +776,7 @@ app.get("/api/courses", async (req, res) => {
 
 // ---------- Admin authentication (form login, no browser popup) ----------
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || "admin123";
+const ADMIN_EMAIL = String(process.env.ADMIN_EMAIL || "admin@cybernexa.local").trim().toLowerCase();
 const ADMIN_COOKIE = "cnx_admin";
 const ADMIN_TTL_MS = 12 * 60 * 60 * 1000; // 12 hours
 const ADMIN_SECRET = crypto
@@ -820,13 +821,41 @@ function isAdmin(req) {
 }
 function adminAuth(req, res, next) {
   if (isAdmin(req)) return next();
-  return res.redirect("/admin/login");
+  return res.redirect("/portal/login?next=/admin/dashboard");
 }
 function adminRateLimited(ip) {
   const now = Date.now();
   const list = (adminFails.get(ip) || []).filter((t) => now - t < 15 * 60 * 1000);
   adminFails.set(ip, list);
   return list.length >= 10;
+}
+
+// One login form for everyone: an email + password that matches the admin
+// credentials signs the admin in, otherwise the portal handles the account.
+function adminLoginAttempt(email, password, res, req) {
+  const em = String(email || "").trim().toLowerCase();
+  if (em !== ADMIN_EMAIL) return "skip";
+  const ip = req.ip;
+  const ua = req.headers["user-agent"];
+  if (adminRateLimited(ip)) {
+    portal.logLogin({ email: ADMIN_EMAIL, role: "admin", fullName: "Administrator", status: "blocked", ip, userAgent: ua });
+    return "blocked";
+  }
+  const pw = String(password || "").trim().toLowerCase();
+  if (pw && pw === String(ADMIN_PASSWORD).trim().toLowerCase()) {
+    adminFails.delete(ip);
+    res.setHeader(
+      "Set-Cookie",
+      `${ADMIN_COOKIE}=${encodeURIComponent(adminToken())}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ADMIN_TTL_MS / 1000)}`
+    );
+    portal.logLogin({ email: ADMIN_EMAIL, role: "admin", fullName: "Administrator", status: "success", ip, userAgent: ua });
+    return "ok";
+  }
+  const list = adminFails.get(ip) || [];
+  list.push(Date.now());
+  adminFails.set(ip, list);
+  portal.logLogin({ email: ADMIN_EMAIL, role: "admin", fullName: "Administrator", status: "failed", ip, userAgent: ua });
+  return "fail";
 }
 function adminLoginPage(error) {
   return `<!DOCTYPE html>
@@ -881,31 +910,16 @@ function adminLoginPage(error) {
 </html>`;
 }
 
-app.get("/admin/login", (req, res) => {
-  res.send(adminLoginPage(""));
-});
+// One sign-in page for everybody (admin, students, teachers).
+app.get("/admin/login", (req, res) => res.redirect("/portal/login?next=/admin/dashboard"));
 app.post("/admin/login", express.urlencoded({ extended: false }), (req, res) => {
-  const ip = req.ip;
-  const ua = req.headers["user-agent"];
-  if (adminRateLimited(ip)) {
-    portal.logLogin({ email: "admin@cybernexa.local", role: "admin", fullName: "Administrator", status: "blocked", ip, userAgent: ua });
-    return res.status(429).send(adminLoginPage("Too many attempts. Please wait 15 minutes and try again."));
+  const email = String(req.body.email || ADMIN_EMAIL);
+  const result = adminLoginAttempt(email, req.body.password, res, req);
+  if (result === "ok") return res.redirect("/admin/dashboard");
+  if (result === "blocked") {
+    return res.redirect("/portal/login?e=" + encodeURIComponent("Too many attempts. Please wait 15 minutes and try again."));
   }
-  const pw = String(req.body.password || "").trim().toLowerCase();
-  if (pw && pw === String(ADMIN_PASSWORD).trim().toLowerCase()) {
-    adminFails.delete(ip);
-    res.setHeader(
-      "Set-Cookie",
-      `${ADMIN_COOKIE}=${encodeURIComponent(adminToken())}; Path=/; HttpOnly; SameSite=Lax; Max-Age=${Math.floor(ADMIN_TTL_MS / 1000)}`
-    );
-    portal.logLogin({ email: "admin@cybernexa.local", role: "admin", fullName: "Administrator", status: "success", ip, userAgent: ua });
-    return res.redirect("/admin/dashboard");
-  }
-  const list = adminFails.get(ip) || [];
-  list.push(Date.now());
-  adminFails.set(ip, list);
-  portal.logLogin({ email: "admin@cybernexa.local", role: "admin", fullName: "Administrator", status: "failed", ip, userAgent: ua });
-  res.status(401).send(adminLoginPage("Wrong password. Please try again."));
+  return res.redirect("/portal/login?e=" + encodeURIComponent("Wrong email or password"));
 });
 app.post("/admin/logout", (req, res) => {
   res.setHeader("Set-Cookie", `${ADMIN_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
@@ -921,7 +935,11 @@ app.use("/admin", (req, res, next) => {
 // Opening the bare /admin URL always asks for credentials again.
 app.get("/admin", (req, res) => {
   res.setHeader("Set-Cookie", `${ADMIN_COOKIE}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0`);
-  res.redirect("/admin/login");
+  res.redirect("/portal/login?next=/admin/dashboard");
+});
+app.get("/login", (req, res) => {
+  const next = String(req.query.next || "");
+  res.redirect("/portal/login" + (next ? "?next=" + encodeURIComponent(next) : ""));
 });
 
 function adminLayout(title, active, body) {
@@ -932,18 +950,21 @@ function adminLayout(title, active, body) {
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>${title}</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <style>
   :root { --bg:#0a0a17; --card:#12122a; --border:#26264a; --violet:#3b82f6; --indigo:#2563eb; --cyan:#60a5fa; --text:#ececf5; --muted:#9a9ab5; --green:#22c55e; }
   * { box-sizing:border-box; margin:0; padding:0; }
   body { background:var(--bg); color:var(--text); font-family:system-ui,sans-serif; display:flex; min-height:100vh; }
-  .side { width:230px; flex-shrink:0; background:var(--card); border-right:1px solid var(--border); padding:26px 18px; display:flex; flex-direction:column; }
+  .side { width:220px; flex-shrink:0; background:var(--card); border-right:1px solid var(--border); padding:16px 10px; display:flex; flex-direction:column; position:sticky; top:0; height:100vh; overflow-y:auto; }
   .brand { font-weight:800; font-size:1.2rem; margin-bottom:30px; display:flex; gap:8px; align-items:center; }
   .brand b { color:var(--violet); }
-  .side a { display:block; padding:11px 14px; border-radius:10px; color:var(--muted); text-decoration:none; font-size:.93rem; margin-bottom:5px; transition:.2s; }
+  .side a { display:block; padding:8px 10px; border-radius:3px; color:var(--muted); text-decoration:none; font-size:12px; margin-bottom:2px; transition:.2s; }
   .side a:hover { background:rgba(255,255,255,.05); color:var(--text); }
   .side a.active { background:linear-gradient(120deg,var(--violet),var(--indigo)); color:#fff; }
   .side .foot { margin-top:auto; font-size:.78rem; color:var(--muted); border-top:1px solid var(--border); padding-top:14px; }
-  .side .logout-btn { display:block; width:100%; text-align:left; background:transparent; border:0; padding:11px 14px; border-radius:10px; color:var(--muted); font-size:.93rem; font-family:inherit; cursor:pointer; margin-bottom:5px; transition:.2s; }
+  .side .logout-btn { display:block; width:100%; text-align:left; background:transparent; border:0; padding:8px 10px; border-radius:3px; color:var(--muted); font-size:12px; font-family:inherit; cursor:pointer; margin-bottom:2px; transition:.2s; }
   .side .logout-btn:hover { background:rgba(239,68,68,.12); color:#f87171; }
   .main { flex:1; padding:34px; min-width:0; }
   h1 { font-size:1.5rem; margin-bottom:4px; }
@@ -972,10 +993,11 @@ function adminLayout(title, active, body) {
   .b-del  { background:rgba(239,68,68,.15); color:#f87171; border:1px solid rgba(239,68,68,.4); }
   .empty  { text-align:center; padding:40px; color:var(--muted); }
   .head-row { display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:12px; }
+  .head-actions { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
   label { display:block; font-size:.78rem; color:var(--muted); margin:12px 0 4px; }
-  input[type=text], input[type=number], input[type=password], textarea, select { width:100%; background:#0d0d22; border:1px solid var(--border); color:var(--text); padding:9px 12px; border-radius:8px; font-family:inherit; font-size:.9rem; outline:none; }
+  input[type=text], input[type=number], input[type=password], input[type=email], textarea, select { width:100%; background:#0d0d22; border:1px solid var(--border); color:var(--text); height:38px; padding:0 11px; border-radius:3px; font-family:inherit; font-size:.88rem; outline:none; }
   input:focus, textarea:focus, select:focus { border-color:var(--violet); box-shadow:0 0 0 3px rgba(59,130,246,.18); }
-  textarea { min-height:70px; resize:vertical; }
+  textarea { height:auto; min-height:70px; padding:9px 11px; resize:vertical; }
   .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:0 16px; }
   .check-row { display:flex; gap:22px; margin-top:16px; flex-wrap:wrap; }
   .check-row label { display:flex; gap:8px; align-items:center; margin:0; color:var(--text); font-size:.88rem; }
@@ -989,13 +1011,35 @@ function adminLayout(title, active, body) {
   @media (max-width:900px){ .form-grid{ grid-template-columns:1fr; } }
   @media (max-width: 900px) {
     body { flex-direction:column; }
-    .side { width:100%; flex-direction:row; align-items:center; padding:14px 18px; gap:8px; overflow-x:auto; }
+    .side { width:100%; flex-direction:row; align-items:center; padding:14px 18px; gap:8px; overflow-x:auto; position:static; height:auto; }
     .brand { margin:0 16px 0 0; white-space:nowrap; }
     .side a { white-space:nowrap; margin:0; }
     .side .foot { display:none; }
     .stats { grid-template-columns:repeat(2,1fr); }
     .main { padding:22px 16px; }
   }
+  /* Modals */
+  .modal { position:fixed; inset:0; background:rgba(3,6,15,.72); display:none; align-items:center; justify-content:center; z-index:120; padding:20px; }
+  .modal.open { display:flex; }
+  .modal-box { background:var(--card); border:1px solid var(--border); border-radius:6px; width:100%; max-width:620px; max-height:90vh; overflow:auto; padding:22px; }
+  .modal-head { display:flex; justify-content:space-between; align-items:center; gap:12px; margin-bottom:14px; }
+  .modal-head h3 { font-size:1.02rem; }
+  .modal-close { background:none; border:0; color:var(--muted); font-size:1.5rem; line-height:1; cursor:pointer; }
+  .modal-close:hover { color:var(--text); }
+  /* DataTables dark overrides */
+  .dataTables_wrapper { font-size:.8rem; margin-top:12px; color:var(--muted); }
+  .dataTables_wrapper .dataTables_filter input { width:190px; height:34px; margin-left:6px; border-radius:3px; border:1px solid var(--border); background:#0d0d22; color:var(--text); padding:0 10px; }
+  .dataTables_wrapper .dataTables_length select { width:auto; height:34px; display:inline-block; margin:0 4px; border-radius:3px; background:#0d0d22; color:var(--text); border:1px solid var(--border); padding:0 8px; }
+  .dataTables_wrapper .dataTables_info, .dataTables_wrapper .dataTables_length, .dataTables_wrapper .dataTables_filter { color:var(--muted); padding-top:10px; }
+  .dataTables_wrapper .dataTables_paginate { padding-top:10px; }
+  .dataTables_wrapper .dataTables_paginate .paginate_button { color:var(--muted)!important; border-radius:3px!important; border:1px solid transparent!important; padding:4px 9px!important; }
+  .dataTables_wrapper .dataTables_paginate .paginate_button.current, .dataTables_wrapper .dataTables_paginate .paginate_button.current:hover { background:var(--violet)!important; border-color:var(--violet)!important; color:#fff!important; }
+  .dataTables_wrapper .dataTables_paginate .paginate_button:hover { background:rgba(59,130,246,.15)!important; color:var(--text)!important; }
+  table.dataTable thead th { border-bottom:1px solid var(--border)!important; color:var(--cyan); }
+  table.dataTable.no-footer { border-bottom:1px solid var(--border); }
+  table.dataTable tbody tr { background:transparent!important; }
+  table.dataTable.stripe tbody tr.odd, table.dataTable.display tbody tr.odd { background:rgba(148,163,255,.04)!important; }
+  table.dataTable.hover tbody tr:hover, table.dataTable.display tbody tr:hover { background:rgba(59,130,246,.08)!important; }
 </style>
 </head>
 <body>
@@ -1014,9 +1058,38 @@ function adminLayout(title, active, body) {
   <a href="/admin/logs" class="${active === "logs" ? "active" : ""}"><i class="fa-solid fa-clock-rotate-left"></i> Login activity</a>
   <a href="/" target="_blank"><i class="fa-solid fa-globe"></i> View Website</a>
   <form method="post" action="/admin/logout"><button type="submit" class="logout-btn"><i class="fa-solid fa-power-off"></i> Log out</button></form>
-  <div class="foot">Signed in as <b>admin</b></div>
+  <div class="foot">Signed in as <b>${esc(ADMIN_EMAIL)}</b></div>
 </aside>
 <main class="main">${body}</main>
+<script>
+(function(){
+  document.addEventListener("click",function(e){
+    var o=e.target.closest("[data-open]");
+    if(o){var m=document.querySelector(o.getAttribute("data-open"));if(m){m.classList.add("open");e.preventDefault();return}}
+    var c=e.target.closest("[data-close]");
+    if(c){var mm=c.closest(".modal");if(mm)mm.classList.remove("open");return}
+    if(e.target.classList&&e.target.classList.contains("modal"))e.target.classList.remove("open");
+  });
+  function boot(){
+    if(!window.jQuery||!jQuery.fn.DataTable)return;
+    document.querySelectorAll("table").forEach(function(t){
+      if(t.getAttribute("data-dt")==="off")return;
+      if(!t.tHead){
+        var first=t.rows[0];
+        if(!first||!first.querySelector("th"))return;
+        var thead=document.createElement("thead"),tbody=document.createElement("tbody");
+        thead.appendChild(first);
+        var rest=[];for(var i=1;i<t.rows.length;i++)rest.push(t.rows[i]);
+        t.insertBefore(thead,t.firstChild);
+        rest.forEach(function(r){tbody.appendChild(r)});
+        t.appendChild(tbody);
+      }
+      try{jQuery(t).DataTable({pageLength:10,lengthMenu:[[10,25,50,-1],[10,25,50,"All"]],order:[],autoWidth:false,columnDefs:[{targets:-1,orderable:false,searchable:false}],language:{search:"",searchPlaceholder:"Search...",emptyTable:"No records",info:"Showing _START_ to _END_ of _TOTAL_",infoEmpty:"No records",zeroRecords:"No matching records",paginate:{previous:"Prev",next:"Next"}}})}catch(e){}
+    });
+  }
+  if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot();
+})();
+</script>
 </body>
 </html>`;
 }
@@ -1300,19 +1373,24 @@ app.get("/admin/courses", async (req, res) => {
         <h1><i class="fa-solid fa-graduation-cap"></i> Courses</h1>
         <p class="sub">${total} total · ${activeN} active · ${featuredN} featured · ${cats} categories · Storage: ${storageMode}</p>
       </div>
-      <a href="/admin/dashboard" class="btn b-read">Dashboard</a>
+      <div class="head-actions">
+        <button type="button" class="btn b-add" data-open="#m-course"><i class="fa-solid fa-plus"></i> Add Course</button>
+        <a href="/admin/dashboard" class="btn b-read">Dashboard</a>
+      </div>
     </div>
     ${msg}
-    <div class="panel">
-      <h2><i class="fa-solid fa-plus"></i> Add New Course</h2>
-      ${courseForm(null, true)}
-    </div>
     <div class="panel">
       <h2>All Courses (${total})</h2>
       <table>
         <tr><th>Tag</th><th>Title</th><th>Category</th><th>Meta</th><th>Price</th><th>Flags</th><th>Action</th></tr>
-        ${rows || `<tr><td colspan="7" class="empty">No courses yet — add your first course above. <i class="fa-solid fa-graduation-cap"></i></td></tr>`}
+        ${rows || `<tr><td colspan="7" class="empty">No courses yet — click Add Course to create one. <i class="fa-solid fa-graduation-cap"></i></td></tr>`}
       </table>
+    </div>
+    <div class="modal" id="m-course">
+      <div class="modal-box">
+        <div class="modal-head"><h3><i class="fa-solid fa-plus"></i> Add New Course</h3><button type="button" class="modal-close" data-close>&times;</button></div>
+        ${courseForm(null, true)}
+      </div>
     </div>`
     )
   );
@@ -1413,6 +1491,8 @@ portal.mount(app, {
   originOf,
   adminLayout,
   getCourses,
+  tryAdminLogin: adminLoginAttempt,
+  adminEmail: ADMIN_EMAIL,
 });
 mountPortalAdmin(app);
 mountPortalAcademics(app);

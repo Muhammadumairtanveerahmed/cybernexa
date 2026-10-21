@@ -635,7 +635,9 @@ h1,h2,h3{font-family:"Sora",system-ui,sans-serif;line-height:1.25}
 .muted{color:var(--mut);font-size:.92rem}
 .grid2{display:grid;grid-template-columns:1fr 1fr;gap:0 16px}
 label{display:block;font-size:.78rem;color:var(--mut);margin:13px 0 5px;font-weight:500}
-input,select,textarea{width:100%;background:#0b1020;border:1px solid var(--line);color:var(--txt);padding:11px 13px;border-radius:10px;font-family:inherit;font-size:.92rem;outline:none}
+input,select,textarea{width:100%;height:42px;background:#0b1020;border:1px solid var(--line);color:var(--txt);padding:0 12px;border-radius:3px;font-family:inherit;font-size:.9rem;outline:none}
+textarea{height:auto;min-height:90px;padding:10px 12px}
+input[type=checkbox],input[type=radio]{height:auto;width:auto;padding:0}
 input:focus,select:focus,textarea:focus{border-color:var(--p);box-shadow:0 0 0 3px rgba(59,130,246,.18)}
 textarea{min-height:90px;resize:vertical}
 input[type=file]{padding:9px;font-size:.85rem}
@@ -652,11 +654,11 @@ input[type=file]{padding:9px;font-size:.85rem}
 .mt{margin-top:18px}
 .center-txt{text-align:center}
 .muted a{color:var(--acc)}
-.shell{display:grid;grid-template-columns:250px 1fr;min-height:100vh}
-.side{background:var(--bg2);border-right:1px solid var(--line);padding:22px 16px;display:flex;flex-direction:column;gap:4px}
+.shell{display:grid;grid-template-columns:220px 1fr;min-height:100vh}
+.side{background:var(--bg2);border-right:1px solid var(--line);padding:16px 10px;display:flex;flex-direction:column;gap:2px;position:sticky;top:0;align-self:start;height:100vh;overflow-y:auto}
 .side .brand{font-family:"Sora",sans-serif;font-weight:800;margin-bottom:16px;font-size:1.05rem}
 .side .brand b{color:var(--acc)}
-.side a{padding:10px 13px;border-radius:10px;color:var(--mut);font-size:.9rem}
+.side a{padding:8px 10px;border-radius:3px;color:var(--mut);font-size:12px;line-height:1.35}
 .side a:hover{background:rgba(255,255,255,.05);color:var(--txt)}
 .side a.on{background:linear-gradient(120deg,var(--p),var(--p2));color:#fff}
 .side .who{margin-top:auto;border-top:1px solid var(--line);padding-top:14px;font-size:.8rem;color:var(--mut)}
@@ -701,8 +703,32 @@ tr:last-child td{border-bottom:0}
 .slot .tm{color:var(--acc);font-weight:600;white-space:nowrap;line-height:1.25;font-size:.78rem}
 .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .tag{font-size:.7rem;padding:2px 8px;border-radius:6px;background:rgba(148,163,255,.12);color:var(--mut);border:1px solid var(--line)}
-@media(max-width:860px){.shell{grid-template-columns:1fr}.side{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);align-items:center}.side .brand,.side .who{display:none}.grid2{grid-template-columns:1fr}.main{padding:18px}}
+@media(max-width:860px){.shell{grid-template-columns:1fr}.side{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);align-items:center;position:static;height:auto}.side .brand,.side .who{display:none}.grid2{grid-template-columns:1fr}.main{padding:18px}}
+/* Modals */
+.modal{position:fixed;inset:0;background:rgba(3,6,15,.72);display:none;align-items:center;justify-content:center;z-index:120;padding:20px}
+.modal.open{display:flex}
+.modal-box{background:var(--bg2);border:1px solid var(--line);border-radius:6px;width:100%;max-width:620px;max-height:90vh;overflow:auto;padding:22px}
+.modal-head{display:flex;justify-content:space-between;align-items:center;gap:12px;margin-bottom:14px}
+.modal-head h3{font-size:1.02rem}
+.modal-close{background:none;border:0;color:var(--mut);font-size:1.5rem;line-height:1;cursor:pointer}
+.modal-close:hover{color:var(--txt)}
+/* DataTables (dark theme overrides) */
+.dataTables_wrapper{font-size:.84rem;margin-top:12px;color:var(--mut)}
+.dataTables_wrapper .dataTables_filter input{width:200px;height:34px;margin-left:6px;border-radius:3px;border:1px solid var(--line);background:#0b1020;color:var(--txt);padding:0 10px}
+.dataTables_wrapper .dataTables_length select{width:auto;height:34px;display:inline-block;margin:0 4px;border-radius:3px;background:#0b1020;color:var(--txt);border:1px solid var(--line);padding:0 8px}
+.dataTables_wrapper .dataTables_info,.dataTables_wrapper .dataTables_length,.dataTables_wrapper .dataTables_filter{color:var(--mut);padding-top:10px}
+.dataTables_wrapper .dataTables_paginate{padding-top:10px}
+.dataTables_wrapper .dataTables_paginate .paginate_button{color:var(--mut)!important;border-radius:3px!important;border:1px solid transparent!important;padding:4px 9px!important}
+.dataTables_wrapper .dataTables_paginate .paginate_button.current,.dataTables_wrapper .dataTables_paginate .paginate_button.current:hover{background:var(--p)!important;border-color:var(--p)!important;color:#fff!important}
+.dataTables_wrapper .dataTables_paginate .paginate_button:hover{background:rgba(59,130,246,.15)!important;color:var(--txt)!important}
+table.dataTable thead th{border-bottom:1px solid var(--line)!important;color:var(--acc)}
+table.dataTable.no-footer{border-bottom:1px solid var(--line)}
+table.dataTable tbody tr{background:transparent!important}
+table.dataTable.stripe tbody tr.odd,table.dataTable.display tbody tr.odd{background:rgba(148,163,255,.04)!important}
+table.dataTable.hover tbody tr:hover,table.dataTable.display tbody tr:hover{background:rgba(59,130,246,.08)!important}
 `;
+
+const DT_INIT = `<script>(function(){document.addEventListener("click",function(e){var o=e.target.closest("[data-open]");if(o){var m=document.querySelector(o.getAttribute("data-open"));if(m){m.classList.add("open");e.preventDefault();return}}var c=e.target.closest("[data-close]");if(c){var mm=c.closest(".modal");if(mm)mm.classList.remove("open");return}if(e.target.classList&&e.target.classList.contains("modal"))e.target.classList.remove("open")});function boot(){if(!window.jQuery||!jQuery.fn.DataTable)return;document.querySelectorAll("table").forEach(function(t){if(t.getAttribute("data-dt")==="off")return;if(!t.tHead){var first=t.rows[0];if(!first||!first.querySelector("th"))return;var thead=document.createElement("thead");var tbody=document.createElement("tbody");thead.appendChild(first);var rest=[];for(var i=1;i<t.rows.length;i++)rest.push(t.rows[i]);t.insertBefore(thead,t.firstChild);rest.forEach(function(r){tbody.appendChild(r)});t.appendChild(tbody)}try{jQuery(t).DataTable({pageLength:10,lengthMenu:[[10,25,50,-1],[10,25,50,"All"]],order:[],autoWidth:false,columnDefs:[{targets:-1,orderable:false,searchable:false}],language:{search:"",searchPlaceholder:"Search...",emptyTable:"No records",info:"Showing _START_ to _END_ of _TOTAL_",infoEmpty:"No records",zeroRecords:"No matching records",paginate:{previous:"Prev",next:"Next"}}})}catch(e){}})}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot()})();</script>`;
 
 function head(title) {
   return `<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
@@ -711,6 +737,9 @@ function head(title) {
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
+<link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
+<script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
+<script src="https://cdn.datatables.net/1.13.8/js/jquery.dataTables.min.js"></script>
 <style>${CSS}</style>`;
 }
 
@@ -799,7 +828,7 @@ function shell(user, active, title, sub, body, extraNav = "") {
     ${pending}
     ${body}
   </main>
-</div></body></html>`;
+</div>${DT_INIT}</body></html>`;
 }
 
 function statusBadge(s) {
@@ -887,8 +916,8 @@ function mount(app, context) {
     const err = req.query.e ? `<div class="err">${esc(req.query.e)}</div>` : "";
     res.send(publicPage("Sign in", `
       <div class="card narrow">
-        <h1>Sign in to your portal</h1>
-        <p class="muted" style="margin-bottom:16px">Students &amp; teachers — access your dashboard.</p>
+        <h1>Sign in</h1>
+        <p class="muted" style="margin-bottom:16px">One login for students, teachers and the admin panel.</p>
         ${notice}${err}
         <form method="post" action="/portal/login">
           <input type="hidden" name="next" value="${esc(req.query.next || "")}">
@@ -902,10 +931,19 @@ function mount(app, context) {
   });
 
   app.post("/portal/login", form, async (req, res) => {
-    if (!getPool()) return res.redirect("/portal/login?e=Portal+is+offline");
     const email = String(req.body.email || "").trim().toLowerCase();
     const password = String(req.body.password || "");
     const next = String(req.body.next || "");
+    // Admin credentials are accepted here too — one sign-in page for everyone.
+    const admin = ctx.tryAdminLogin ? ctx.tryAdminLogin(email, password, res, req) : "skip";
+    if (admin === "ok") return res.redirect("/admin/dashboard");
+    if (admin === "blocked") {
+      return res.redirect("/portal/login?e=" + encodeURIComponent("Too many attempts. Please wait 15 minutes and try again."));
+    }
+    if (admin === "fail") {
+      return res.redirect("/portal/login?e=" + encodeURIComponent("Wrong email or password") + (next ? "&next=" + encodeURIComponent(next) : ""));
+    }
+    if (!getPool()) return res.redirect("/portal/login?e=Portal+is+offline");
     try {
       const user = await getUserByEmail(email);
       const ua = req.headers["user-agent"];

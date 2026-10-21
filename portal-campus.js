@@ -431,8 +431,8 @@ module.exports = function mountCampus(app) {
       </div>`;
     }).join("");
 
-    const addForm = isTeacher ? `<div class="panel">
-      <h2><i class="fa-solid fa-plus"></i> Add a class slot</h2>
+    const addForm = isTeacher ? `<div class="modal" id="m-slot"><div class="modal-box">
+      <div class="modal-head"><h3><i class="fa-solid fa-plus"></i> Add a class slot</h3><button type="button" class="modal-close" data-close>&times;</button></div>
       <form method="post" action="/portal/timetable/add">
         <label>Course *</label>${courseOptions(courses, "", all)}
         <div class="grid2">
@@ -445,12 +445,16 @@ module.exports = function mountCampus(app) {
         </div>
         <button class="btn primary mt" type="submit">Save slot</button>
       </form>
-    </div>` : "";
+    </div></div>` : "";
 
     res.send(core.shell(u, "timetable", "Class Timetable", "Your weekly class schedule.",
       `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
        ${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
-       <div class="panel"><h2><i class="fa-solid fa-calendar-days"></i> Weekly schedule</h2>
+       <div class="panel">
+         <div style="display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap">
+           <h2 style="margin:0"><i class="fa-solid fa-calendar-days"></i> Weekly schedule</h2>
+           ${isTeacher ? `<button type="button" class="btn primary sm" data-open="#m-slot"><i class="fa-solid fa-plus"></i> Add slot</button>` : ""}
+         </div>
          ${courses.length || slots.length ? `<div class="grid3 mt">${dayCols}</div>`
            : `<p class="muted">No courses yet, so there is no schedule to show.</p>`}
        </div>
@@ -510,8 +514,8 @@ module.exports = function mountCampus(app) {
       </div>`).join("")}
     </div>`).join("");
 
-    const uploadForm = isTeacher ? `<div class="panel">
-      <h2><i class="fa-solid fa-upload"></i> Share a resource</h2>
+    const uploadForm = isTeacher ? `<div class="modal" id="m-material"><div class="modal-box">
+      <div class="modal-head"><h3><i class="fa-solid fa-upload"></i> Share a resource</h3><button type="button" class="modal-close" data-close>&times;</button></div>
       <form method="post" action="/portal/materials/new" enctype="multipart/form-data">
         <label>Course *</label>${courseOptions(courses, "", all)}
         <label>Title *</label><input name="title" required maxlength="200" placeholder="e.g. Lecture 04 — Routing protocols">
@@ -522,12 +526,13 @@ module.exports = function mountCampus(app) {
         </div>
         <button class="btn primary mt" type="submit"><i class="fa-solid fa-upload"></i> Publish resource</button>
       </form>
-    </div>` : "";
+    </div></div>` : "";
 
     res.send(core.shell(u, "materials", "Course Materials", "Lecture notes, slides and resources shared by your teachers.",
       `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
        ${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
        ${total ? `<div class="cards"><div class="stat"><b>${total}</b><span>Resources</span></div><div class="stat"><b>${Object.keys(byCourse).length}</b><span>Courses</span></div></div>` : ""}
+       <div style="display:flex;justify-content:flex-end;margin-bottom:12px">${isTeacher ? `<button type="button" class="btn primary sm" data-open="#m-material"><i class="fa-solid fa-plus"></i> Share resource</button>` : ""}</div>
        ${uploadForm}
        ${blocks || `<div class="panel"><p class="empty">No course materials shared yet.</p></div>`}`));
   });
@@ -615,8 +620,8 @@ module.exports = function mountCampus(app) {
       </div>
     </div>`).join("");
 
-    const postForm = isTeacher ? `<div class="panel">
-      <h2><i class="fa-solid fa-bullhorn"></i> Post an announcement</h2>
+    const postForm = isTeacher ? `<div class="modal" id="m-announce"><div class="modal-box">
+      <div class="modal-head"><h3><i class="fa-solid fa-bullhorn"></i> Post an announcement</h3><button type="button" class="modal-close" data-close>&times;</button></div>
       <form method="post" action="/portal/announcements/new">
         <label>Course *</label>${courseOptions(courses, "", all)}
         <label>Title *</label><input name="title" required maxlength="200" placeholder="e.g. Quiz on Friday — chapter 3">
@@ -624,11 +629,12 @@ module.exports = function mountCampus(app) {
         <label style="display:flex;align-items:center;gap:8px;color:var(--txt)"><input type="checkbox" name="pinned" value="1" style="width:auto"> Pin to top</label>
         <button class="btn primary mt" type="submit"><i class="fa-solid fa-bullhorn"></i> Publish</button>
       </form>
-    </div>` : "";
+    </div></div>` : "";
 
     res.send(core.shell(u, "announce", "Announcements", "Course notices and updates from your teachers.",
       `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
        ${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
+       <div style="display:flex;justify-content:flex-end;margin-bottom:12px">${isTeacher ? `<button type="button" class="btn primary sm" data-open="#m-announce"><i class="fa-solid fa-plus"></i> Post announcement</button>` : ""}</div>
        ${postForm}
        ${cards || `<div class="panel"><p class="empty">No announcements yet.</p></div>`}`));
   });

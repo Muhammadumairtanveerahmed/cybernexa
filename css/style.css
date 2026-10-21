@@ -794,7 +794,7 @@ h1, h2, h3, h4 {
   padding: 16px 16px 10px;
   background: rgba(255, 255, 255, 0.03);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: 3px;
   color: var(--text);
   font-family: var(--font-body);
   font-size: 0.97rem;
@@ -1073,7 +1073,7 @@ h1, h2, h3, h4 {
   padding: 12px 15px;
   background: rgba(255, 255, 255, 0.05);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: 3px;
   color: var(--text);
   font-size: 0.93rem;
   font-family: inherit;

@@ -521,8 +521,12 @@ module.exports = function mountAdmin(app) {
         "notices",
         `${okMsg}
       <div class="head-row"><div><h1><i class="fa-solid fa-bell"></i> Notices</h1><p class="sub">Announcements shown in the student & teacher portals.</p></div>
-      <a class="btn b-read" href="/admin/dashboard">Dashboard</a></div>
-      <div class="panel"><h2><i class="fa-solid fa-plus"></i> Post a notice</h2>
+      <div class="head-actions"><button type="button" class="btn b-add" data-open="#m-notice"><i class="fa-solid fa-plus"></i> Post notice</button><a class="btn b-read" href="/admin/dashboard">Dashboard</a></div></div>
+      <div class="panel"><h2>Posted (${rows.length})</h2>
+        <table><tr><th>Notice</th><th>Audience</th><th>Posted</th><th></th></tr>${body || `<tr><td colspan="4" class="empty">No notices yet.</td></tr>`}</table>
+      </div>
+      <div class="modal" id="m-notice"><div class="modal-box">
+        <div class="modal-head"><h3><i class="fa-solid fa-plus"></i> Post a notice</h3><button type="button" class="modal-close" data-close>&times;</button></div>
         <form method="post" action="/admin/notices">
           <div class="form-grid">
             <div><label>Audience</label><select name="audience">
@@ -532,10 +536,8 @@ module.exports = function mountAdmin(app) {
           </div>
           <label>Message</label><textarea name="body" required></textarea>
           <button class="btn b-add mt" type="submit">Post notice</button>
-        </form></div>
-      <div class="panel"><h2>Posted (${rows.length})</h2>
-        <table><tr><th>Notice</th><th>Audience</th><th>Posted</th><th></th></tr>${body || `<tr><td colspan="4" class="empty">No notices yet.</td></tr>`}</table>
-      </div>`
+        </form>
+      </div></div>`
       )
     );
   });
@@ -726,7 +728,13 @@ module.exports = function mountAdmin(app) {
           <div class="box g"><b>${Number(stats.materials)}</b><span>Materials</span></div>
           <div class="box o"><b>${Number(stats.quizzes)}</b><span>Quizzes (${Number(stats.attempts)} attempts)</span></div>
         </div>
-        <div class="panel"><h2><i class="fa-solid fa-calendar-days"></i> Timetable</h2>
+        <div class="panel">
+          <div class="head-row" style="margin-bottom:14px"><h2 style="margin:0"><i class="fa-solid fa-calendar-days"></i> Timetable</h2>
+            <button type="button" class="btn b-add" data-open="#m-slot"><i class="fa-solid fa-plus"></i> Add slot</button></div>
+          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:6px">${dayCols}</div>
+        </div>
+        <div class="modal" id="m-slot"><div class="modal-box">
+          <div class="modal-head"><h3><i class="fa-solid fa-plus"></i> Add timetable slot</h3><button type="button" class="modal-close" data-close>&times;</button></div>
           <form method="post" action="/admin/campus/timetable/add" class="form-grid">
             <div><label>Course</label><select name="course_title" required><option value="">— select —</option>${courseOpts}</select></div>
             <div><label>Day</label><select name="day_of_week">${[1, 2, 3, 4, 5, 6].map((d) => `<option value="${d}">${DAYS[d]}</option>`).join("")}</select></div>
@@ -735,8 +743,7 @@ module.exports = function mountAdmin(app) {
             <div><label>Room / Lab</label><input type="text" name="room" maxlength="60" placeholder="e.g. Lab-2"></div>
             <div style="display:flex;align-items:flex-end"><button class="btn b-add" type="submit">Add slot</button></div>
           </form>
-          <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(230px,1fr));gap:12px;margin-top:20px">${dayCols}</div>
-        </div>
+        </div></div>
         <div class="panel"><h2><i class="fa-solid fa-circle-check"></i> Recent attendance sessions (${sessions.length})</h2>
           <table><tr><th>Date</th><th>Course</th><th>Teacher</th><th>Present</th></tr>${sessRows || `<tr><td colspan="4" class="empty">No attendance taken yet.</td></tr>`}</table>
         </div>
