@@ -351,7 +351,7 @@ module.exports = function mountAdmin(app) {
         <div class="row">
           <form method="post" action="/admin/enrollments/status" class="row">
             <input type="hidden" name="id" value="${esc(e.id)}">
-            <select name="status">${["pending", "approved", "rejected", "completed"].map((s) => `<option ${e.status === s ? "selected" : ""}>${s}</option>`).join("")}</select>
+            <select name="status">${await core.lkOptions("lk_enrollment_status", e.status)}</select>
             <button class="btn b-read" type="submit">Update status</button>
           </form>
           <form method="post" action="/admin/enrollments/total" class="row">
@@ -399,7 +399,7 @@ module.exports = function mountAdmin(app) {
         <div class="row">
           <form method="post" action="/admin/enrollments/upload" enctype="multipart/form-data" class="row">
             <input type="hidden" name="id" value="${esc(e.id)}">
-            <select name="kind"><option value="receipt">Receipt</option><option value="certificate">Certificate</option></select>
+            <select name="kind">${await core.lkOptions("lk_doc_kind")}</select>
             <input type="file" name="file" accept=".pdf,.jpg,.jpeg,.png" required>
             <button class="btn b-add" type="submit">Upload</button>
           </form>
@@ -529,9 +529,7 @@ module.exports = function mountAdmin(app) {
         <div class="modal-head"><h3><i class="fa-solid fa-plus"></i> Post a notice</h3><button type="button" class="modal-close" data-close>&times;</button></div>
         <form method="post" action="/admin/notices">
           <div class="form-grid">
-            <div><label>Audience</label><select name="audience">
-              <option value="all">Everyone</option><option value="students">Students</option><option value="teachers">Teachers</option>
-            </select></div>
+            <div><label>Audience</label><select name="audience">${await core.lkOptions("lk_notice_audience")}</select></div>
             <div><label>Title</label><input name="title" required maxlength="160"></div>
           </div>
           <label>Message</label><textarea name="body" required></textarea>
@@ -737,7 +735,7 @@ module.exports = function mountAdmin(app) {
           <div class="modal-head"><h3><i class="fa-solid fa-plus"></i> Add timetable slot</h3><button type="button" class="modal-close" data-close>&times;</button></div>
           <form method="post" action="/admin/campus/timetable/add" class="form-grid">
             <div><label>Course</label><select name="course_title" required><option value="">— select —</option>${courseOpts}</select></div>
-            <div><label>Day</label><select name="day_of_week">${[1, 2, 3, 4, 5, 6].map((d) => `<option value="${d}">${DAYS[d]}</option>`).join("")}</select></div>
+            <div><label>Day</label><select name="day_of_week">${await core.lkOptions("lk_weekday")}</select></div>
             <div><label>Start time</label><input type="time" name="start_time" required></div>
             <div><label>End time</label><input type="time" name="end_time" required></div>
             <div><label>Room / Lab</label><input type="text" name="room" maxlength="60" placeholder="e.g. Lab-2"></div>
@@ -883,7 +881,7 @@ module.exports = function mountAdmin(app) {
             ${opt("all", "All results", f.status)}${opt("success", "Success", f.status)}${opt("failed", "Failed", f.status)}${opt("suspended", "Suspended", f.status)}${opt("blocked", "Blocked", f.status)}
           </select></div>
           <div style="flex:1;min-width:120px"><label>Role</label><select name="role">
-            ${opt("all", "All roles", f.role)}${opt("student", "Student", f.role)}${opt("teacher", "Teacher", f.role)}${opt("admin", "Admin", f.role)}
+            ${opt("all", "All roles", f.role)}${await core.lkOptions("lk_user_role", f.role)}
           </select></div>
           <div style="flex:1;min-width:120px"><label>Period</label><select name="days">
             ${opt(1, "Today", f.days)}${opt(7, "Last 7 days", f.days)}${opt(30, "Last 30 days", f.days)}${opt(90, "Last 90 days", f.days)}${opt(180, "Last 180 days", f.days)}

@@ -436,7 +436,7 @@ module.exports = function mountCampus(app) {
       <form method="post" action="/portal/timetable/add">
         <label>Course *</label>${courseOptions(courses, "", all)}
         <div class="grid2">
-          <div><label>Day *</label><select name="day_of_week" required>${[1, 2, 3, 4, 5, 6].map((d) => `<option value="${d}">${DAYS[d]}</option>`).join("")}</select></div>
+          <div><label>Day *</label><select name="day_of_week" required>${await core.lkOptions("lk_weekday")}</select></div>
           <div><label>Room / Lab</label><input name="room" maxlength="60" placeholder="e.g. Lab-2"></div>
         </div>
         <div class="grid2">
@@ -745,6 +745,7 @@ module.exports = function mountCampus(app) {
   app.get("/portal/quizzes/new", need("teacher"), async (req, res) => {
     const courses = await teacherCourseTitles(req.user.id);
     const all = await allCourseTitles();
+    const letterOpts = (await core.lkOptions("lk_quiz_option")).replace(/value="([A-D])"/g, (m, v) => `value="${v.toLowerCase()}"`);
     res.send(core.shell(req.user, "quizzes", "New quiz", "Add MCQ questions — each question can carry its own marks.",
       `${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
        <div class="panel">
@@ -779,7 +780,7 @@ module.exports = function mountCampus(app) {
              +'<label>Question text *</label><input name="q" required maxlength="500">'
              +'<div class="grid2"><div><label>Option A *</label><input name="oa" required maxlength="400"></div><div><label>Option B *</label><input name="ob" required maxlength="400"></div>'
              +'<div><label>Option C</label><input name="oc" maxlength="400"></div><div><label>Option D</label><input name="od" maxlength="400"></div></div>'
-             +'<div class="grid2"><div><label>Correct option</label><select name="ca"><option value="a">A</option><option value="b">B</option><option value="c">C</option><option value="d">D</option></select></div>'
+             +'<div class="grid2"><div><label>Correct option</label><select name="ca">${letterOpts}</select></div>'
              +'<div><label>Marks</label><input type="number" name="mk" value="1" min="0" max="100"></div></div>';
            w.appendChild(d);
          }

@@ -401,8 +401,49 @@ async function initSchema(pool) {
       INDEX idx_email (email),
       INDEX idx_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    // Every dropdown is backed by its own lookup table.
+    `CREATE TABLE IF NOT EXISTS lk_notice_audience (
+      id INT AUTO_INCREMENT PRIMARY KEY, value VARCHAR(40) NOT NULL UNIQUE,
+      label VARCHAR(80) NOT NULL, sort_order INT NOT NULL DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    `CREATE TABLE IF NOT EXISTS lk_enrollment_status (
+      id INT AUTO_INCREMENT PRIMARY KEY, value VARCHAR(40) NOT NULL UNIQUE,
+      label VARCHAR(80) NOT NULL, sort_order INT NOT NULL DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    `CREATE TABLE IF NOT EXISTS lk_user_role (
+      id INT AUTO_INCREMENT PRIMARY KEY, value VARCHAR(40) NOT NULL UNIQUE,
+      label VARCHAR(80) NOT NULL, sort_order INT NOT NULL DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    `CREATE TABLE IF NOT EXISTS lk_weekday (
+      id INT AUTO_INCREMENT PRIMARY KEY, value VARCHAR(40) NOT NULL UNIQUE,
+      label VARCHAR(80) NOT NULL, sort_order INT NOT NULL DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    `CREATE TABLE IF NOT EXISTS lk_doc_kind (
+      id INT AUTO_INCREMENT PRIMARY KEY, value VARCHAR(40) NOT NULL UNIQUE,
+      label VARCHAR(80) NOT NULL, sort_order INT NOT NULL DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    `CREATE TABLE IF NOT EXISTS lk_quiz_option (
+      id INT AUTO_INCREMENT PRIMARY KEY, value VARCHAR(40) NOT NULL UNIQUE,
+      label VARCHAR(80) NOT NULL, sort_order INT NOT NULL DEFAULT 0
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   ];
   for (const sql of t) await pool.query(sql);
+
+  // Seed the lookup tables once; existing rows are left untouched.
+  const seed = [
+    ["lk_notice_audience", [["all", "Everyone"], ["students", "Students"], ["teachers", "Teachers"]]],
+    ["lk_enrollment_status", [["pending", "Pending"], ["approved", "Approved"], ["rejected", "Rejected"], ["completed", "Completed"]]],
+    ["lk_user_role", [["student", "Student"], ["teacher", "Teacher"], ["admin", "Admin"]]],
+    ["lk_weekday", [["1", "Monday"], ["2", "Tuesday"], ["3", "Wednesday"], ["4", "Thursday"], ["5", "Friday"], ["6", "Saturday"]]],
+    ["lk_doc_kind", [["receipt", "Receipt"], ["certificate", "Certificate"]]],
+    ["lk_quiz_option", [["A", "A"], ["B", "B"], ["C", "C"], ["D", "D"]]],
+  ];
+  for (const [table, rows] of seed) {
+    for (let i = 0; i < rows.length; i++) {
+      await pool.query(`INSERT IGNORE INTO ${table} (value, label, sort_order) VALUES (?,?,?)`, [rows[i][0], rows[i][1], i + 1]);
+    }
+  }
   // Keep the audit trail for 180 days only.
   try {
     await pool.query("DELETE FROM login_logs WHERE created_at < DATE_SUB(NOW(), INTERVAL 180 DAY)");
@@ -416,6 +457,24 @@ async function initSchema(pool) {
 // Data accessors
 // ---------------------------------------------------------------------------
 const q = (sql, params) => getPool().query(sql, params);
+
+// Build an <option> list from a lookup table. Every dropdown has its own table.
+const LOOKUP_TABLES = new Set([
+  "lk_notice_audience",
+  "lk_enrollment_status",
+  "lk_user_role",
+  "lk_weekday",
+  "lk_doc_kind",
+  "lk_quiz_option",
+]);
+async function lkOptions(table, selected = "", emptyLabel = "") {
+  if (!LOOKUP_TABLES.has(table)) return "";
+  const [rows] = await q(`SELECT value, label FROM ${table} ORDER BY sort_order, id`);
+  const head = emptyLabel ? `<option value="">${esc(emptyLabel)}</option>` : "";
+  return head + rows
+    .map((r) => `<option value="${esc(r.value)}"${String(r.value) === String(selected) ? " selected" : ""}>${esc(r.label)}</option>`)
+    .join("");
+}
 
 // ---------------------------------------------------------------------------
 // Login audit trail
@@ -1742,6 +1801,7 @@ function mount(app, context) {
   core.ctx = ctx;
   core.esc = esc;
   core.q = q;
+  core.lkOptions = lkOptions;
   core.logLogin = logLogin;
   core.uid = uid;
   core.shell = shell;
