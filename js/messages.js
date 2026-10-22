@@ -34,6 +34,7 @@
   var LOCAL_V = document.getElementById("localV");
   var STATUS = document.getElementById("callStatus");
   var NET = document.getElementById("callNet");
+  var HEALTH = document.getElementById("callHealth");
   var SNDFIX = document.getElementById("sndFix");
 
   var SECURE = window.isSecureContext && !!(navigator.mediaDevices && window.RTCPeerConnection);
@@ -434,16 +435,55 @@
   }
 
   var statTimer = null;
+  var micCtx = null, micAnalyser = null, micBuf = null, micPeak = 0;
+  function stopMicMeter() {
+    if (micCtx) { try { micCtx.close(); } catch (e) {} }
+    micCtx = null; micAnalyser = null; micBuf = null; micPeak = 0;
+  }
+  /* Real microphone level - proves whether this device is actually capturing sound. */
+  function startMicMeter(stream) {
+    stopMicMeter();
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return;
+      micCtx = new AC();
+      micAnalyser = micCtx.createAnalyser();
+      micAnalyser.fftSize = 512;
+      micCtx.createMediaStreamSource(stream).connect(micAnalyser);
+      micBuf = new Uint8Array(micAnalyser.fftSize);
+      if (micCtx.state === "suspended") micCtx.resume().catch(function () {});
+    } catch (e) {
+      micCtx = null;
+    }
+  }
+  function readMicPeak() {
+    if (!micAnalyser || !micBuf) return -1;
+    micAnalyser.getByteTimeDomainData(micBuf);
+    var peak = 0;
+    for (var i = 0; i < micBuf.length; i++) {
+      var d = Math.abs(micBuf[i] - 128);
+      if (d > peak) peak = d;
+    }
+    micPeak = peak;
+    return peak;
+  }
+
   function stopStats() {
     if (statTimer) { clearInterval(statTimer); statTimer = null; }
     if (NET) NET.textContent = "";
+    if (HEALTH) HEALTH.textContent = "";
+    stopMicMeter();
   }
-  /* Live audio in/out counter + microphone state, so a silent side is visible. */
+  /* Live audio in/out counter + mic level, so a silent side is visible. */
   function startStats() {
     stopStats();
+    if (localStream) startMicMeter(localStream);
+    var started = Date.now();
     var tick = function () {
       if (!pc) return;
       var mic = localStream && localStream.getAudioTracks()[0];
+      var peak = readMicPeak();
+      var secs = Math.round((Date.now() - started) / 1000);
       pc.getStats().then(function (rep) {
         var inB = 0, outB = 0;
         rep.forEach(function (s) {
@@ -457,7 +497,17 @@
         if (NET) {
           NET.textContent =
             "in " + Math.round(inB / 1024) + " KB / out " + Math.round(outB / 1024) + " KB" +
-            (mic && mic.muted ? " - mic MUTED" : "");
+            (peak >= 0 ? " / mic " + (peak < 3 ? "silent" : "live") : "") +
+            (mic && mic.muted ? " (MUTED)" : "");
+        }
+        if (HEALTH) {
+          if (secs >= 6 && inB === 0) {
+            HEALTH.textContent = "No audio is arriving - check the other person's microphone.";
+          } else if (secs >= 6 && peak >= 0 && peak < 3 && mic && !mic.muted) {
+            HEALTH.textContent = "Your microphone is silent - check the mic in Windows settings.";
+          } else if (secs >= 6) {
+            HEALTH.textContent = "";
+          }
         }
         if (mic && mic.muted) {
           setStatus("Your microphone is muted - the other side cannot hear you");
@@ -465,7 +515,7 @@
       }).catch(function () {});
     };
     tick();
-    statTimer = setInterval(tick, 2000);
+    statTimer = setInterval(tick, 1500);
   }
 
   function newPC() {
@@ -714,6 +764,13 @@
       playRemote();
     });
   }
+  /* Any tap/click while a call is on also retries remote playback. */
+  CALLOV.addEventListener("click", function () {
+    if (CALLOV.classList.contains("on") && REMOTE_V.srcObject) playRemote();
+  });
+  document.addEventListener("pointerdown", function () {
+    if (CALLOV.classList.contains("on") && REMOTE_V.srcObject) playRemote();
+  }, true);
   document.getElementById("endCall").addEventListener("click", function () { endCall(true); });
   document.getElementById("incAccept").addEventListener("click", acceptCall);
   document.getElementById("incReject").addEventListener("click", function () {

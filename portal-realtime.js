@@ -210,13 +210,17 @@ function mount(app, core) {
         <div class="callbar">
           <span id="callStatus">Connecting...</span>
           <span id="callNet" class="muted" style="font-size:11px"></span>
-          <button type="button" class="btn sm" id="sndFix" style="display:none"><i class="fa-solid fa-volume-high"></i> Enable sound</button>
+          <span id="callHealth" style="font-size:11px;color:#f5b301"></span>
           <button type="button" class="btn danger sm" id="endCall"><i class="fa-solid fa-phone-slash"></i> End</button>
         </div>
+        <button type="button" class="btn primary" id="sndFix"
+          style="display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;padding:14px 22px;font-size:15px">
+          <i class="fa-solid fa-volume-high"></i> Tap to hear the other person
+        </button>
       </div>
 
       <script>window.CNX_CHAT = ${json};</script>
-      <script src="/js/messages.js?v=20261022h"></script>`;
+      <script src="/js/messages.js?v=20261022i"></script>`;
 
     res.send(
       core.shell(user, "messages", "Messages", "Chat and call your " + (user.role === "student" ? "teachers" : "students") + " in real time.", body)
