@@ -183,6 +183,7 @@ function mount(app, core) {
             <div class="row" style="gap:6px">
               <button type="button" class="btn ghost sm" id="btnAudio" disabled title="Voice call"><i class="fa-solid fa-phone"></i></button>
               <button type="button" class="btn ghost sm" id="btnVideo" disabled title="Video call"><i class="fa-solid fa-video"></i></button>
+              <button type="button" class="btn ghost sm" id="btnMicTest" title="Test microphone"><i class="fa-solid fa-microphone-lines"></i></button>
             </div>
           </div>
           <div id="thread" class="thread"><p class="empty">Choose a ${user.role === "student" ? "teacher" : "student"} to start chatting.</p></div>
@@ -204,6 +205,18 @@ function mount(app, core) {
         </div>
       </div>
 
+      <div class="modal" id="micTest">
+        <div class="modal-box" style="max-width:380px">
+          <h3 style="margin-bottom:6px"><i class="fa-solid fa-microphone-lines"></i> Microphone test</h3>
+          <p class="muted" id="micDev" style="font-size:12px;word-break:break-word"></p>
+          <div style="height:12px;background:#0b1220;border:1px solid #1e2a44;border-radius:6px;overflow:hidden;margin:12px 0">
+            <div id="micBar" style="height:100%;width:0%;background:var(--acc);transition:width .08s linear"></div>
+          </div>
+          <p id="micMsg" class="muted" style="font-size:12px;min-height:18px">Say something...</p>
+          <button type="button" class="btn" id="micClose">Close</button>
+        </div>
+      </div>
+
       <div class="callov" id="callov">
         <video id="remoteV" autoplay playsinline></video>
         <video id="localV" autoplay playsinline muted></video>
@@ -220,7 +233,7 @@ function mount(app, core) {
       </div>
 
       <script>window.CNX_CHAT = ${json};</script>
-      <script src="/js/messages.js?v=20261022i"></script>`;
+      <script src="/js/messages.js?v=20261022j"></script>`;
 
     res.send(
       core.shell(user, "messages", "Messages", "Chat and call your " + (user.role === "student" ? "teachers" : "students") + " in real time.", body)

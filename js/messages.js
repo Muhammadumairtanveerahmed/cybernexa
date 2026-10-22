@@ -415,6 +415,7 @@
     LOCAL_V.style.display = "block";
     if (SNDFIX) SNDFIX.style.display = "none";
     stopStats();
+    stopMicTest();
   }
 
   /* Make sure the remote audio is actually audible: autoplay can be blocked,
@@ -436,11 +437,13 @@
 
   var statTimer = null;
   var micCtx = null, micAnalyser = null, micBuf = null, micPeak = 0;
+  var micSilentTicks = 0, micMutedSince = 0;
   function stopMicMeter() {
     if (micCtx) { try { micCtx.close(); } catch (e) {} }
     micCtx = null; micAnalyser = null; micBuf = null; micPeak = 0;
   }
-  /* Real microphone level - proves whether this device is actually capturing sound. */
+  /* Local microphone level via WebAudio. Must be started from a click so the
+     AudioContext is allowed to run; otherwise it reports flat data. */
   function startMicMeter(stream) {
     stopMicMeter();
     try {
@@ -458,6 +461,7 @@
   }
   function readMicPeak() {
     if (!micAnalyser || !micBuf) return -1;
+    if (micCtx && micCtx.state !== "running") return -1; /* unknown, not silent */
     micAnalyser.getByteTimeDomainData(micBuf);
     var peak = 0;
     for (var i = 0; i < micBuf.length; i++) {
@@ -472,9 +476,11 @@
     if (statTimer) { clearInterval(statTimer); statTimer = null; }
     if (NET) NET.textContent = "";
     if (HEALTH) HEALTH.textContent = "";
+    micSilentTicks = 0;
+    micMutedSince = 0;
     stopMicMeter();
   }
-  /* Live audio in/out counter + mic level, so a silent side is visible. */
+  /* Live audio in/out counter + mic state, so a silent side is visible. */
   function startStats() {
     stopStats();
     if (localStream) startMicMeter(localStream);
@@ -485,7 +491,7 @@
       var peak = readMicPeak();
       var secs = Math.round((Date.now() - started) / 1000);
       pc.getStats().then(function (rep) {
-        var inB = 0, outB = 0;
+        var inB = 0, outB = 0, level = -1;
         rep.forEach(function (s) {
           if (s.type === "inbound-rtp" && (s.kind === "audio" || s.mediaType === "audio")) {
             inB = s.bytesReceived || 0;
@@ -493,29 +499,104 @@
           if (s.type === "outbound-rtp" && (s.kind === "audio" || s.mediaType === "audio")) {
             outB = s.bytesSent || 0;
           }
+          if (s.type === "media-source" && (s.kind === "audio" || s.mediaType === "audio") &&
+              typeof s.audioLevel === "number") {
+            level = s.audioLevel; /* 0..1, from the browser itself */
+          }
         });
+        /* use the browser's own level when available, WebAudio as fallback */
+        var silent = level >= 0 ? level <= 0.002 : (peak >= 0 && peak < 3);
+        if (silent) micSilentTicks++; else micSilentTicks = 0;
+        if (mic && mic.muted) { if (!micMutedSince) micMutedSince = Date.now(); }
+        else micMutedSince = 0;
+
         if (NET) {
           NET.textContent =
             "in " + Math.round(inB / 1024) + " KB / out " + Math.round(outB / 1024) + " KB" +
-            (peak >= 0 ? " / mic " + (peak < 3 ? "silent" : "live") : "") +
-            (mic && mic.muted ? " (MUTED)" : "");
+            (level >= 0 ? " / mic " + Math.round(level * 100) + "%" : (peak >= 0 ? " / mic " + (silent ? "silent" : "live") : ""));
         }
         if (HEALTH) {
           if (secs >= 6 && inB === 0) {
             HEALTH.textContent = "No audio is arriving - check the other person's microphone.";
-          } else if (secs >= 6 && peak >= 0 && peak < 3 && mic && !mic.muted) {
-            HEALTH.textContent = "Your microphone is silent - check the mic in Windows settings.";
-          } else if (secs >= 6) {
+          } else if (secs >= 8 && micSilentTicks >= 5) {
+            HEALTH.textContent = "Your microphone is not picking up any sound - speak louder or pick another mic.";
+          } else {
             HEALTH.textContent = "";
           }
         }
-        if (mic && mic.muted) {
+        /* only warn after the mic has been muted for a while (browsers fire
+           a short "mute" at the start of a call) */
+        if (micMutedSince && Date.now() - micMutedSince > 5000) {
           setStatus("Your microphone is muted - the other side cannot hear you");
+        } else if (pc && pc.connectionState === "connected") {
+          setStatus("Connected");
         }
       }).catch(function () {});
     };
     tick();
     statTimer = setInterval(tick, 1500);
+  }
+
+  /* --------------------------------------------------- microphone test */
+  var MTEST = document.getElementById("micTest");
+  var MTEST_BAR = document.getElementById("micBar");
+  var MTEST_MSG = document.getElementById("micMsg");
+  var MTEST_DEV = document.getElementById("micDev");
+  var mTestStream = null, mTestTimer = null, mTestCtx = null, mTestAn = null, mTestBuf = null;
+
+  function stopMicTest() {
+    if (mTestTimer) { clearInterval(mTestTimer); mTestTimer = null; }
+    if (mTestCtx) { try { mTestCtx.close(); } catch (e) {} }
+    mTestCtx = null; mTestAn = null; mTestBuf = null;
+    if (mTestStream) {
+      mTestStream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+      mTestStream = null;
+    }
+    if (MTEST) MTEST.classList.remove("open");
+  }
+
+  function openMicTest() {
+    if (!MTEST) return;
+    if (!SECURE) {
+      alert("Microphone test needs HTTPS. Open the secure version of this page.");
+      return;
+    }
+    MTEST.classList.add("open");
+    if (MTEST_DEV) MTEST_DEV.textContent = "";
+    if (MTEST_MSG) MTEST_MSG.textContent = "Asking for microphone permission...";
+    if (MTEST_BAR) MTEST_BAR.style.width = "0%";
+    navigator.mediaDevices.getUserMedia({ audio: true }).then(function (stream) {
+      mTestStream = stream;
+      var t = stream.getAudioTracks()[0];
+      if (MTEST_DEV) MTEST_DEV.textContent = "Device: " + ((t && t.label) || "default microphone");
+      var AC = window.AudioContext || window.webkitAudioContext;
+      mTestCtx = new AC();
+      mTestAn = mTestCtx.createAnalyser();
+      mTestAn.fftSize = 512;
+      mTestCtx.createMediaStreamSource(stream).connect(mTestAn);
+      mTestBuf = new Uint8Array(mTestAn.fftSize);
+      if (mTestCtx.state === "suspended") mTestCtx.resume().catch(function () {});
+      var heard = false, count = 0;
+      if (MTEST_MSG) MTEST_MSG.textContent = "Say something...";
+      mTestTimer = setInterval(function () {
+        if (!mTestAn || !mTestBuf) return;
+        mTestAn.getByteTimeDomainData(mTestBuf);
+        var peak = 0;
+        for (var i = 0; i < mTestBuf.length; i++) {
+          var d = Math.abs(mTestBuf[i] - 128);
+          if (d > peak) peak = d;
+        }
+        count++;
+        if (MTEST_BAR) MTEST_BAR.style.width = Math.min(100, Math.round(peak * 1.6)) + "%";
+        if (peak > 6) heard = true;
+        if (MTEST_MSG) {
+          if (heard) MTEST_MSG.textContent = "Microphone is working - the other side will hear you.";
+          else if (count > 12) MTEST_MSG.textContent = "No sound detected. Check Windows mic privacy, the selected device, or a headset mute switch.";
+        }
+      }, 150);
+    }).catch(function (e) {
+      if (MTEST_MSG) MTEST_MSG.textContent = "Could not open the microphone: " + (e && e.message ? e.message : "permission denied");
+    });
   }
 
   function newPC() {
@@ -762,6 +843,15 @@
     SNDFIX.addEventListener("click", function () {
       SNDFIX.style.display = "none";
       playRemote();
+    });
+  }
+  var MTEST_BTN = document.getElementById("btnMicTest");
+  if (MTEST_BTN) MTEST_BTN.addEventListener("click", openMicTest);
+  var MTEST_CLOSE = document.getElementById("micClose");
+  if (MTEST_CLOSE) MTEST_CLOSE.addEventListener("click", stopMicTest);
+  if (MTEST) {
+    MTEST.addEventListener("click", function (e) {
+      if (e.target === MTEST) stopMicTest();
     });
   }
   /* Any tap/click while a call is on also retries remote playback. */
