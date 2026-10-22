@@ -209,6 +209,8 @@ function mount(app, core) {
         <div class="modal-box" style="max-width:380px">
           <h3 style="margin-bottom:6px"><i class="fa-solid fa-microphone-lines"></i> Microphone test</h3>
           <p class="muted" id="micDev" style="font-size:12px;word-break:break-word"></p>
+          <label class="muted" style="font-size:12px;display:block;margin:8px 0 4px">Microphone</label>
+          <select id="micSel" style="width:100%;margin-bottom:10px"></select>
           <div style="height:12px;background:#0b1220;border:1px solid #1e2a44;border-radius:6px;overflow:hidden;margin:12px 0">
             <div id="micBar" style="height:100%;width:0%;background:var(--acc);transition:width .08s linear"></div>
           </div>
@@ -224,6 +226,7 @@ function mount(app, core) {
           <span id="callStatus">Connecting...</span>
           <span id="callNet" class="muted" style="font-size:11px"></span>
           <span id="callHealth" style="font-size:11px;color:#f5b301"></span>
+          <button type="button" class="btn sm" id="btnMute" title="Mute microphone" style="display:none"><i class="fa-solid fa-microphone"></i></button>
           <button type="button" class="btn danger sm" id="endCall"><i class="fa-solid fa-phone-slash"></i> End</button>
         </div>
         <button type="button" class="btn primary" id="sndFix"
@@ -233,7 +236,7 @@ function mount(app, core) {
       </div>
 
       <script>window.CNX_CHAT = ${json};</script>
-      <script src="/js/messages.js?v=20261022j"></script>`;
+      <script src="/js/messages.js?v=20261022k"></script>`;
 
     res.send(
       core.shell(user, "messages", "Messages", "Chat and call your " + (user.role === "student" ? "teachers" : "students") + " in real time.", body)

@@ -36,6 +36,23 @@
   var NET = document.getElementById("callNet");
   var HEALTH = document.getElementById("callHealth");
   var SNDFIX = document.getElementById("sndFix");
+  var MIC_BTN = document.getElementById("btnMute");
+  var MIC_SEL = document.getElementById("micSel");
+
+  /* Remember the microphone the user picked (a wrong default device is the
+     most common reason one side cannot be heard). */
+  var MIC_DEV = "";
+  try { MIC_DEV = localStorage.getItem("cnxMic") || ""; } catch (e) {}
+  function setMicDev(id) {
+    MIC_DEV = id || "";
+    try {
+      if (MIC_DEV) localStorage.setItem("cnxMic", MIC_DEV);
+      else localStorage.removeItem("cnxMic");
+    } catch (e) {}
+  }
+  function audioConstraints() {
+    return MIC_DEV ? { deviceId: { exact: MIC_DEV } } : true;
+  }
 
   var SECURE = window.isSecureContext && !!(navigator.mediaDevices && window.RTCPeerConnection);
   var ICE = {
@@ -406,6 +423,11 @@
     CALLOV.classList.toggle("audio", kind !== "video");
     REMOTE_V.style.opacity = kind === "video" ? "1" : "0.001";
     LOCAL_V.style.display = kind === "video" ? "block" : "none";
+    if (MIC_BTN) {
+      MIC_BTN.style.display = "inline-flex";
+      MIC_BTN.innerHTML = "<i class='fa-solid fa-microphone'></i>";
+      MIC_BTN.title = "Mute microphone";
+    }
   }
   function hideCall() {
     CALLOV.classList.remove("on");
@@ -414,6 +436,7 @@
     REMOTE_V.style.opacity = "1";
     LOCAL_V.style.display = "block";
     if (SNDFIX) SNDFIX.style.display = "none";
+    if (MIC_BTN) MIC_BTN.style.display = "none";
     stopStats();
     stopMicTest();
   }
@@ -472,6 +495,33 @@
     return peak;
   }
 
+  /* Browser reports the mic as muted (device grabbed by another app, unplugged
+     briefly, sleep resume). Re-acquire it and swap the live track in. */
+  var recovering = 0;
+  function recoverMic() {
+    if (!pc || !localStream) return;
+    if (Date.now() - recovering < 12000) return;
+    recovering = Date.now();
+    navigator.mediaDevices.getUserMedia({ audio: audioConstraints() })
+      .catch(function () { return navigator.mediaDevices.getUserMedia({ audio: true }); })
+      .then(function (s) {
+        var track = s.getAudioTracks()[0];
+        if (!track) return;
+        var sender = pc.getSenders().filter(function (x) { return x.track && x.track.kind === "audio"; })[0];
+        if (sender) sender.replaceTrack(track);
+        localStream.getAudioTracks().forEach(function (t) {
+          localStream.removeTrack(t);
+          try { t.stop(); } catch (e) {}
+        });
+        localStream.addTrack(track);
+        watchMic(localStream);
+        startMicMeter(localStream);
+        micMutedSince = 0;
+        setStatus("Microphone reconnected");
+      })
+      .catch(function () {});
+  }
+
   function stopStats() {
     if (statTimer) { clearInterval(statTimer); statTimer = null; }
     if (NET) NET.textContent = "";
@@ -527,7 +577,8 @@
         /* only warn after the mic has been muted for a while (browsers fire
            a short "mute" at the start of a call) */
         if (micMutedSince && Date.now() - micMutedSince > 5000) {
-          setStatus("Your microphone is muted - the other side cannot hear you");
+          setStatus("Your microphone is muted - reconnecting it...");
+          recoverMic();
         } else if (pc && pc.connectionState === "connected") {
           setStatus("Connected");
         }
@@ -569,6 +620,7 @@
       mTestStream = stream;
       var t = stream.getAudioTracks()[0];
       if (MTEST_DEV) MTEST_DEV.textContent = "Device: " + ((t && t.label) || "default microphone");
+      fillMicList(t && t.label);
       var AC = window.AudioContext || window.webkitAudioContext;
       mTestCtx = new AC();
       mTestAn = mTestCtx.createAnalyser();
@@ -597,6 +649,72 @@
     }).catch(function (e) {
       if (MTEST_MSG) MTEST_MSG.textContent = "Could not open the microphone: " + (e && e.message ? e.message : "permission denied");
     });
+  }
+
+  /* Device list for the picker - changing it restarts the test with that device. */
+  function fillMicList(currentLabel) {
+    if (!MIC_SEL || !navigator.mediaDevices.enumerateDevices) return;
+    navigator.mediaDevices.enumerateDevices().then(function (list) {
+      var mics = list.filter(function (d) { return d.kind === "audioinput"; });
+      MIC_SEL.innerHTML = "";
+      var def = document.createElement("option");
+      def.value = "";
+      def.textContent = "System default";
+      MIC_SEL.appendChild(def);
+      mics.forEach(function (d, i) {
+        var o = document.createElement("option");
+        o.value = d.deviceId;
+        o.textContent = d.label || "Microphone " + (i + 1);
+        if (MIC_DEV ? d.deviceId === MIC_DEV : currentLabel && d.label === currentLabel) o.selected = true;
+        MIC_SEL.appendChild(o);
+      });
+    }).catch(function () {});
+  }
+
+  function switchMic(deviceId) {
+    setMicDev(deviceId);
+    if (mTestTimer) { clearInterval(mTestTimer); mTestTimer = null; }
+    if (mTestCtx) { try { mTestCtx.close(); } catch (e) {} }
+    mTestCtx = null; mTestAn = null; mTestBuf = null;
+    if (mTestStream) {
+      mTestStream.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+      mTestStream = null;
+    }
+    if (MTEST_MSG) MTEST_MSG.textContent = "Switching microphone...";
+    return navigator.mediaDevices.getUserMedia({ audio: audioConstraints() })
+      .then(function (stream) {
+        mTestStream = stream;
+        var t = stream.getAudioTracks()[0];
+        if (MTEST_DEV) MTEST_DEV.textContent = "Device: " + ((t && t.label) || "default microphone");
+        var AC = window.AudioContext || window.webkitAudioContext;
+        mTestCtx = new AC();
+        mTestAn = mTestCtx.createAnalyser();
+        mTestAn.fftSize = 512;
+        mTestCtx.createMediaStreamSource(stream).connect(mTestAn);
+        mTestBuf = new Uint8Array(mTestAn.fftSize);
+        if (mTestCtx.state === "suspended") mTestCtx.resume().catch(function () {});
+        var heard = false, count = 0;
+        if (MTEST_MSG) MTEST_MSG.textContent = "Say something...";
+        mTestTimer = setInterval(function () {
+          if (!mTestAn || !mTestBuf) return;
+          mTestAn.getByteTimeDomainData(mTestBuf);
+          var peak = 0;
+          for (var i = 0; i < mTestBuf.length; i++) {
+            var d = Math.abs(mTestBuf[i] - 128);
+            if (d > peak) peak = d;
+          }
+          count++;
+          if (MTEST_BAR) MTEST_BAR.style.width = Math.min(100, Math.round(peak * 1.6)) + "%";
+          if (peak > 6) heard = true;
+          if (MTEST_MSG) {
+            if (heard) MTEST_MSG.textContent = "Microphone is working - the other side will hear you.";
+            else if (count > 12) MTEST_MSG.textContent = "No sound detected on this device. Try another microphone from the list.";
+          }
+        }, 150);
+      })
+      .catch(function (e) {
+        if (MTEST_MSG) MTEST_MSG.textContent = "Could not open that microphone: " + (e && e.message ? e.message : "failed");
+      });
   }
 
   function newPC() {
@@ -652,7 +770,14 @@
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       return Promise.reject(new Error("Calls need a secure HTTPS connection."));
     }
-    return navigator.mediaDevices.getUserMedia({ audio: true, video: kind === "video" })
+    var video = kind === "video";
+    /* if the saved device was unplugged, fall back to the system default */
+    return navigator.mediaDevices.getUserMedia({ audio: audioConstraints(), video: video })
+      .catch(function (err) {
+        if (!MIC_DEV) throw err;
+        setMicDev("");
+        return navigator.mediaDevices.getUserMedia({ audio: true, video: video });
+      })
       .then(function (stream) {
         watchMic(stream);
         return stream;
@@ -847,6 +972,23 @@
   }
   var MTEST_BTN = document.getElementById("btnMicTest");
   if (MTEST_BTN) MTEST_BTN.addEventListener("click", openMicTest);
+  if (MIC_SEL) {
+    MIC_SEL.addEventListener("change", function () { switchMic(MIC_SEL.value); });
+  }
+  if (MIC_BTN) {
+    MIC_BTN.addEventListener("click", function () {
+      if (!localStream) return;
+      var t = localStream.getAudioTracks()[0];
+      if (!t) return;
+      t.enabled = !t.enabled;
+      MIC_BTN.innerHTML = t.enabled
+        ? "<i class='fa-solid fa-microphone'></i>"
+        : "<i class='fa-solid fa-microphone-slash'></i>";
+      MIC_BTN.title = t.enabled ? "Mute microphone" : "Unmute microphone";
+      setStatus(t.enabled ? "Connected" : "Microphone muted");
+      micMutedSince = 0;
+    });
+  }
   var MTEST_CLOSE = document.getElementById("micClose");
   if (MTEST_CLOSE) MTEST_CLOSE.addEventListener("click", stopMicTest);
   if (MTEST) {
