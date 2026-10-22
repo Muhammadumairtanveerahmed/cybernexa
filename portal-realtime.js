@@ -203,7 +203,7 @@ function mount(app, core) {
       </div>
 
       <script>window.CNX_CHAT = ${json};</script>
-      <script src="/js/messages.js?v=20261022d"></script>`;
+      <script src="/js/messages.js?v=20261022e"></script>`;
 
     res.send(
       core.shell(user, "messages", "Messages", "Chat and call your " + (user.role === "student" ? "teachers" : "students") + " in real time.", body)

@@ -38,7 +38,17 @@
   var ICE = {
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
-      { urls: "stun:stun1.l.google.com:19302" }
+      { urls: "stun:stun1.l.google.com:19302" },
+      { 
+        urls: "turn:54.161.79.42:3478?transport=udp",
+        username: "cybernexa",
+        credential: "turnpass123"
+      },
+      { 
+        urls: "turn:54.161.79.42:3478?transport=tcp",
+        username: "cybernexa",
+        credential: "turnpass123"
+      }
     ]
   };
 
