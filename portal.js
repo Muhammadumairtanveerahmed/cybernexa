@@ -415,6 +415,13 @@ async function initSchema(pool) {
       INDEX idx_chat_pair (sender_id, recipient_id, created_at),
       INDEX idx_chat_inbox (recipient_id, read_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    `CREATE TABLE IF NOT EXISTS chat_hidden (
+      message_id VARCHAR(40) NOT NULL,
+      user_id VARCHAR(40) NOT NULL,
+      created_at DATETIME NOT NULL,
+      PRIMARY KEY (message_id, user_id),
+      INDEX idx_hidden_user (user_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
     `CREATE TABLE IF NOT EXISTS call_logs (
       id VARCHAR(40) PRIMARY KEY,
       call_key VARCHAR(40) NOT NULL,
@@ -823,10 +830,10 @@ tr:last-child td{border-bottom:0}
 .bubble .txt{white-space:pre-wrap}
 .bubble .who{font-size:10px;font-weight:600;color:var(--acc);letter-spacing:.2px}
 .bubble.me .who{color:var(--mut)}
-.bubble .acts{display:inline-flex;gap:1px;margin-right:auto}
-.bubble .mact{background:none;border:0;padding:0 2px;font-size:10px;line-height:1;color:var(--mut);cursor:pointer}
-.bubble .mact:hover{color:var(--acc)}
-.bubble .mact[data-act="del"]:hover{color:var(--red)}
+.bubble .acts{display:inline-flex;gap:4px;margin-right:auto}
+.bubble .mact{display:inline-flex;align-items:center;gap:3px;background:rgba(255,255,255,.06);border:1px solid var(--line);border-radius:3px;padding:1px 5px;font-size:9px;line-height:1.6;color:var(--mut);cursor:pointer;font-family:inherit}
+.bubble .mact:hover{color:var(--txt);border-color:var(--line2);background:rgba(255,255,255,.13)}
+.bubble .mact[data-act="del"]:hover{background:var(--red);border-color:var(--red);color:#fff}
 .bubble .ed{font-style:italic;font-size:9px;color:var(--mut)}
 .bubble .del-txt{color:var(--mut);font-style:italic}
 .bubble .editbox{display:flex;flex-direction:column;gap:4px;width:100%}
@@ -836,7 +843,7 @@ tr:last-child td{border-bottom:0}
 .pstate.on{color:var(--green)}
 .pstate.off{color:var(--mut)}
 .bubble.me{align-self:flex-end;background:rgba(59,130,246,.22);border-color:rgba(59,130,246,.4)}
-.bubble .meta{display:flex;justify-content:flex-end;align-items:center;gap:5px;font-size:10px;color:var(--mut);line-height:1}
+.bubble .meta{display:flex;flex-wrap:wrap;justify-content:flex-end;align-items:center;gap:5px;row-gap:3px;font-size:10px;color:var(--mut);line-height:1}
 .bubble .ticks{font-size:10px;color:#94a3b8}
 .bubble .ticks.read{color:#53bdeb}
 .bubble .ticks.sending{color:#64748b}

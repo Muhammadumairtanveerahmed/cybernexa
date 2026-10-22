@@ -112,21 +112,26 @@ function mount(app, core) {
   }
 
   app.get("/portal/messages", need, async (req, res) => {
+    res.set("Cache-Control", "no-store, must-revalidate");
     const user = req.user;
     const contacts = await contactList(user);
     const [recent] = await q(
-      `SELECT sender_id, recipient_id,
-              CASE WHEN deleted_at IS NULL THEN body ELSE 'Message deleted' END AS body,
-              created_at, read_at
-         FROM chat_messages
-        WHERE sender_id = ? OR recipient_id = ?
-        ORDER BY created_at DESC LIMIT 400`,
-      [user.id, user.id]
+      `SELECT m.sender_id, m.recipient_id,
+              CASE WHEN m.deleted_at IS NULL THEN m.body ELSE 'Message deleted' END AS body,
+              m.created_at, m.read_at
+         FROM chat_messages m
+         LEFT JOIN chat_hidden h ON h.message_id = m.id AND h.user_id = ?
+        WHERE (m.sender_id = ? OR m.recipient_id = ?) AND h.message_id IS NULL
+        ORDER BY m.created_at DESC LIMIT 400`,
+      [user.id, user.id, user.id]
     );
     const [unread] = await q(
-      `SELECT sender_id, COUNT(*) AS n FROM chat_messages
-        WHERE recipient_id = ? AND read_at IS NULL GROUP BY sender_id`,
-      [user.id]
+      `SELECT m.sender_id, COUNT(*) AS n
+         FROM chat_messages m
+         LEFT JOIN chat_hidden h ON h.message_id = m.id AND h.user_id = ?
+        WHERE m.recipient_id = ? AND m.read_at IS NULL AND h.message_id IS NULL
+        GROUP BY m.sender_id`,
+      [user.id, user.id]
     );
 
     const lastBy = {};
@@ -198,7 +203,7 @@ function mount(app, core) {
       </div>
 
       <script>window.CNX_CHAT = ${json};</script>
-      <script src="/js/messages.js?v=20261022c"></script>`;
+      <script src="/js/messages.js?v=20261022d"></script>`;
 
     res.send(
       core.shell(user, "messages", "Messages", "Chat and call your " + (user.role === "student" ? "teachers" : "students") + " in real time.", body)
@@ -215,15 +220,17 @@ function mount(app, core) {
     const withId = String(req.query.with || "");
     if (!withId) return res.status(400).json({ ok: false, error: "with is required" });
     const before = String(req.query.before || "");
-    const params = [me, withId, withId, me];
-    let sql = `SELECT id, sender_id, recipient_id, body, created_at, delivered_at, read_at, edited_at, deleted_at
-                 FROM chat_messages
-                WHERE ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))`;
+    const params = [me, me, withId, withId, me];
+    let sql = `SELECT m.id, m.sender_id, m.recipient_id, m.body, m.created_at, m.delivered_at, m.read_at, m.edited_at, m.deleted_at
+                 FROM chat_messages m
+                 LEFT JOIN chat_hidden h ON h.message_id = m.id AND h.user_id = ?
+                WHERE ((m.sender_id = ? AND m.recipient_id = ?) OR (m.sender_id = ? AND m.recipient_id = ?))
+                  AND h.message_id IS NULL`;
     if (before) {
-      sql += " AND created_at < ?";
+      sql += " AND m.created_at < ?";
       params.push(before.replace("T", " ").slice(0, 19));
     }
-    sql += " ORDER BY created_at DESC LIMIT 60";
+    sql += " ORDER BY m.created_at DESC LIMIT 60";
     const [rows] = await q(sql, params);
     res.json({ ok: true, messages: rows.reverse() });
   });
@@ -406,13 +413,22 @@ function attach(server, getPool) {
         );
         if (!rows.length) return;
         const row = rows[0];
-        if (row.sender_id !== me.id) return;
-        if (!row.deleted_at) {
-          await pool.query("UPDATE chat_messages SET body = '', deleted_at = NOW() WHERE id = ?", [id]);
+        const mine = row.sender_id === me.id;
+        if (!mine && row.recipient_id !== me.id) return;
+        if (mine && m.scope !== "me") {
+          if (!row.deleted_at) {
+            await pool.query("UPDATE chat_messages SET body = '', deleted_at = NOW() WHERE id = ?", [id]);
+          }
+          const ev = { type: "msg-del", id, from: me.id };
+          sendTo(me.id, ev);
+          sendTo(row.recipient_id, ev);
+        } else {
+          await pool.query(
+            "INSERT IGNORE INTO chat_hidden (message_id, user_id, created_at) VALUES (?,?,NOW())",
+            [id, me.id]
+          );
+          sendTo(me.id, { type: "msg-hide", id, from: me.id });
         }
-        const ev = { type: "msg-del", id, from: me.id };
-        sendTo(me.id, ev);
-        sendTo(row.recipient_id, ev);
         return;
       }
 

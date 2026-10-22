@@ -117,9 +117,14 @@
     var deleted = !!m.deleted_at;
     var edited = !!m.edited_at && !deleted;
     var head = showWho ? '<span class="who">' + esc(who) + "</span>" : "";
+    var acts = deleted
+      ? ""
+      : mine
+        ? '<button type="button" class="mact" data-act="edit" title="Edit"><i class="fa-solid fa-pen"></i> Edit</button>' +
+          '<button type="button" class="mact" data-act="del" title="Delete"><i class="fa-solid fa-trash"></i> Delete</button>'
+        : '<button type="button" class="mact" data-act="del" title="Delete"><i class="fa-solid fa-trash"></i> Delete</button>';
     var meta = '<span class="meta">' +
-      (mine && !deleted ? '<span class="acts"><button type="button" class="mact" data-act="edit" title="Edit"><i class="fa-solid fa-pen"></i></button>' +
-        '<button type="button" class="mact" data-act="del" title="Delete"><i class="fa-solid fa-trash"></i></button></span>' : "") +
+      (acts ? '<span class="acts">' + acts + "</span>" : "") +
       (edited ? '<span class="ed">edited</span>' : "") +
       '<span class="t">' + esc(hhmm(when)) + "</span>" +
       (mine && !deleted ? tickHtml(status) : "") +
@@ -227,8 +232,12 @@
   function deleteMsg(bubble) {
     var id = bubble.getAttribute("data-id");
     if (!id) return;
-    if (!window.confirm("Delete this message for both of you?")) return;
-    wsSend({ type: "del", id: id });
+    var mine = bubble.classList.contains("me");
+    var ask = mine
+      ? "Delete this message for both of you?"
+      : "Remove this message from your chat?";
+    if (!window.confirm(ask)) return;
+    wsSend({ type: "del", id: id, scope: mine ? "all" : "me" });
   }
 
   function openChat(id) {
@@ -341,6 +350,11 @@
       if (m.type === "msg-del") {
         var e2 = m.id ? THREAD.querySelector('[data-id="' + m.id + '"]') : null;
         if (e2) markDeleted(e2);
+        return;
+      }
+      if (m.type === "msg-hide") {
+        var e3 = m.id ? THREAD.querySelector('[data-id="' + m.id + '"]') : null;
+        if (e3) e3.remove();
         return;
       }
       if (m.type === "typing") {
