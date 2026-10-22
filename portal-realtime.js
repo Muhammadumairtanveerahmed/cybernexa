@@ -112,6 +112,17 @@ function mount(app, core) {
   }
 
   app.get("/portal/messages", need, async (req, res) => {
+    /* Calls need a secure origin, so the chat page is served over HTTPS only.
+       Behind Traefik, req.protocol follows X-Forwarded-Proto (trust proxy is on). */
+    const proto = String(
+      req.headers["x-forwarded-proto"] || req.protocol || "http"
+    ).split(",")[0].trim().toLowerCase();
+    const host = req.headers.host || "";
+    const isLocal = /^(localhost|127\.0\.0\.1|\[::1\])(:\d+)?$/i.test(host);
+    if (proto !== "https" && !isLocal && req.query.secure !== "1") {
+      const sep = req.originalUrl.indexOf("?") === -1 ? "?" : "&";
+      return res.redirect(302, "https://" + host + req.originalUrl + sep + "secure=1");
+    }
     res.set("Cache-Control", "no-store, must-revalidate");
     const user = req.user;
     const contacts = await contactList(user);
@@ -203,7 +214,7 @@ function mount(app, core) {
       </div>
 
       <script>window.CNX_CHAT = ${json};</script>
-      <script src="/js/messages.js?v=20261022f"></script>`;
+      <script src="/js/messages.js?v=20261022g"></script>`;
 
     res.send(
       core.shell(user, "messages", "Messages", "Chat and call your " + (user.role === "student" ? "teachers" : "students") + " in real time.", body)

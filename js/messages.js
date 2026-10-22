@@ -494,7 +494,13 @@
   function startCall(kind) {
     if (!peer) return;
     if (!SECURE) {
-      alert("Voice and video calls need HTTPS. Chat works normally, but the browser blocks the camera and microphone on plain HTTP.");
+      if (location.protocol !== "https:") {
+        if (window.confirm("Voice and video calls need HTTPS.\n\nSwitch to the secure version now? Chat keeps working, you just need to accept the certificate warning once.")) {
+          location.href = "https://" + location.host + location.pathname + location.search;
+        }
+        return;
+      }
+      alert("This browser cannot access the camera and microphone. Use Chrome, Edge or Firefox on HTTPS.");
       return;
     }
     callPeer = peer.id;
