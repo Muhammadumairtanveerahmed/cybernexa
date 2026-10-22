@@ -333,6 +333,7 @@
     };
     ws.onclose = function () {
       online = {};
+      stopRing();
       renderPeople();
       retry = Math.min(retry + 1, 6);
       setTimeout(connect, 1000 * retry);
@@ -418,6 +419,67 @@
 
   /* ----------------------------------------------------------- WebRTC */
   function setStatus(t) { if (STATUS) STATUS.textContent = t; }
+
+  /* --------------------------------------------------------- ring tones
+     Generated with the Web Audio API so no audio files are needed.
+     mode = "incoming" (someone is calling us) or "ringback" (we are calling). */
+  var ring = { ctx: null, timer: null, mode: "" };
+  function ringAudio() {
+    try {
+      var AC = window.AudioContext || window.webkitAudioContext;
+      if (!AC) return null;
+      if (!ring.ctx) ring.ctx = new AC();
+      if (ring.ctx.state === "suspended") ring.ctx.resume().catch(function () {});
+      return ring.ctx;
+    } catch (e) {
+      return null;
+    }
+  }
+  function beep(ctx, freq, dur, vol, when) {
+    try {
+      var o = ctx.createOscillator();
+      var g = ctx.createGain();
+      var t0 = ctx.currentTime + when;
+      o.type = "sine";
+      o.frequency.value = freq;
+      g.gain.setValueAtTime(0.0001, t0);
+      g.gain.linearRampToValueAtTime(vol, t0 + 0.03);
+      g.gain.setValueAtTime(vol, t0 + Math.max(0.05, dur - 0.06));
+      g.gain.linearRampToValueAtTime(0.0001, t0 + dur);
+      o.connect(g);
+      g.connect(ctx.destination);
+      o.start(t0);
+      o.stop(t0 + dur + 0.03);
+    } catch (e) {}
+  }
+  function startRing(mode) {
+    if (ring.mode === mode && ring.timer) return;
+    stopRing();
+    ring.mode = mode;
+    var ctx = ringAudio();
+    if (!ctx) return;
+    var pattern = function () {
+      if (ring.mode === "incoming") {
+        beep(ctx, 480, 0.4, 0.16, 0);
+        beep(ctx, 620, 0.4, 0.16, 0.45);
+        beep(ctx, 480, 0.4, 0.16, 0.9);
+      } else {
+        beep(ctx, 440, 1.0, 0.10, 0);
+        beep(ctx, 480, 1.0, 0.10, 0);
+      }
+    };
+    pattern();
+    ring.timer = setInterval(pattern, mode === "incoming" ? 3000 : 4200);
+    try {
+      if (mode === "incoming" && navigator.vibrate) navigator.vibrate([500, 300, 500, 300, 500]);
+    } catch (e) {}
+  }
+  function stopRing() {
+    if (ring.timer) { clearInterval(ring.timer); ring.timer = null; }
+    ring.mode = "";
+    try { if (navigator.vibrate) navigator.vibrate(0); } catch (e) {}
+  }
+
   function showCall(kind) {
     CALLOV.classList.add("on");
     CALLOV.classList.toggle("audio", kind !== "video");
@@ -748,6 +810,7 @@
       if (p.connectionState === "connected") {
         setStatus("Connected");
         restarted = false;
+        stopRing();
         playRemote();
         startStats();
       } else if (p.connectionState === "failed") {
@@ -805,6 +868,7 @@
   }
 
   function cleanupCall() {
+    stopRing();
     if (pc) { try { pc.close(); } catch (e) {} }
     pc = null;
     if (localStream) localStream.getTracks().forEach(function (t) { t.stop(); });
@@ -839,6 +903,7 @@
     callKind = kind;
     callId = "c_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     setStatus("Calling " + peer.name + "...");
+    startRing("ringback");
     showCall(kind);
     media(kind)
       .then(function (stream) {
@@ -862,6 +927,7 @@
 
   function acceptCall() {
     if (!pendingOffer) return;
+    stopRing();
     MODAL.classList.remove("open");
     showCall(callKind);
     setStatus("Connecting...");
@@ -908,10 +974,12 @@
       document.getElementById("incWho").textContent =
         (m.fromName || "Someone") + " is calling you (" + (m.kind === "video" ? "video" : "voice") + ")";
       MODAL.classList.add("open");
+      startRing("incoming");
       return;
     }
     if (m.action === "answer") {
       if (!pc) return;
+      stopRing();
       pc.setRemoteDescription(new RTCSessionDescription(m.payload))
         .then(function () { flushIce(); setStatus("Connected"); })
         .catch(function () {});
@@ -937,6 +1005,8 @@
       alert("That person is offline right now. Try again later.");
     }
   }
+
+  window.addEventListener("beforeunload", function () { stopRing(); });
 
   /* --------------------------------------------------------------- wiring */
   THREAD.addEventListener("click", function (e) {
@@ -1002,10 +1072,13 @@
   });
   document.addEventListener("pointerdown", function () {
     if (CALLOV.classList.contains("on") && REMOTE_V.srcObject) playRemote();
+    /* audio may be suspended on the ringing side until the user interacts */
+    if (ring.mode && ring.ctx && ring.ctx.state === "suspended") ring.ctx.resume().catch(function () {});
   }, true);
   document.getElementById("endCall").addEventListener("click", function () { endCall(true); });
   document.getElementById("incAccept").addEventListener("click", acceptCall);
   document.getElementById("incReject").addEventListener("click", function () {
+    stopRing();
     if (callPeer && callId) wsSend({ type: "signal", action: "reject", to: callPeer, callId: callId });
     MODAL.classList.remove("open");
     pendingOffer = null;
