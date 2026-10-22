@@ -402,6 +402,29 @@ async function initSchema(pool) {
       INDEX idx_status (status)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
+    `CREATE TABLE IF NOT EXISTS chat_messages (
+      id VARCHAR(40) PRIMARY KEY,
+      sender_id VARCHAR(40) NOT NULL,
+      recipient_id VARCHAR(40) NOT NULL,
+      body TEXT NOT NULL,
+      created_at DATETIME NOT NULL,
+      read_at DATETIME NULL,
+      INDEX idx_chat_pair (sender_id, recipient_id, created_at),
+      INDEX idx_chat_inbox (recipient_id, read_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+    `CREATE TABLE IF NOT EXISTS call_logs (
+      id VARCHAR(40) PRIMARY KEY,
+      call_key VARCHAR(40) NOT NULL,
+      caller_id VARCHAR(40) NOT NULL,
+      callee_id VARCHAR(40) NOT NULL,
+      kind ENUM('audio','video') NOT NULL DEFAULT 'audio',
+      status ENUM('missed','answered','rejected','ended') NOT NULL DEFAULT 'missed',
+      started_at DATETIME NOT NULL,
+      ended_at DATETIME NULL,
+      INDEX idx_call_key (call_key),
+      INDEX idx_call_pair (caller_id, callee_id, started_at)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
     // Every dropdown is backed by its own lookup table.
     `CREATE TABLE IF NOT EXISTS lk_notice_audience (
       id INT AUTO_INCREMENT PRIMARY KEY, value VARCHAR(40) NOT NULL UNIQUE,
@@ -763,6 +786,34 @@ tr:last-child td{border-bottom:0}
 .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .tag{font-size:.7rem;padding:2px 8px;border-radius:6px;background:rgba(148,163,255,.12);color:var(--mut);border:1px solid var(--line)}
 @media(max-width:860px){.shell{grid-template-columns:1fr}.side{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);align-items:center;position:static;height:auto}.side .brand,.side .who{display:none}.grid2{grid-template-columns:1fr}.main{padding:18px}}
+/* Messages + WebRTC calls */
+.msg-shell{display:grid;grid-template-columns:280px 1fr;gap:14px;min-height:520px;height:calc(100vh - 215px)}
+.msg-side,.msg-main{background:var(--bg2);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;min-height:0}
+.msg-search{padding:10px;border-bottom:1px solid var(--line)}
+.msg-search input{height:36px}
+.people{overflow-y:auto;flex:1}
+.person{display:flex;gap:10px;align-items:center;padding:10px 12px;cursor:pointer;border-bottom:1px solid rgba(148,163,255,.06)}
+.person:hover{background:rgba(59,130,246,.08)}
+.person.on{background:rgba(59,130,246,.14)}
+.person .nm{flex:1;min-width:0}
+.person .nm b{display:block;font-size:13px;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.person .nm span{display:block;font-size:11px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.dot{width:8px;height:8px;border-radius:50%;background:#475569;flex-shrink:0}
+.dot.on{background:var(--green);box-shadow:0 0 0 3px rgba(34,197,94,.15)}
+.unread{background:var(--p);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 7px}
+.msg-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
+.thread{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px}
+.bubble{max-width:72%;padding:8px 12px;border-radius:10px;background:var(--bg3);border:1px solid var(--line);font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.bubble.me{align-self:flex-end;background:rgba(59,130,246,.22);border-color:rgba(59,130,246,.4)}
+.bubble .t{display:block;font-size:10px;color:var(--mut);margin-top:3px}
+.sendbar{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
+.sendbar input{height:40px}
+.callov{position:fixed;inset:0;background:rgba(3,6,15,.95);z-index:200;display:none;align-items:center;justify-content:center}
+.callov.on{display:flex}
+.callov video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
+#localV{position:absolute;right:18px;bottom:80px;width:180px;height:120px;border-radius:8px;border:1px solid var(--line);object-fit:cover}
+.callbar{position:absolute;bottom:22px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:16px;color:#fff;z-index:2}
+@media(max-width:860px){.msg-shell{grid-template-columns:1fr;height:auto}.msg-side{max-height:240px}.thread{min-height:320px}}
 /* Modals */
 .topline{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:12px}
 .modal{position:fixed;inset:0;background:rgba(3,6,15,.72);display:none;align-items:center;justify-content:center;z-index:120;padding:20px}.modal.open{display:flex}
@@ -837,6 +888,7 @@ function shell(user, active, title, sub, body, extraNav = "") {
            ["/portal/attendance", "<i class='fa-solid fa-circle-check'></i> Attendance", "attend"],
            ["/portal/materials", "<i class='fa-solid fa-folder'></i> Materials", "materials"]] },
        { t: "Communication", items: [
+           ["/portal/messages", "<i class='fa-solid fa-comments'></i> Messages & Calls", "messages"],
            ["/portal/announcements", "<i class='fa-solid fa-bullhorn'></i> Announcements", "announce"],
            ["/portal/notices", "<i class='fa-solid fa-bell'></i> Notices", "notices"]] },
        { t: "Account", items: [
@@ -856,6 +908,7 @@ function shell(user, active, title, sub, body, extraNav = "") {
            ["/portal/documents", "<i class='fa-solid fa-file-lines'></i> My Documents", "docs"],
            ["/portal/fees", "<i class='fa-solid fa-sack-dollar'></i> Fees & Payments", "fees"]] },
        { t: "Communication", items: [
+           ["/portal/messages", "<i class='fa-solid fa-comments'></i> Messages & Calls", "messages"],
            ["/portal/announcements", "<i class='fa-solid fa-bullhorn'></i> Announcements", "announce"],
            ["/portal/notices", "<i class='fa-solid fa-bell'></i> Notices", "notices"]] },
        { t: "Account", items: [["/portal/profile", "<i class='fa-solid fa-user'></i> My Profile", "profile"]] }];
@@ -1844,6 +1897,8 @@ function mount(app, context) {
   core.createNotice = createNotice;
   core.makeUpload = makeUpload;
   core.UPLOAD_ROOT = () => UPLOAD_ROOT;
+  // Realtime chat + WebRTC signalling (HTTP pages; WebSocket attaches in server.js)
+  require("./portal-realtime").mount(app, core);
   console.log(" Portal mounted");
 }
 

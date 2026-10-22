@@ -1,4 +1,4 @@
-{
+﻿{
   "name": "CyberNexa-website",
   "version": "1.0.0",
   "description": "CyberNexa Solutions - Website with Node.js backend",
@@ -13,6 +13,8 @@
     "express": "^4.21.2",
     "multer": "^2.4.0",
     "mysql2": "^3.24.5",
-    "nodemailer": "^10.0.16"
+    "nodemailer": "^10.0.16",
+    "ws": "^8.18.0"
   }
 }
+

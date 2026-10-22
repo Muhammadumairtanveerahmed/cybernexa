@@ -6,6 +6,7 @@ const express = require("express");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const http = require("http");
 
 // ---------- .env loader (no external dependency) ----------
 const ENV_FILE = path.join(__dirname, ".env");
@@ -1568,9 +1569,16 @@ process.on("uncaughtException", (err) => console.error("  Uncaught exception:", 
 // we cap the wait so an unreachable MySQL can never keep the site offline.
 const startup = initDb().catch((err) => console.error("Startup init failed:", err && err.message));
 const deadline = new Promise((resolve) => setTimeout(resolve, 20000));
+const server = http.createServer(app);
 Promise.race([startup, deadline]).then(() => {
-  app.listen(PORT, () => {
+  server.listen(PORT, () => {
     console.log(` Server running: http://localhost:${PORT}`);
     console.log(` Admin panel:    http://localhost:${PORT}/admin`);
+    console.log(` Realtime:       ws://localhost:${PORT}/ws`);
   });
+  try {
+    require("./portal-realtime").attach(server, () => pool);
+  } catch (err) {
+    console.error("Realtime layer failed to start:", err && err.message);
+  }
 });
