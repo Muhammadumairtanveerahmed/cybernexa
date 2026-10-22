@@ -36,18 +36,36 @@
 
   var SECURE = window.isSecureContext && !!(navigator.mediaDevices && window.RTCPeerConnection);
   var ICE = {
+    iceCandidatePoolSize: 4,
     iceServers: [
       { urls: "stun:stun.l.google.com:19302" },
       { urls: "stun:stun1.l.google.com:19302" },
-      { 
+      /* self-hosted coturn (best quality when reachable) */
+      {
         urls: "turn:54.161.79.42:3478?transport=udp",
         username: "cybernexa",
         credential: "turnpass123"
       },
-      { 
+      {
         urls: "turn:54.161.79.42:3478?transport=tcp",
         username: "cybernexa",
         credential: "turnpass123"
+      },
+      /* public relay fallback - used automatically when the one above is blocked */
+      {
+        urls: "turn:openrelay.metered.ca:80",
+        username: "openrelayproject",
+        credential: "openrelayproject"
+      },
+      {
+        urls: "turn:openrelay.metered.ca:443",
+        username: "openrelayproject",
+        credential: "openrelayproject"
+      },
+      {
+        urls: "turn:openrelay.metered.ca:443?transport=tcp",
+        username: "openrelayproject",
+        credential: "openrelayproject"
       }
     ]
   };
@@ -396,6 +414,9 @@
 
   function newPC() {
     var p = new RTCPeerConnection(ICE);
+    var restarted = false;
+    p._offerer = false;
+    p._negotiated = false;
     p.onicecandidate = function (e) {
       if (e.candidate && callPeer) {
         wsSend({ type: "signal", action: "ice", to: callPeer, callId: callId, payload: e.candidate });
@@ -407,10 +428,33 @@
         REMOTE_V.play().catch(function () {});
       }
     };
+    /* only the original caller re-offers, to avoid offer glare */
+    p.onnegotiationneeded = function () {
+      if (p !== pc || !p._offerer || !p._negotiated || !callPeer) return;
+      p.createOffer({ iceRestart: true })
+        .then(function (o) { return p.setLocalDescription(o); })
+        .then(function () {
+          wsSend({ type: "signal", action: "offer", to: callPeer, callId: callId, kind: callKind, payload: p.localDescription });
+        })
+        .catch(function () {});
+    };
     p.onconnectionstatechange = function () {
-      if (p.connectionState === "connected") setStatus("Connected");
-      else if (p.connectionState === "failed") setStatus("Connection failed - a TURN server may be required");
-      else if (p.connectionState === "disconnected") setStatus("Reconnecting...");
+      if (p !== pc) return;
+      if (p.connectionState === "connected") {
+        setStatus("Connected");
+        restarted = false;
+      } else if (p.connectionState === "failed") {
+        if (!restarted) {
+          restarted = true;
+          setStatus("Network path lost - reconnecting...");
+          try { p.restartIce(); } catch (e) {}
+          if (!p._offerer) setStatus("Network path lost - waiting for the other side...");
+        } else {
+          setStatus("Connection failed - a TURN server may be required");
+        }
+      } else if (p.connectionState === "disconnected") {
+        setStatus("Reconnecting...");
+      }
     };
     return p;
   }
@@ -463,9 +507,11 @@
         localStream = stream;
         LOCAL_V.srcObject = stream;
         pc = newPC();
+        pc._offerer = true;
         stream.getTracks().forEach(function (t) { pc.addTrack(t, stream); });
         return pc.createOffer().then(function (offer) {
           return pc.setLocalDescription(offer).then(function () {
+            pc._negotiated = true;
             wsSend({ type: "signal", action: "offer", to: callPeer, callId: callId, kind: callKind, payload: offer });
           });
         });
@@ -505,6 +551,17 @@
 
   function handleSignal(m) {
     if (m.action === "offer") {
+      /* ICE-restart re-offer for the call already in progress */
+      if (pc && m.callId === callId) {
+        pc.setRemoteDescription(new RTCSessionDescription(m.payload))
+          .then(function () { flushIce(); return pc.createAnswer(); })
+          .then(function (a) { return pc.setLocalDescription(a); })
+          .then(function () {
+            wsSend({ type: "signal", action: "answer", to: m.from, callId: m.callId, payload: pc.localDescription });
+          })
+          .catch(function () {});
+        return;
+      }
       if (pc) { wsSend({ type: "signal", action: "reject", to: m.from, callId: m.callId }); return; }
       pendingOffer = m.payload;
       callId = m.callId;
