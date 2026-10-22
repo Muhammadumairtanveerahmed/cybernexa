@@ -214,7 +214,7 @@ function mount(app, core) {
     if (!withId) return res.status(400).json({ ok: false, error: "with is required" });
     const before = String(req.query.before || "");
     const params = [me, withId, withId, me];
-    let sql = `SELECT id, sender_id, recipient_id, body, created_at, read_at
+    let sql = `SELECT id, sender_id, recipient_id, body, created_at, delivered_at, read_at
                  FROM chat_messages
                 WHERE ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))`;
     if (before) {
@@ -286,7 +286,7 @@ function attach(server, getPool) {
       .catch(() => socket.destroy());
   });
 
-  wss.on("connection", (ws) => {
+  wss.on("connection", async (ws) => {
     const me = ws.user;
     ws.isAlive = true;
     ws.hits = 0;
@@ -300,6 +300,26 @@ function attach(server, getPool) {
       /* ignore */
     }
     broadcast({ type: "presence", userId: me.id, online: true, name: me.full_name }, me.id);
+
+    // Anything queued while this user was offline is now delivered.
+    try {
+      const pool = getPool();
+      if (pool) {
+        const [r] = await pool.query(
+          "UPDATE chat_messages SET delivered_at = NOW() WHERE recipient_id = ? AND delivered_at IS NULL",
+          [me.id]
+        );
+        if (r.affectedRows) {
+          const [senders] = await pool.query(
+            "SELECT DISTINCT sender_id FROM chat_messages WHERE recipient_id = ? AND delivered_at IS NOT NULL",
+            [me.id]
+          );
+          for (const row of senders) sendTo(row.sender_id, { type: "delivered", by: me.id });
+        }
+      }
+    } catch {
+      /* ignore */
+    }
 
     ws.on("pong", () => {
       ws.isAlive = true;
@@ -335,12 +355,13 @@ function attach(server, getPool) {
         );
         if (!ok.length) return;
         const id = rnd("msg_");
+        const isOnline = !!(clients.get(to) && clients.get(to).size);
         await pool.query(
-          "INSERT INTO chat_messages (id, sender_id, recipient_id, body, created_at) VALUES (?,?,?,?,NOW())",
-          [id, me.id, to, body]
+          "INSERT INTO chat_messages (id, sender_id, recipient_id, body, created_at, delivered_at) VALUES (?,?,?,?,NOW(),?)",
+          [id, me.id, to, body, isOnline ? new Date() : null]
         );
         const payload = { type: "msg", id, from: me.id, fromName: me.full_name, to, body, at: new Date().toISOString() };
-        sendTo(me.id, { ...payload, self: true });
+        sendTo(me.id, { ...payload, self: true, tempId: m.tempId || null, delivered: isOnline });
         sendTo(to, payload);
         return;
       }
@@ -348,11 +369,11 @@ function attach(server, getPool) {
       if (m.type === "read") {
         const from = String(m.from || "");
         if (!from) return;
-        await pool.query(
-          "UPDATE chat_messages SET read_at = NOW() WHERE recipient_id = ? AND sender_id = ? AND read_at IS NULL",
+        const [r] = await pool.query(
+          "UPDATE chat_messages SET read_at = NOW(), delivered_at = COALESCE(delivered_at, NOW()) WHERE recipient_id = ? AND sender_id = ? AND read_at IS NULL",
           [me.id, from]
         );
-        sendTo(from, { type: "read", by: me.id, at: new Date().toISOString() });
+        sendTo(from, { type: "read", by: me.id, count: r.affectedRows || 0, at: new Date().toISOString() });
         return;
       }
 

@@ -83,15 +83,46 @@
     return null;
   }
 
+  function tickHtml(status) {
+    if (status === "read") return '<span class="ticks read" title="Read"><i class="fa-solid fa-check-double"></i></span>';
+    if (status === "delivered") return '<span class="ticks" title="Delivered"><i class="fa-solid fa-check-double"></i></span>';
+    if (status === "sending") return '<span class="ticks sending" title="Sending"><i class="fa-solid fa-clock"></i></span>';
+    return '<span class="ticks" title="Sent"><i class="fa-solid fa-check"></i></span>';
+  }
+
+  function setTicks(el, status) {
+    var t = el.querySelector(".ticks");
+    if (!t) return;
+    t.className = "ticks" + (status === "read" ? " read" : status === "sending" ? " sending" : "");
+    t.innerHTML = status === "sending"
+      ? '<i class="fa-solid fa-clock"></i>'
+      : status === "sent"
+        ? '<i class="fa-solid fa-check"></i>'
+        : '<i class="fa-solid fa-check-double"></i>';
+    t.title = status === "read" ? "Read" : status === "delivered" ? "Delivered" : status === "sending" ? "Sending" : "Sent";
+  }
+
+  function markMine(status) {
+    Array.prototype.forEach.call(THREAD.querySelectorAll(".bubble.me"), function (el) {
+      if (status === "delivered" && el.querySelector(".ticks.read")) return;
+      setTicks(el, status);
+    });
+  }
+
   /* --------------------------------------------------------------- thread */
   function addBubble(m) {
-    var mine = m.sender_id === ME || m.from === ME || m.self;
+    var mine = !!(m.self || m.sender_id === ME || m.from === ME);
     var when = m.created_at || m.at;
+    var status = m.status || (m.read_at ? "read" : m.delivered_at ? "delivered" : "sent");
     var el = document.createElement("div");
     el.className = "bubble" + (mine ? " me" : "");
-    el.innerHTML = esc(m.body) + '<span class="t">' + esc(hhmm(when)) + "</span>";
+    if (m.id) el.setAttribute("data-id", m.id);
+    if (m.tempId) el.setAttribute("data-tmp", m.tempId);
+    el.innerHTML = '<span class="txt">' + esc(m.body) + '</span>' +
+      '<span class="meta"><span class="t">' + esc(hhmm(when)) + '</span>' + (mine ? tickHtml(status) : "") + '</span>';
     THREAD.appendChild(el);
     THREAD.scrollTop = THREAD.scrollHeight;
+    return el;
   }
 
   function clearThread(text) {
@@ -163,10 +194,21 @@
         return;
       }
       if (m.type === "msg") {
+        if (m.self) {
+          var tmp = m.tempId ? THREAD.querySelector('[data-tmp="' + m.tempId + '"]') : null;
+          if (tmp) {
+            if (m.id) tmp.setAttribute("data-id", m.id);
+            tmp.removeAttribute("data-tmp");
+            setTicks(tmp, m.delivered ? "delivered" : "sent");
+          } else {
+            addBubble({ body: m.body, at: m.at, self: true, status: m.delivered ? "delivered" : "sent" });
+          }
+          return;
+        }
         if (peer && m.from === peer.id) {
-          addBubble({ body: m.body, created_at: m.at });
+          addBubble({ body: m.body, at: m.at, from: m.from });
           wsSend({ type: "read", from: m.from });
-        } else if (m.from !== ME) {
+        } else {
           unread[m.from] = (unread[m.from] || 0) + 1;
           var c = findContact(m.from);
           if (c) c.last = m.body;
@@ -174,8 +216,15 @@
         }
         return;
       }
+      if (m.type === "delivered") {
+        if (peer && m.by === peer.id) markMine("delivered");
+        return;
+      }
       if (m.type === "read") {
-        if (peer && m.by === peer.id) PEER_SUB.textContent = online[peer.id] ? "Online" : peer.role;
+        if (peer && m.by === peer.id) {
+          markMine("read");
+          PEER_SUB.textContent = online[peer.id] ? "Online" : peer.role;
+        }
         return;
       }
       if (m.type === "typing") {
@@ -360,7 +409,9 @@
     var body = MSG_IN.value.trim();
     if (!body || !peer) return;
     MSG_IN.value = "";
-    wsSend({ type: "msg", to: peer.id, body: body });
+    var tempId = "t_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    addBubble({ body: body, at: new Date().toISOString(), self: true, tempId: tempId, status: "sending" });
+    wsSend({ type: "msg", to: peer.id, body: body, tempId: tempId });
   });
   MSG_IN.addEventListener("input", function () {
     if (!peer) return;

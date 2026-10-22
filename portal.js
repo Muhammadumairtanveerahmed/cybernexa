@@ -408,6 +408,7 @@ async function initSchema(pool) {
       recipient_id VARCHAR(40) NOT NULL,
       body TEXT NOT NULL,
       created_at DATETIME NOT NULL,
+      delivered_at DATETIME NULL,
       read_at DATETIME NULL,
       INDEX idx_chat_pair (sender_id, recipient_id, created_at),
       INDEX idx_chat_inbox (recipient_id, read_at)
@@ -452,6 +453,15 @@ async function initSchema(pool) {
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
   ];
   for (const sql of t) await pool.query(sql);
+
+  // Lightweight migrations for tables that existed before a column was added.
+  for (const sql of ["ALTER TABLE chat_messages ADD COLUMN delivered_at DATETIME NULL"]) {
+    try {
+      await pool.query(sql);
+    } catch {
+      /* column already exists */
+    }
+  }
 
   // Seed the lookup tables once; existing rows are left untouched.
   const seed = [
@@ -803,9 +813,13 @@ tr:last-child td{border-bottom:0}
 .unread{background:var(--p);color:#fff;font-size:10px;font-weight:700;border-radius:99px;padding:1px 7px}
 .msg-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:12px 14px;border-bottom:1px solid var(--line)}
 .thread{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px}
-.bubble{max-width:72%;padding:8px 12px;border-radius:10px;background:var(--bg3);border:1px solid var(--line);font-size:13px;line-height:1.45;white-space:pre-wrap;word-break:break-word}
+.bubble{max-width:72%;padding:8px 12px;border-radius:10px;background:var(--bg3);border:1px solid var(--line);font-size:13px;line-height:1.45;word-break:break-word;display:flex;flex-direction:column;gap:3px}
+.bubble .txt{white-space:pre-wrap}
 .bubble.me{align-self:flex-end;background:rgba(59,130,246,.22);border-color:rgba(59,130,246,.4)}
-.bubble .t{display:block;font-size:10px;color:var(--mut);margin-top:3px}
+.bubble .meta{display:flex;justify-content:flex-end;align-items:center;gap:5px;font-size:10px;color:var(--mut);line-height:1}
+.bubble .ticks{font-size:10px;color:#94a3b8}
+.bubble .ticks.read{color:#53bdeb}
+.bubble .ticks.sending{color:#64748b}
 .sendbar{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
 .sendbar input{height:40px}
 .callov{position:fixed;inset:0;background:rgba(3,6,15,.95);z-index:200;display:none;align-items:center;justify-content:center}
