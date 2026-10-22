@@ -209,12 +209,14 @@ function mount(app, core) {
         <video id="localV" autoplay playsinline muted></video>
         <div class="callbar">
           <span id="callStatus">Connecting...</span>
+          <span id="callNet" class="muted" style="font-size:11px"></span>
+          <button type="button" class="btn sm" id="sndFix" style="display:none"><i class="fa-solid fa-volume-high"></i> Enable sound</button>
           <button type="button" class="btn danger sm" id="endCall"><i class="fa-solid fa-phone-slash"></i> End</button>
         </div>
       </div>
 
       <script>window.CNX_CHAT = ${json};</script>
-      <script src="/js/messages.js?v=20261022g"></script>`;
+      <script src="/js/messages.js?v=20261022h"></script>`;
 
     res.send(
       core.shell(user, "messages", "Messages", "Chat and call your " + (user.role === "student" ? "teachers" : "students") + " in real time.", body)

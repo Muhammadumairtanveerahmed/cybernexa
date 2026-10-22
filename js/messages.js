@@ -33,6 +33,8 @@
   var REMOTE_V = document.getElementById("remoteV");
   var LOCAL_V = document.getElementById("localV");
   var STATUS = document.getElementById("callStatus");
+  var NET = document.getElementById("callNet");
+  var SNDFIX = document.getElementById("sndFix");
 
   var SECURE = window.isSecureContext && !!(navigator.mediaDevices && window.RTCPeerConnection);
   var ICE = {
@@ -410,6 +412,60 @@
     LOCAL_V.srcObject = null;
     REMOTE_V.style.opacity = "1";
     LOCAL_V.style.display = "block";
+    if (SNDFIX) SNDFIX.style.display = "none";
+    stopStats();
+  }
+
+  /* Make sure the remote audio is actually audible: autoplay can be blocked,
+     the element can be muted, or the volume can be zero. */
+  function playRemote() {
+    if (!REMOTE_V.srcObject) return;
+    REMOTE_V.muted = false;
+    try { REMOTE_V.volume = 1; } catch (e) {}
+    var pr = REMOTE_V.play();
+    if (pr && pr.catch) {
+      pr.then(function () {
+        if (SNDFIX) SNDFIX.style.display = "none";
+      }).catch(function () {
+        /* browser blocked audio until a click - offer a button */
+        if (SNDFIX) SNDFIX.style.display = "inline-flex";
+      });
+    }
+  }
+
+  var statTimer = null;
+  function stopStats() {
+    if (statTimer) { clearInterval(statTimer); statTimer = null; }
+    if (NET) NET.textContent = "";
+  }
+  /* Live audio in/out counter + microphone state, so a silent side is visible. */
+  function startStats() {
+    stopStats();
+    var tick = function () {
+      if (!pc) return;
+      var mic = localStream && localStream.getAudioTracks()[0];
+      pc.getStats().then(function (rep) {
+        var inB = 0, outB = 0;
+        rep.forEach(function (s) {
+          if (s.type === "inbound-rtp" && (s.kind === "audio" || s.mediaType === "audio")) {
+            inB = s.bytesReceived || 0;
+          }
+          if (s.type === "outbound-rtp" && (s.kind === "audio" || s.mediaType === "audio")) {
+            outB = s.bytesSent || 0;
+          }
+        });
+        if (NET) {
+          NET.textContent =
+            "in " + Math.round(inB / 1024) + " KB / out " + Math.round(outB / 1024) + " KB" +
+            (mic && mic.muted ? " - mic MUTED" : "");
+        }
+        if (mic && mic.muted) {
+          setStatus("Your microphone is muted - the other side cannot hear you");
+        }
+      }).catch(function () {});
+    };
+    tick();
+    statTimer = setInterval(tick, 2000);
   }
 
   function newPC() {
@@ -425,7 +481,7 @@
     p.ontrack = function (e) {
       if (e.streams && e.streams[0]) {
         REMOTE_V.srcObject = e.streams[0];
-        REMOTE_V.play().catch(function () {});
+        playRemote();
       }
     };
     /* only the original caller re-offers, to avoid offer glare */
@@ -443,6 +499,8 @@
       if (p.connectionState === "connected") {
         setStatus("Connected");
         restarted = false;
+        playRemote();
+        startStats();
       } else if (p.connectionState === "failed") {
         if (!restarted) {
           restarted = true;
@@ -463,7 +521,25 @@
     if (!navigator.mediaDevices || !navigator.mediaDevices.getUserMedia) {
       return Promise.reject(new Error("Calls need a secure HTTPS connection."));
     }
-    return navigator.mediaDevices.getUserMedia({ audio: true, video: kind === "video" });
+    return navigator.mediaDevices.getUserMedia({ audio: true, video: kind === "video" })
+      .then(function (stream) {
+        watchMic(stream);
+        return stream;
+      });
+  }
+
+  /* If the OS/browser mutes our mic, say it loudly instead of failing silently. */
+  function watchMic(stream) {
+    var t = stream.getAudioTracks()[0];
+    if (!t) { setStatus("No microphone found - the other side cannot hear you"); return; }
+    var flag = function () {
+      if (t.muted || t.readyState === "ended") {
+        setStatus("Your microphone is muted or unavailable - the other side cannot hear you");
+      }
+    };
+    t.onmute = flag;
+    t.onunmute = function () { setStatus("Connected"); };
+    t.onended = flag;
   }
 
   function flushIce() {
@@ -632,6 +708,12 @@
   });
   AUDIO_BTN.addEventListener("click", function () { startCall("audio"); });
   VIDEO_BTN.addEventListener("click", function () { startCall("video"); });
+  if (SNDFIX) {
+    SNDFIX.addEventListener("click", function () {
+      SNDFIX.style.display = "none";
+      playRemote();
+    });
+  }
   document.getElementById("endCall").addEventListener("click", function () { endCall(true); });
   document.getElementById("incAccept").addEventListener("click", acceptCall);
   document.getElementById("incReject").addEventListener("click", function () {
