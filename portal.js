@@ -815,6 +815,8 @@ tr:last-child td{border-bottom:0}
 .thread{flex:1;overflow-y:auto;padding:14px;display:flex;flex-direction:column;gap:8px}
 .bubble{max-width:72%;padding:8px 12px;border-radius:10px;background:var(--bg3);border:1px solid var(--line);font-size:13px;line-height:1.45;word-break:break-word;display:flex;flex-direction:column;gap:3px}
 .bubble .txt{white-space:pre-wrap}
+.bubble .who{font-size:10px;font-weight:600;color:var(--acc);letter-spacing:.2px}
+.bubble.me .who{color:var(--mut)}
 .bubble.me{align-self:flex-end;background:rgba(59,130,246,.22);border-color:rgba(59,130,246,.4)}
 .bubble .meta{display:flex;justify-content:flex-end;align-items:center;gap:5px;font-size:10px;color:var(--mut);line-height:1}
 .bubble .ticks{font-size:10px;color:#94a3b8}

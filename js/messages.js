@@ -9,6 +9,7 @@
   contacts.forEach(function (c) { unread[c.id] = Number(c.unread || 0); });
 
   var peer = null;
+  var lastGroup = "";
   var ws = null;
   var retry = 0;
   var pc = null;
@@ -69,7 +70,7 @@
       var n = unread[c.id] || 0;
       return '<div class="person' + (peer && peer.id === c.id ? " on" : "") + '" data-id="' + esc(c.id) + '">' +
         '<span class="dot' + (on ? " on" : "") + '"></span>' +
-        '<span class="nm"><b>' + esc(c.name) + '</b><span>' + (on ? "Online" : esc(c.role)) + (c.last && !n ? " - " + esc(c.last) : "") + '</span></span>' +
+        '<span class="nm"><b>' + esc(c.name) + '</b><span>' + esc(roleLabel(c.role)) + (on ? " \u00b7 Online" : "") + (c.last && !n ? " \u00b7 " + esc(c.last) : "") + '</span></span>' +
         (n ? '<span class="unread">' + n + '</span>' : "") +
         '</div>';
     }).join("");
@@ -114,11 +115,16 @@
     var mine = !!(m.self || m.sender_id === ME || m.from === ME);
     var when = m.created_at || m.at;
     var status = m.status || (m.read_at ? "read" : m.delivered_at ? "delivered" : "sent");
+    var who = mine ? "You" : ((peer && peer.name) || m.fromName || "Them");
+    var group = mine ? "me" : "them";
+    var showWho = group !== lastGroup;
+    lastGroup = group;
     var el = document.createElement("div");
     el.className = "bubble" + (mine ? " me" : "");
     if (m.id) el.setAttribute("data-id", m.id);
     if (m.tempId) el.setAttribute("data-tmp", m.tempId);
-    el.innerHTML = '<span class="txt">' + esc(m.body) + '</span>' +
+    el.innerHTML = (showWho ? '<span class="who">' + esc(who) + "</span>" : "") +
+      '<span class="txt">' + esc(m.body) + '</span>' +
       '<span class="meta"><span class="t">' + esc(hhmm(when)) + '</span>' + (mine ? tickHtml(status) : "") + '</span>';
     THREAD.appendChild(el);
     THREAD.scrollTop = THREAD.scrollHeight;
@@ -126,7 +132,17 @@
   }
 
   function clearThread(text) {
+    lastGroup = "";
     THREAD.innerHTML = '<p class="empty">' + esc(text || "") + "</p>";
+  }
+
+  function roleLabel(role) {
+    return role === "teacher" ? "Teacher" : role === "student" ? "Student" : String(role || "");
+  }
+
+  function peerSub() {
+    if (!peer) return;
+    PEER_SUB.textContent = roleLabel(peer.role) + (online[peer.id] ? " \u00b7 Online" : "");
   }
 
   function openChat(id) {
@@ -134,8 +150,9 @@
     if (!c) return;
     peer = c;
     unread[c.id] = 0;
+    lastGroup = "";
     PEER_NAME.textContent = c.name;
-    PEER_SUB.textContent = online[c.id] ? "Online" : c.role;
+    peerSub();
     MSG_IN.disabled = false;
     SEND_BTN.disabled = false;
     AUDIO_BTN.disabled = false;
@@ -184,12 +201,13 @@
 
       if (m.type === "ready") {
         (m.online || []).forEach(function (id) { online[id] = true; });
+        peerSub();
         renderPeople();
         return;
       }
       if (m.type === "presence") {
         online[m.userId] = !!m.online;
-        if (peer && peer.id === m.userId) PEER_SUB.textContent = m.online ? "Online" : peer.role;
+        if (peer && peer.id === m.userId) peerSub();
         renderPeople();
         return;
       }
@@ -221,15 +239,13 @@
         return;
       }
       if (m.type === "read") {
-        if (peer && m.by === peer.id) {
-          markMine("read");
-          PEER_SUB.textContent = online[peer.id] ? "Online" : peer.role;
-        }
+        if (peer && m.by === peer.id) markMine("read");
         return;
       }
       if (m.type === "typing") {
         if (peer && m.from === peer.id) {
-          PEER_SUB.textContent = m.on ? "typing..." : online[peer.id] ? "Online" : peer.role;
+          if (m.on) PEER_SUB.textContent = "typing...";
+          else peerSub();
         }
         return;
       }
@@ -440,4 +456,6 @@
 
   renderPeople();
   connect();
+  // Open the first conversation straight away so the chat is visible.
+  if (contacts.length) openChat(contacts[0].id);
 })();
