@@ -70,7 +70,7 @@
       var n = unread[c.id] || 0;
       return '<div class="person' + (peer && peer.id === c.id ? " on" : "") + '" data-id="' + esc(c.id) + '">' +
         '<span class="dot' + (on ? " on" : "") + '"></span>' +
-        '<span class="nm"><b>' + esc(c.name) + '</b><span>' + esc(roleLabel(c.role)) + (on ? " \u00b7 Online" : "") + (c.last && !n ? " \u00b7 " + esc(c.last) : "") + '</span></span>' +
+        '<span class="nm"><b>' + esc(c.name) + '</b><span>' + esc(roleLabel(c.role)) + ' <span class="pstate ' + (on ? "on" : "off") + '">' + (on ? "Online" : "Offline") + '</span>' + (c.last && !n ? " \u00b7 " + esc(c.last) : "") + '</span></span>' +
         (n ? '<span class="unread">' + n + '</span>' : "") +
         '</div>';
     }).join("");
@@ -111,21 +111,36 @@
   }
 
   /* --------------------------------------------------------------- thread */
-  function addBubble(m) {
-    var mine = !!(m.self || m.sender_id === ME || m.from === ME);
+  function bubbleHtml(m, mine, who, showWho) {
     var when = m.created_at || m.at;
     var status = m.status || (m.read_at ? "read" : m.delivered_at ? "delivered" : "sent");
+    var deleted = !!m.deleted_at;
+    var edited = !!m.edited_at && !deleted;
+    var head = showWho ? '<span class="who">' + esc(who) + "</span>" : "";
+    var meta = '<span class="meta">' +
+      (mine && !deleted ? '<span class="acts"><button type="button" class="mact" data-act="edit" title="Edit"><i class="fa-solid fa-pen"></i></button>' +
+        '<button type="button" class="mact" data-act="del" title="Delete"><i class="fa-solid fa-trash"></i></button></span>' : "") +
+      (edited ? '<span class="ed">edited</span>' : "") +
+      '<span class="t">' + esc(hhmm(when)) + "</span>" +
+      (mine && !deleted ? tickHtml(status) : "") +
+      "</span>";
+    if (deleted) {
+      return head + '<span class="txt del-txt"><i class="fa-solid fa-ban"></i> This message was deleted</span>' + meta;
+    }
+    return head + '<span class="txt">' + esc(m.body) + "</span>" + meta;
+  }
+
+  function addBubble(m) {
+    var mine = !!(m.self || m.sender_id === ME || m.from === ME);
     var who = mine ? "You" : ((peer && peer.name) || m.fromName || "Them");
     var group = mine ? "me" : "them";
     var showWho = group !== lastGroup;
     lastGroup = group;
     var el = document.createElement("div");
-    el.className = "bubble" + (mine ? " me" : "");
+    el.className = "bubble" + (mine ? " me" : "") + (m.deleted_at ? " deleted" : "");
     if (m.id) el.setAttribute("data-id", m.id);
     if (m.tempId) el.setAttribute("data-tmp", m.tempId);
-    el.innerHTML = (showWho ? '<span class="who">' + esc(who) + "</span>" : "") +
-      '<span class="txt">' + esc(m.body) + '</span>' +
-      '<span class="meta"><span class="t">' + esc(hhmm(when)) + '</span>' + (mine ? tickHtml(status) : "") + '</span>';
+    el.innerHTML = bubbleHtml(m, mine, who, showWho);
     THREAD.appendChild(el);
     THREAD.scrollTop = THREAD.scrollHeight;
     return el;
@@ -142,7 +157,78 @@
 
   function peerSub() {
     if (!peer) return;
-    PEER_SUB.textContent = roleLabel(peer.role) + (online[peer.id] ? " \u00b7 Online" : "");
+    var on = !!online[peer.id];
+    PEER_SUB.innerHTML = esc(roleLabel(peer.role)) + ' <span class="pstate ' + (on ? "on" : "off") + '">' +
+      (on ? "Online" : "Offline") + "</span>";
+  }
+
+  function markDeleted(el) {
+    el.classList.add("deleted");
+    var acts = el.querySelector(".acts");
+    if (acts) acts.remove();
+    var ticks = el.querySelector(".ticks");
+    if (ticks) ticks.remove();
+    var ed = el.querySelector(".ed");
+    if (ed) ed.remove();
+    var box = el.querySelector(".editbox");
+    if (box) box.remove();
+    var txt = el.querySelector(".txt");
+    if (txt) {
+      txt.className = "txt del-txt";
+      txt.innerHTML = '<i class="fa-solid fa-ban"></i> This message was deleted';
+    }
+  }
+
+  function startEdit(bubble) {
+    if (bubble.classList.contains("deleted") || bubble.querySelector(".editbox")) return;
+    var id = bubble.getAttribute("data-id");
+    var txt = bubble.querySelector(".txt");
+    if (!id || !txt) return;
+    var box = document.createElement("div");
+    box.className = "editbox";
+    box.innerHTML = '<textarea class="editin" maxlength="2000"></textarea>' +
+      '<div class="editrow"><button type="button" class="btn ghost sm" data-a="cancel">Cancel</button>' +
+      '<button type="button" class="btn primary sm" data-a="save">Save</button></div>';
+    txt.style.display = "none";
+    bubble.appendChild(box);
+    var ta = box.querySelector(".editin");
+    ta.value = txt.textContent;
+    ta.focus();
+    ta.setSelectionRange(ta.value.length, ta.value.length);
+    function done() {
+      box.remove();
+      txt.style.display = "";
+    }
+    function save() {
+      var v = ta.value.trim();
+      if (!v) return;
+      wsSend({ type: "edit", id: id, body: v });
+      txt.textContent = v;
+      done();
+      var meta = bubble.querySelector(".meta");
+      if (meta && !meta.querySelector(".ed")) meta.insertAdjacentHTML("afterbegin", '<span class="ed">edited</span>');
+    }
+    ta.addEventListener("keydown", function (ev) {
+      if (ev.key === "Enter" && !ev.shiftKey) {
+        ev.preventDefault();
+        save();
+      } else if (ev.key === "Escape") {
+        done();
+      }
+    });
+    box.addEventListener("click", function (ev) {
+      var b = ev.target.closest ? ev.target.closest("button[data-a]") : null;
+      if (!b) return;
+      if (b.getAttribute("data-a") === "save") save();
+      else done();
+    });
+  }
+
+  function deleteMsg(bubble) {
+    var id = bubble.getAttribute("data-id");
+    if (!id) return;
+    if (!window.confirm("Delete this message for both of you?")) return;
+    wsSend({ type: "del", id: id });
   }
 
   function openChat(id) {
@@ -240,6 +326,21 @@
       }
       if (m.type === "read") {
         if (peer && m.by === peer.id) markMine("read");
+        return;
+      }
+      if (m.type === "msg-edit") {
+        var e1 = m.id ? THREAD.querySelector('[data-id="' + m.id + '"]') : null;
+        if (e1) {
+          var t1 = e1.querySelector(".txt");
+          if (t1) t1.textContent = m.body;
+          var mt = e1.querySelector(".meta");
+          if (mt && !mt.querySelector(".ed")) mt.insertAdjacentHTML("afterbegin", '<span class="ed">edited</span>');
+        }
+        return;
+      }
+      if (m.type === "msg-del") {
+        var e2 = m.id ? THREAD.querySelector('[data-id="' + m.id + '"]') : null;
+        if (e2) markDeleted(e2);
         return;
       }
       if (m.type === "typing") {
@@ -419,6 +520,15 @@
   }
 
   /* --------------------------------------------------------------- wiring */
+  THREAD.addEventListener("click", function (e) {
+    var btn = e.target.closest ? e.target.closest(".mact") : null;
+    if (!btn) return;
+    var bubble = btn.closest(".bubble");
+    if (!bubble) return;
+    var act = btn.getAttribute("data-act");
+    if (act === "edit") startEdit(bubble);
+    else if (act === "del") deleteMsg(bubble);
+  });
   document.getElementById("mq").addEventListener("input", renderPeople);
   document.getElementById("sendForm").addEventListener("submit", function (e) {
     e.preventDefault();

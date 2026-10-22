@@ -410,6 +410,8 @@ async function initSchema(pool) {
       created_at DATETIME NOT NULL,
       delivered_at DATETIME NULL,
       read_at DATETIME NULL,
+      edited_at DATETIME NULL,
+      deleted_at DATETIME NULL,
       INDEX idx_chat_pair (sender_id, recipient_id, created_at),
       INDEX idx_chat_inbox (recipient_id, read_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
@@ -455,7 +457,11 @@ async function initSchema(pool) {
   for (const sql of t) await pool.query(sql);
 
   // Lightweight migrations for tables that existed before a column was added.
-  for (const sql of ["ALTER TABLE chat_messages ADD COLUMN delivered_at DATETIME NULL"]) {
+  for (const sql of [
+    "ALTER TABLE chat_messages ADD COLUMN delivered_at DATETIME NULL",
+    "ALTER TABLE chat_messages ADD COLUMN edited_at DATETIME NULL",
+    "ALTER TABLE chat_messages ADD COLUMN deleted_at DATETIME NULL",
+  ]) {
     try {
       await pool.query(sql);
     } catch {
@@ -817,6 +823,18 @@ tr:last-child td{border-bottom:0}
 .bubble .txt{white-space:pre-wrap}
 .bubble .who{font-size:10px;font-weight:600;color:var(--acc);letter-spacing:.2px}
 .bubble.me .who{color:var(--mut)}
+.bubble .acts{display:inline-flex;gap:1px;margin-right:auto}
+.bubble .mact{background:none;border:0;padding:0 2px;font-size:10px;line-height:1;color:var(--mut);cursor:pointer}
+.bubble .mact:hover{color:var(--acc)}
+.bubble .mact[data-act="del"]:hover{color:var(--red)}
+.bubble .ed{font-style:italic;font-size:9px;color:var(--mut)}
+.bubble .del-txt{color:var(--mut);font-style:italic}
+.bubble .editbox{display:flex;flex-direction:column;gap:4px;width:100%}
+.bubble .editin{width:100%;height:auto;min-height:54px;resize:vertical;background:var(--bg2);border:1px solid var(--line2);border-radius:3px;padding:6px 8px;color:var(--txt);font:inherit;font-size:13px}
+.bubble .editrow{display:flex;justify-content:flex-end;gap:6px}
+.pstate{font-size:10px;font-weight:600}
+.pstate.on{color:var(--green)}
+.pstate.off{color:var(--mut)}
 .bubble.me{align-self:flex-end;background:rgba(59,130,246,.22);border-color:rgba(59,130,246,.4)}
 .bubble .meta{display:flex;justify-content:flex-end;align-items:center;gap:5px;font-size:10px;color:var(--mut);line-height:1}
 .bubble .ticks{font-size:10px;color:#94a3b8}

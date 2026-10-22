@@ -115,7 +115,9 @@ function mount(app, core) {
     const user = req.user;
     const contacts = await contactList(user);
     const [recent] = await q(
-      `SELECT sender_id, recipient_id, body, created_at, read_at
+      `SELECT sender_id, recipient_id,
+              CASE WHEN deleted_at IS NULL THEN body ELSE 'Message deleted' END AS body,
+              created_at, read_at
          FROM chat_messages
         WHERE sender_id = ? OR recipient_id = ?
         ORDER BY created_at DESC LIMIT 400`,
@@ -196,7 +198,7 @@ function mount(app, core) {
       </div>
 
       <script>window.CNX_CHAT = ${json};</script>
-      <script src="/js/messages.js?v=20261022b"></script>`;
+      <script src="/js/messages.js?v=20261022c"></script>`;
 
     res.send(
       core.shell(user, "messages", "Messages", "Chat and call your " + (user.role === "student" ? "teachers" : "students") + " in real time.", body)
@@ -214,7 +216,7 @@ function mount(app, core) {
     if (!withId) return res.status(400).json({ ok: false, error: "with is required" });
     const before = String(req.query.before || "");
     const params = [me, withId, withId, me];
-    let sql = `SELECT id, sender_id, recipient_id, body, created_at, delivered_at, read_at
+    let sql = `SELECT id, sender_id, recipient_id, body, created_at, delivered_at, read_at, edited_at, deleted_at
                  FROM chat_messages
                 WHERE ((sender_id = ? AND recipient_id = ?) OR (sender_id = ? AND recipient_id = ?))`;
     if (before) {
@@ -374,6 +376,43 @@ function attach(server, getPool) {
           [me.id, from]
         );
         sendTo(from, { type: "read", by: me.id, count: r.affectedRows || 0, at: new Date().toISOString() });
+        return;
+      }
+
+      if (m.type === "edit") {
+        const id = String(m.id || "");
+        const body = String(m.body || "").trim().slice(0, MAX_BODY);
+        if (!id || !body) return;
+        const [rows] = await pool.query(
+          "SELECT sender_id, recipient_id, deleted_at FROM chat_messages WHERE id = ? LIMIT 1",
+          [id]
+        );
+        if (!rows.length) return;
+        const row = rows[0];
+        if (row.sender_id !== me.id || row.deleted_at) return;
+        await pool.query("UPDATE chat_messages SET body = ?, edited_at = NOW() WHERE id = ?", [body, id]);
+        const ev = { type: "msg-edit", id, body, from: me.id, edited_at: new Date().toISOString() };
+        sendTo(me.id, ev);
+        sendTo(row.recipient_id, ev);
+        return;
+      }
+
+      if (m.type === "del") {
+        const id = String(m.id || "");
+        if (!id) return;
+        const [rows] = await pool.query(
+          "SELECT sender_id, recipient_id, deleted_at FROM chat_messages WHERE id = ? LIMIT 1",
+          [id]
+        );
+        if (!rows.length) return;
+        const row = rows[0];
+        if (row.sender_id !== me.id) return;
+        if (!row.deleted_at) {
+          await pool.query("UPDATE chat_messages SET body = '', deleted_at = NOW() WHERE id = ?", [id]);
+        }
+        const ev = { type: "msg-del", id, from: me.id };
+        sendTo(me.id, ev);
+        sendTo(row.recipient_id, ev);
         return;
       }
 
