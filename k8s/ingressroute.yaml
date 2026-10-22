@@ -1,0 +1,66 @@
+# Routing for CyberNexa (Traefik CRDs).
+# Why CRDs: a standard Ingress produced 404s on this cluster; IngressRoute works.
+#
+# Works on:
+#   http://54.161.79.42/            (plain HTTP)
+#   https://54.161.79.42/           (Traefik default self-signed certificate)
+#   http://webnexa.duckdns.org/     (once DNS points to 54.161.79.42)
+#   https://webnexa.duckdns.org/    (once DNS is fixed + a real cert exists)
+#
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: cybernexa-web
+  namespace: default
+spec:
+  entryPoints:
+    - web
+  routes:
+    - match: PathPrefix(`/jenkins`)
+      kind: Rule
+      services:
+        - name: jenkins
+          port: 8080
+    - match: PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: cybernexa
+          port: 80
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: cybernexa-websecure
+  namespace: default
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: PathPrefix(`/jenkins`)
+      kind: Rule
+      services:
+        - name: jenkins
+          port: 8080
+    - match: PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: cybernexa
+          port: 80
+  tls: {}
+---
+# ---------------------------------------------------------------
+# Let's Encrypt for webnexa.duckdns.org
+# Enable ONLY after the DuckDNS A record points to 54.161.79.42,
+# otherwise ACME validation fails and can hit rate limits.
+# To enable, replace `tls: {}` above with:
+#
+#   tls:
+#     certResolver: letsencrypt
+#     domains:
+#       - main: webnexa.duckdns.org
+#
+# Certificates are stored in /data/acme.json inside the traefik pod,
+# and the issued cert appears as secret default/cybernexa-tls only if
+# an Ingress (not IngressRoute) references it; with IngressRoute the
+# resolver serves it directly.
+# ---------------------------------------------------------------
