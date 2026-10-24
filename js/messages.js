@@ -259,7 +259,6 @@
     pendingAttach = null;
     if (ATT_PREV) { ATT_PREV.style.display = "none"; ATT_PREV.innerHTML = ""; }
     if (FILE_PICK) FILE_PICK.value = "";
-    if (ATTACH_BTN) ATTACH_BTN.disabled = true;
   }
 
   function roleLabel(role) {
