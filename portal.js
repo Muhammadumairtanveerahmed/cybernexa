@@ -422,6 +422,18 @@ async function initSchema(pool) {
       PRIMARY KEY (message_id, user_id),
       INDEX idx_hidden_user (user_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
+    `CREATE TABLE IF NOT EXISTS chat_attachments (
+      id VARCHAR(40) PRIMARY KEY,
+      message_id VARCHAR(40) NOT NULL,
+      sender_id VARCHAR(40) NOT NULL,
+      original_name VARCHAR(255) NOT NULL,
+      stored_name VARCHAR(255) NOT NULL,
+      mime_type VARCHAR(128) NULL,
+      file_size INT UNSIGNED DEFAULT 0,
+      created_at DATETIME NOT NULL,
+      INDEX idx_ca_msg (message_id)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
     `CREATE TABLE IF NOT EXISTS call_logs (
       id VARCHAR(40) PRIMARY KEY,
       call_key VARCHAR(40) NOT NULL,
@@ -849,6 +861,18 @@ tr:last-child td{border-bottom:0}
 .bubble .ticks.sending{color:#64748b}
 .sendbar{display:flex;gap:8px;padding:10px;border-top:1px solid var(--line)}
 .sendbar input{height:40px}
+.atts{display:flex;flex-direction:column;gap:6px;margin-bottom:4px;width:100%}
+.att img{max-width:230px;max-height:200px;border-radius:8px;border:1px solid var(--line);display:block}
+.att-file{display:flex;align-items:center;gap:8px;padding:8px 10px;background:rgba(0,0,0,.25);border:1px solid var(--line);border-radius:6px;color:var(--txt);text-decoration:none;font-size:12px;max-width:260px}
+.att-file span{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.att-file i:first-child{color:var(--acc)}
+.attach-preview{display:none;align-items:center;gap:8px;padding:8px 12px;border-top:1px solid var(--line);background:var(--bg2);flex-wrap:wrap}
+.prev-item{position:relative;display:inline-flex;align-items:center}
+.prev-item img{width:64px;height:64px;object-fit:cover;border-radius:6px;border:1px solid var(--line)}
+.prev-file{display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--bg3);border:1px solid var(--line);border-radius:6px;font-size:12px;max-width:220px}
+.prev-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt)}
+.prev-rm{position:absolute;top:-6px;right:-6px;border:1px solid var(--line);background:var(--bg2);color:var(--txt);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;padding:0}
+.prev-rm:hover{background:var(--red);border-color:var(--red);color:#fff}
 .callov{position:fixed;inset:0;background:rgba(3,6,15,.95);z-index:200;display:none;align-items:center;justify-content:center}
 .callov.on{display:flex}
 .callov video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
@@ -968,6 +992,7 @@ function shell(user, active, title, sub, body, extraNav = "") {
     ${extraNav}
     <a href="/" target="_blank"><i class="fa-solid fa-globe"></i> View Website</a>
     <div class="who">
+      ${user.photo ? `<img src="${esc(user.photo)}" alt="${esc(user.full_name)} profile photo" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin-bottom:8px;border:2px solid var(--line)">` : `<div aria-hidden="true" style="width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#1a2540;color:var(--acc);font-weight:700;margin-bottom:8px">${esc((user.full_name || "?").trim().split(/\s+/).slice(0,2).map((x) => x[0]).join("").toUpperCase())}</div>`}
       <div class="nm">${esc(user.full_name)}</div>
       <div>${esc(user.role)} · ${esc(user.email)}</div>
       <form method="post" action="/portal/logout" style="margin-top:10px">
@@ -1642,6 +1667,11 @@ function mount(app, context) {
   app.get("/portal/profile", requireUser("student", "teacher"), async (req, res) => {
     const u = req.user;
     const ok = req.query.saved ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> Profile saved.</div>` : "";
+    const avatarControl = `<div style="display:flex;align-items:center;gap:16px;margin:14px 0">
+      <img id="profile-photo-preview" src="${u.photo ? esc(u.photo) : ""}" alt="Profile photo preview" ${u.photo ? "" : "hidden"} style="width:84px;height:84px;border-radius:50%;object-fit:cover;border:2px solid var(--line)">
+      <div id="profile-photo-placeholder" ${u.photo ? "hidden" : ""} aria-hidden="true" style="width:84px;height:84px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#1a2540;color:var(--acc);font-size:24px;font-weight:700;border:2px solid var(--line)">${esc((u.full_name || "?").trim().split(/\s+/).slice(0,2).map((x) => x[0]).join("").toUpperCase())}</div>
+      <div style="flex:1"><label for="profile-photo-file">Profile photo</label><input id="profile-photo-file" type="file" name="photo" accept="image/jpeg,image/png,image/webp,.jpg,.jpeg,.png,.webp"><div class="muted" style="font-size:.82rem;margin-top:4px">Choose a JPG, PNG, or WebP image. It will appear on your profile and in Messages &amp; Calls.</div></div>
+    </div><script>(function(){var f=document.getElementById('profile-photo-file'),p=document.getElementById('profile-photo-preview'),n=document.getElementById('profile-photo-placeholder');if(f)f.addEventListener('change',function(){var file=f.files&&f.files[0];if(!file)return;if(!/^image\\/(jpeg|png|webp)$/.test(file.type)){f.value='';return}p.src=URL.createObjectURL(file);p.hidden=false;n.hidden=true})})();</script>`;
     if (u.role === "teacher") {
       const t = (await getTeacherProfile(u.id)) || {};
       const cv = (await q("SELECT * FROM documents WHERE user_id = ? AND kind = 'cv' ORDER BY uploaded_at DESC LIMIT 1", [u.id]))[0][0];
@@ -1665,7 +1695,7 @@ function mount(app, context) {
               <div><label>Expected fee</label><input name="expected_fee" value="${esc(t.expected_fee)}"></div>
             </div>
             <label>Availability</label><input name="availability" value="${esc(t.availability)}" placeholder="Evenings, weekends...">
-            <label>Profile photo</label><input type="file" name="photo" accept=".jpg,.jpeg,.png,.webp">
+            ${avatarControl}
             <label>CV / Resume (PDF or image)</label><input type="file" name="cv" accept=".pdf,.jpg,.jpeg,.png">
             ${cv ? `<p class="muted mt">Current CV: <a href="/portal/file/${esc(cv.id)}" target="_blank"><i class="fa-solid fa-paperclip"></i> ${esc(cv.originalname || "CV")}</a></p>` : ""}
             <button class="btn primary mt" type="submit">Save profile</button>
@@ -1699,7 +1729,7 @@ function mount(app, context) {
           </div>
           <label>Last qualification</label><input name="last_qualification" value="${esc(p.last_qualification)}">
           <label>Interests</label><input name="interests" value="${esc(p.interests)}" placeholder="Cybersecurity, Cloud...">
-          <label>Profile photo</label><input type="file" name="photo" accept=".jpg,.jpeg,.png,.webp">
+          ${avatarControl}
           <button class="btn primary mt" type="submit">Save profile</button>
         </form></div>`));
   });
@@ -1716,7 +1746,7 @@ function mount(app, context) {
         String(b.full_name || u.full_name).trim() || u.full_name, String(b.phone || "").trim(), u.id,
       ]);
       if (photoFile) {
-        await q("UPDATE users SET photo = ? WHERE id = ?", ["avatars/" + photoFile.filename, u.id]);
+        await q("UPDATE users SET photo = ? WHERE id = ?", ["/uploads/avatars/" + photoFile.filename, u.id]);
       }
       if (u.role === "teacher") {
         await q(

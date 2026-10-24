@@ -24,6 +24,10 @@
   var THREAD = document.getElementById("thread");
   var PEER_NAME = document.getElementById("peerName");
   var PEER_SUB = document.getElementById("peerSub");
+  var PEER_AVATAR = document.getElementById("peerAvatar");
+  var INC_AVATAR = document.getElementById("incAvatar");
+  var CALL_PEER_AVATAR = document.getElementById("callPeerAvatar");
+  var CALL_PEER_NAME = document.getElementById("callPeerName");
   var MSG_IN = document.getElementById("msgIn");
   var SEND_BTN = document.getElementById("sendBtn");
   var AUDIO_BTN = document.getElementById("btnAudio");
@@ -98,6 +102,17 @@
   function initials(n) {
     return String(n || "?").trim().split(/\s+/).slice(0, 2).map(function (x) { return x[0]; }).join("").toUpperCase();
   }
+  function avatarHtml(person, size) {
+    var px = size || 40;
+    return person && person.photo
+      ? '<img src="' + esc(person.photo) + '" alt="' + esc(person.name || "Profile photo") + '" style="width:100%;height:100%;object-fit:cover;border-radius:50%">'
+      : '<span style="font-size:' + Math.max(12, Math.round(px * 0.36)) + 'px;font-weight:700;color:var(--acc)">' + esc(initials(person && person.name)) + '</span>';
+  }
+  function setCallPeer(person) {
+    if (!person) return;
+    if (CALL_PEER_AVATAR) CALL_PEER_AVATAR.innerHTML = avatarHtml(person, 34);
+    if (CALL_PEER_NAME) CALL_PEER_NAME.textContent = person.name || "";
+  }
   function hhmm(v) {
     if (!v) return "";
     var d = new Date(v);
@@ -116,8 +131,12 @@
     PEOPLE.innerHTML = list.map(function (c) {
       var on = !!online[c.id];
       var n = unread[c.id] || 0;
+      var av = c.photo
+        ? '<img src="' + esc(c.photo) + '" alt="" style="width:32px;height:32px;border-radius:50%;object-fit:cover">'
+        : '<span style="width:32px;height:32px;border-radius:50%;background:#1a2540;color:var(--acc);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700">' + esc(initials(c.name)) + '</span>';
       return '<div class="person' + (peer && peer.id === c.id ? " on" : "") + '" data-id="' + esc(c.id) + '">' +
         '<span class="dot' + (on ? " on" : "") + '"></span>' +
+        '<span style="flex-shrink:0;overflow:hidden">' + av + '</span>' +
         '<span class="nm"><b>' + esc(c.name) + '</b><span>' + esc(roleLabel(c.role)) + ' <span class="pstate ' + (on ? "on" : "off") + '">' + (on ? "Online" : "Offline") + '</span>' + (c.last && !n ? " \u00b7 " + esc(c.last) : "") + '</span></span>' +
         (n ? '<span class="unread">' + n + '</span>' : "") +
         '</div>';
@@ -159,6 +178,29 @@
   }
 
   /* --------------------------------------------------------------- thread */
+  function isImg(mime, name) {
+    if (mime && mime.indexOf("image/") === 0) return true;
+    var n = String(name || "").toLowerCase();
+    return /\.(jpg|jpeg|png|gif|webp)$/.test(n);
+  }
+  function fileIcon(name) {
+    var n = String(name || "").toLowerCase();
+    if (/\.pdf$/.test(n)) return "fa-file-pdf";
+    if (/\.(doc|docx)$/.test(n)) return "fa-file-word";
+    if (/\.(xls|xlsx)$/.test(n)) return "fa-file-excel";
+    if (/\.txt$/.test(n)) return "fa-file-lines";
+    if (/\.csv$/.test(n)) return "fa-file-csv";
+    return "fa-file";
+  }
+  function attachHtml(a) {
+    if (!a) return "";
+    var url = a.url || (a.stored_name ? "/api/chat/file/" + encodeURIComponent(a.stored_name) : "");
+    var name = a.original_name || a.name || "file";
+    if (isImg(a.mime_type || a.mime, name)) {
+      return '<div class="att"><a href="' + esc(url) + '" target="_blank" rel="noopener"><img src="' + esc(url) + '" alt="' + esc(name) + '"></a></div>';
+    }
+    return '<div class="att"><a class="att-file" href="' + esc(url) + '" target="_blank" rel="noopener"><i class="fa-solid ' + fileIcon(name) + '"></i><span>' + esc(name) + '</span><i class="fa-solid fa-download"></i></a></div>';
+  }
   function bubbleHtml(m, mine, who, showWho) {
     var when = m.created_at || m.at;
     var status = m.status || (m.read_at ? "read" : m.delivered_at ? "delivered" : "sent");
@@ -180,7 +222,15 @@
     if (deleted) {
       return head + '<span class="txt del-txt"><i class="fa-solid fa-ban"></i> This message was deleted</span>' + meta;
     }
-    return head + '<span class="txt">' + esc(m.body) + "</span>" + meta;
+    var att = "";
+    if (m.attachments && m.attachments.length) {
+      att = '<div class="atts">' + m.attachments.map(attachHtml).join("") + '</div>';
+    } else if (m.attachment) {
+      att = '<div class="atts">' + attachHtml(m.attachment) + '</div>';
+    }
+    var body = m.body ? '<span class="txt">' + esc(m.body) + "</span>" : "";
+    if (!att && !m.body) body = '<span class="txt"></span>';
+    return head + att + body + meta;
   }
 
   function addBubble(m) {
@@ -202,6 +252,10 @@
   function clearThread(text) {
     lastGroup = "";
     THREAD.innerHTML = '<p class="empty">' + esc(text || "") + "</p>";
+    pendingAttach = null;
+    if (ATT_PREV) { ATT_PREV.style.display = "none"; ATT_PREV.innerHTML = ""; }
+    if (FILE_PICK) FILE_PICK.value = "";
+    if (ATTACH_BTN) ATTACH_BTN.disabled = true;
   }
 
   function roleLabel(role) {
@@ -295,9 +349,11 @@
     unread[c.id] = 0;
     lastGroup = "";
     PEER_NAME.textContent = c.name;
+    if (PEER_AVATAR) PEER_AVATAR.innerHTML = avatarHtml(c, 40);
     peerSub();
     MSG_IN.disabled = false;
     SEND_BTN.disabled = false;
+    if (ATTACH_BTN) ATTACH_BTN.disabled = false;
     AUDIO_BTN.disabled = false;
     VIDEO_BTN.disabled = false;
     MSG_IN.focus();
@@ -362,13 +418,16 @@
             if (m.id) tmp.setAttribute("data-id", m.id);
             tmp.removeAttribute("data-tmp");
             setTicks(tmp, m.delivered ? "delivered" : "sent");
+            if (m.attachments && !tmp.querySelector(".atts")) {
+              tmp.insertAdjacentHTML("afterbegin", '<div class="atts">' + m.attachments.map(attachHtml).join("") + '</div>');
+            }
           } else {
-            addBubble({ body: m.body, at: m.at, self: true, status: m.delivered ? "delivered" : "sent" });
+            addBubble({ body: m.body, at: m.at, self: true, status: m.delivered ? "delivered" : "sent", attachments: m.attachments });
           }
           return;
         }
         if (peer && m.from === peer.id) {
-          addBubble({ body: m.body, at: m.at, from: m.from });
+          addBubble({ body: m.body, at: m.at, from: m.from, attachments: m.attachments });
           wsSend({ type: "read", from: m.from });
         } else {
           unread[m.from] = (unread[m.from] || 0) + 1;
@@ -900,6 +959,7 @@
       return;
     }
     callPeer = peer.id;
+    setCallPeer(peer);
     callKind = kind;
     callId = "c_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
     setStatus("Calling " + peer.name + "...");
@@ -971,6 +1031,9 @@
       callId = m.callId;
       callPeer = m.from;
       callKind = m.kind || "audio";
+      var caller = findContact(m.from) || { id: m.from, name: m.fromName || "Someone", photo: "" };
+      setCallPeer(caller);
+      if (INC_AVATAR) INC_AVATAR.innerHTML = avatarHtml(caller, 64);
       document.getElementById("incWho").textContent =
         (m.fromName || "Someone") + " is calling you (" + (m.kind === "video" ? "video" : "voice") + ")";
       MODAL.classList.add("open");
@@ -1019,15 +1082,67 @@
     else if (act === "del") deleteMsg(bubble);
   });
   document.getElementById("mq").addEventListener("input", renderPeople);
+  if (ATTACH_BTN && FILE_PICK) {
+    ATTACH_BTN.addEventListener("click", function () { if (!ATTACH_BTN.disabled) FILE_PICK.click(); });
+    FILE_PICK.addEventListener("change", function () {
+      var f = FILE_PICK.files && FILE_PICK.files[0];
+      if (!f) return;
+      if (f.size > 10 * 1024 * 1024) {
+        alert("File must be 10 MB or smaller.");
+        FILE_PICK.value = "";
+        return;
+      }
+      pendingAttach = { file: f, name: f.name, mime: f.type, url: "" };
+      if (ATT_PREV) {
+        ATT_PREV.style.display = "flex";
+        if (f.type.indexOf("image/") === 0) {
+          var r = new FileReader();
+          r.onload = function (ev) {
+            ATT_PREV.innerHTML = '<div class="prev-item"><img src="' + esc(ev.target.result) + '" alt=""><button type="button" class="prev-rm" id="rmAttach"><i class="fa-solid fa-xmark"></i></button></div>';
+            var rm = document.getElementById("rmAttach");
+            if (rm) rm.onclick = function () { pendingAttach = null; ATT_PREV.style.display = "none"; ATT_PREV.innerHTML = ""; FILE_PICK.value = ""; };
+          };
+          r.readAsDataURL(f);
+        } else {
+          ATT_PREV.innerHTML = '<div class="prev-item"><div class="prev-file"><i class="fa-solid ' + fileIcon(f.name) + '"></i> ' + esc(f.name) + '</div><button type="button" class="prev-rm" id="rmAttach"><i class="fa-solid fa-xmark"></i></button></div>';
+          var rm2 = document.getElementById("rmAttach");
+          if (rm2) rm2.onclick = function () { pendingAttach = null; ATT_PREV.style.display = "none"; ATT_PREV.innerHTML = ""; FILE_PICK.value = ""; };
+        }
+      }
+    });
+  }
   document.getElementById("sendForm").addEventListener("submit", function (e) {
     e.preventDefault();
+    if (!peer) return;
     var body = MSG_IN.value.trim();
-    if (!body || !peer) return;
-    MSG_IN.value = "";
-    var tempId = "t_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
-    addBubble({ body: body, at: new Date().toISOString(), self: true, tempId: tempId, status: "sending" });
-    wsSend({ type: "msg", to: peer.id, body: body, tempId: tempId });
+    if (!body && !pendingAttach) return;
+    if (pendingAttach && pendingAttach.file && !pendingAttach.uploaded) {
+      SEND_BTN.disabled = true;
+      var fd = new FormData();
+      fd.append("file", pendingAttach.file);
+      fetch("/api/chat/upload", { method: "POST", body: fd, credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.ok) { alert(d.error || "Upload failed"); SEND_BTN.disabled = false; return; }
+          pendingAttach.uploaded = d.file;
+          sendNow(body);
+        })
+        .catch(function () { alert("Upload failed"); SEND_BTN.disabled = false; });
+      return;
+    }
+    sendNow(body);
   });
+  function sendNow(body) {
+    MSG_IN.value = "";
+    var att = pendingAttach && pendingAttach.uploaded ? pendingAttach.uploaded : null;
+    var tempId = "t_" + Date.now().toString(36) + Math.random().toString(36).slice(2, 6);
+    addBubble({ body: body, at: new Date().toISOString(), self: true, tempId: tempId, status: "sending", attachments: att ? [att] : [] });
+    wsSend({ type: "msg", to: peer.id, body: body, tempId: tempId, attachment: att || null });
+    pendingAttach = null;
+    if (ATT_PREV) { ATT_PREV.style.display = "none"; ATT_PREV.innerHTML = ""; }
+    if (FILE_PICK) FILE_PICK.value = "";
+    SEND_BTN.disabled = false;
+  }
   MSG_IN.addEventListener("input", function () {
     if (!peer) return;
     wsSend({ type: "typing", to: peer.id, on: !!MSG_IN.value });
@@ -1094,6 +1209,169 @@
     var shell = document.querySelector(".msg-shell");
     if (shell && shell.parentNode) shell.parentNode.insertBefore(warn, shell);
   }
+
+  /* ====================================================== PROFILE MODAL ==== */
+  (function () {
+    var PROF_MODAL = document.getElementById("profileModal");
+    var PROF_BAR   = document.getElementById("myProfileBar");
+    var PROF_FORM  = document.getElementById("profileForm");
+    var PROF_NAME  = document.getElementById("profileName");
+    var PROF_PHONE = document.getElementById("profilePhone");
+    var PROF_EMAIL = document.getElementById("profileEmail");
+    var PROF_STATUS = document.getElementById("profileSaveStatus");
+    var PROF_CLOSE  = document.getElementById("profileClose");
+    var PROF_AVATAR_WRAP = document.getElementById("profileAvatarWrap");
+    var PROF_AVATAR_FILE = document.getElementById("profileAvatarFile");
+    var PROF_AVATAR_STATUS = document.getElementById("profileAvatarStatus");
+    var PROF_CHANGE_PHOTO = document.getElementById("profileChangePhoto");
+    var PROF_REMOVE_PHOTO = document.getElementById("profileRemovePhoto");
+    var MY_AVATAR_THUMB   = document.getElementById("myAvatarThumb");
+    var MY_NAME_LABEL     = document.getElementById("myNameLabel");
+
+    if (!PROF_MODAL || !PROF_BAR) return;
+
+    function openProfileModal() {
+      PROF_STATUS.textContent = "";
+      PROF_AVATAR_STATUS.textContent = "";
+      fetch("/api/profile", { credentials: "same-origin" })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+          if (!d.ok) return;
+          var p = d.profile;
+          PROF_NAME.value  = p.name  || "";
+          PROF_PHONE.value = p.phone || "";
+          PROF_EMAIL.value = p.email || "";
+          /* refresh avatar preview inside modal */
+          var inner = document.getElementById("profileAvatarInner");
+          if (inner) {
+            if (p.photo) {
+              inner.innerHTML = '<img src="' + esc(p.photo) + '" id="profileAvatarImg" alt="avatar" style="width:100%;height:100%;object-fit:cover">';
+            } else {
+              var ini = (p.name || "?").trim().split(/\s+/).slice(0, 2).map(function (x) { return x[0]; }).join("").toUpperCase();
+              inner.innerHTML = '<span id="profileAvatarInitials" style="font-size:28px;font-weight:700;color:var(--acc)">' + esc(ini) + "</span>";
+            }
+          }
+        })
+        .catch(function () {});
+      PROF_MODAL.classList.add("open");
+    }
+
+    function closeProfileModal() { PROF_MODAL.classList.remove("open"); }
+
+    PROF_BAR.addEventListener("click", openProfileModal);
+    if (PROF_CLOSE) PROF_CLOSE.addEventListener("click", closeProfileModal);
+    PROF_MODAL.addEventListener("click", function (ev) {
+      if (ev.target === PROF_MODAL) closeProfileModal();
+    });
+
+    /* ---- Avatar click -> file picker ---- */
+    function triggerFilePicker() { PROF_AVATAR_FILE && PROF_AVATAR_FILE.click(); }
+    if (PROF_AVATAR_WRAP) PROF_AVATAR_WRAP.addEventListener("click", triggerFilePicker);
+    if (PROF_CHANGE_PHOTO) PROF_CHANGE_PHOTO.addEventListener("click", triggerFilePicker);
+
+    if (PROF_AVATAR_FILE) {
+      PROF_AVATAR_FILE.addEventListener("change", function () {
+        var file = PROF_AVATAR_FILE.files && PROF_AVATAR_FILE.files[0];
+        if (!file) return;
+        if (file.size > 3 * 1024 * 1024) {
+          PROF_AVATAR_STATUS.style.color = "#e74c3c";
+          PROF_AVATAR_STATUS.textContent = "File too large (max 3 MB)";
+          return;
+        }
+        PROF_AVATAR_STATUS.style.color = "var(--acc)";
+        PROF_AVATAR_STATUS.textContent = "Uploading...";
+        var fd = new FormData();
+        fd.append("avatar", file);
+        fetch("/api/profile/avatar", { method: "POST", body: fd, credentials: "same-origin" })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d.ok) {
+              PROF_AVATAR_STATUS.style.color = "#e74c3c";
+              PROF_AVATAR_STATUS.textContent = d.error || "Upload failed";
+              return;
+            }
+            PROF_AVATAR_STATUS.style.color = "#2ecc71";
+            PROF_AVATAR_STATUS.textContent = "Photo updated!";
+            /* update modal avatar */
+            var inner = document.getElementById("profileAvatarInner");
+            if (inner) inner.innerHTML = '<img src="' + esc(d.photo) + '?t=' + Date.now() + '" id="profileAvatarImg" alt="avatar" style="width:100%;height:100%;object-fit:cover">';
+            /* update sidebar thumb */
+            if (MY_AVATAR_THUMB) MY_AVATAR_THUMB.innerHTML = '<img src="' + esc(d.photo) + '?t=' + Date.now() + '" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%">';
+          })
+          .catch(function () {
+            PROF_AVATAR_STATUS.style.color = "#e74c3c";
+            PROF_AVATAR_STATUS.textContent = "Upload failed. Try again.";
+          });
+        PROF_AVATAR_FILE.value = "";
+      });
+    }
+
+    /* ---- Remove avatar ---- */
+    if (PROF_REMOVE_PHOTO) {
+      PROF_REMOVE_PHOTO.addEventListener("click", function () {
+        if (!window.confirm("Remove your profile photo?")) return;
+        PROF_AVATAR_STATUS.style.color = "var(--acc)";
+        PROF_AVATAR_STATUS.textContent = "Removing...";
+        fetch("/api/profile/avatar", { method: "DELETE", credentials: "same-origin" })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d.ok) {
+              PROF_AVATAR_STATUS.style.color = "#e74c3c";
+              PROF_AVATAR_STATUS.textContent = "Could not remove photo";
+              return;
+            }
+            PROF_AVATAR_STATUS.style.color = "#2ecc71";
+            PROF_AVATAR_STATUS.textContent = "Photo removed";
+            var curName = PROF_NAME.value || D.me.name || "?";
+            var ini = curName.trim().split(/\s+/).slice(0, 2).map(function (x) { return x[0]; }).join("").toUpperCase();
+            var inner = document.getElementById("profileAvatarInner");
+            if (inner) inner.innerHTML = '<span id="profileAvatarInitials" style="font-size:28px;font-weight:700;color:var(--acc)">' + esc(ini) + "</span>";
+            if (MY_AVATAR_THUMB) MY_AVATAR_THUMB.innerHTML = '<span style="font-size:14px;font-weight:700;color:var(--acc)">' + esc(ini) + "</span>";
+          })
+          .catch(function () {
+            PROF_AVATAR_STATUS.style.color = "#e74c3c";
+            PROF_AVATAR_STATUS.textContent = "Could not remove photo";
+          });
+      });
+    }
+
+    /* ---- Save name/phone ---- */
+    if (PROF_FORM) {
+      PROF_FORM.addEventListener("submit", function (ev) {
+        ev.preventDefault();
+        var name  = (PROF_NAME.value  || "").trim();
+        var phone = (PROF_PHONE.value || "").trim();
+        if (!name) { PROF_STATUS.style.color = "#e74c3c"; PROF_STATUS.textContent = "Name is required"; return; }
+        PROF_STATUS.style.color = "var(--acc)";
+        PROF_STATUS.textContent = "Saving...";
+        fetch("/api/profile", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "same-origin",
+          body: JSON.stringify({ name: name, phone: phone }),
+        })
+          .then(function (r) { return r.json(); })
+          .then(function (d) {
+            if (!d.ok) {
+              PROF_STATUS.style.color = "#e74c3c";
+              PROF_STATUS.textContent = d.error || "Save failed";
+              return;
+            }
+            PROF_STATUS.style.color = "#2ecc71";
+            PROF_STATUS.textContent = "Profile saved!";
+            /* update sidebar name label */
+            if (MY_NAME_LABEL) MY_NAME_LABEL.textContent = d.name;
+            D.me.name = d.name;
+            setTimeout(function () { PROF_STATUS.textContent = ""; }, 3000);
+          })
+          .catch(function () {
+            PROF_STATUS.style.color = "#e74c3c";
+            PROF_STATUS.textContent = "Could not save. Check your connection.";
+          });
+      });
+    }
+  }());
+  /* ================================================================= END === */
 
   renderPeople();
   connect();

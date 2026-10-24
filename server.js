@@ -1507,6 +1507,8 @@ mountPortalCampus(app);
 
 // ---------- Static frontend (public allow-list only) ----------
 // Uploaded enrollment documents must NOT be publicly reachable.
+// Avatar photos ARE public so the browser can display them.
+app.use("/uploads/avatars", express.static(path.join(__dirname, "uploads", "avatars"), { maxAge: "7d" }));
 app.use("/uploads", (req, res) => res.status(403).send("<h1>403 — Forbidden</h1>"));
 
 // Only the public front-end is served. Anything else that happens to sit in the
@@ -1582,3 +1584,4 @@ Promise.race([startup, deadline]).then(() => {
     console.error("Realtime layer failed to start:", err && err.message);
   }
 });
+

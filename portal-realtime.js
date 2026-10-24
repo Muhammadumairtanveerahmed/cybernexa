@@ -13,11 +13,30 @@
  * authenticated with the normal portal session cookie (cnx_sid).
  */
 const crypto = require("crypto");
+const path = require("path");
+const fs = require("fs");
+const multer = require("multer");
 const { WebSocketServer } = require("ws");
 
 const SESSION_COOKIE = "cnx_sid";
 const MAX_BODY = 2000;
 const rnd = (p) => p + crypto.randomBytes(8).toString("hex");
+
+/* users.photo has been written in two shapes over time ("avatars/x.jpg" from
+   /portal/profile, "/uploads/avatars/x.jpg" from the avatar API). Both resolve
+   to the one public URL the static route serves. */
+function photoUrl(v) {
+  const s = String(v || "").trim();
+  if (!s) return "";
+  if (s.startsWith("http://") || s.startsWith("https://")) return s;
+  return "/uploads/avatars/" + s.split("/").pop();
+}
+
+function photoDiskPath(v) {
+  const url = photoUrl(v);
+  if (!url) return "";
+  return path.join(__dirname, "uploads", "avatars", path.basename(url));
+}
 
 const clients = new Map(); // userId -> Set(ws)
 const calls = new Map(); // callId -> { id, caller, callee, kind, answered }
@@ -72,11 +91,132 @@ function mount(app, core) {
   const esc = core.esc;
   const need = core.requireUser("student", "teacher");
 
+  // ---- Avatar upload via multer ----
+  const AVATAR_DIR = path.join(__dirname, "uploads", "avatars");
+  if (!fs.existsSync(AVATAR_DIR)) fs.mkdirSync(AVATAR_DIR, { recursive: true });
+  const avatarStorage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, AVATAR_DIR),
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase().replace(/[^.a-z0-9]/g, "") || ".jpg";
+      cb(null, "avatar_" + req.user.id + ext);
+    },
+  });
+  const uploadAvatar = multer({
+    storage: avatarStorage,
+    limits: { fileSize: 3 * 1024 * 1024 }, // 3 MB max
+    fileFilter: (_req, file, cb) => {
+      if (/^image\/(jpeg|png|gif|webp)$/.test(file.mimetype)) cb(null, true);
+      else cb(new Error("Only image files are allowed"));
+    },
+  }).single("avatar");
+
+  // GET /api/profile — return current user profile info
+  app.get("/api/profile", need, async (req, res) => {
+    const user = req.user;
+    res.json({
+      ok: true,
+      profile: {
+        id: user.id,
+        name: user.full_name,
+        email: user.email,
+        phone: user.phone || "",
+        role: user.role,
+        photo: photoUrl(user.photo),
+      },
+    });
+  });
+
+  // POST /api/profile — update name and/or phone
+  app.post("/api/profile", need, async (req, res) => {
+    const user = req.user;
+    const name = String(req.body.name || "").trim().slice(0, 120);
+    const phone = String(req.body.phone || "").trim().slice(0, 30);
+    if (!name) return res.status(400).json({ ok: false, error: "Name is required" });
+    await q("UPDATE users SET full_name = ?, phone = ?, updated_at = NOW() WHERE id = ?", [name, phone, user.id]);
+    res.json({ ok: true, name, phone });
+  });
+
+  // POST /api/profile/avatar — upload profile photo
+  app.post("/api/profile/avatar", need, (req, res) => {
+    uploadAvatar(req, res, async (err) => {
+      if (err) return res.status(400).json({ ok: false, error: err.message });
+      if (!req.file) return res.status(400).json({ ok: false, error: "No file uploaded" });
+      const relPath = "/uploads/avatars/" + req.file.filename;
+      await q("UPDATE users SET photo = ?, updated_at = NOW() WHERE id = ?", [relPath, req.user.id]);
+      res.json({ ok: true, photo: relPath });
+    });
+  });
+
+  // DELETE /api/profile/avatar — remove avatar
+  app.delete("/api/profile/avatar", need, async (req, res) => {
+    const user = req.user;
+    const [rows] = await q("SELECT photo FROM users WHERE id = ? LIMIT 1", [user.id]);
+    const disk = photoDiskPath(rows && rows[0] ? rows[0].photo : "");
+    if (disk) {
+      try { fs.unlinkSync(disk); } catch { /* already gone */ }
+    }
+    await q("UPDATE users SET photo = '', updated_at = NOW() WHERE id = ?", [user.id]);
+    res.json({ ok: true });
+  });
+
+  // ---- Chat attachments (photos + documents) ----
+  const CHAT_DIR = path.join(__dirname, "uploads", "chat");
+  if (!fs.existsSync(CHAT_DIR)) fs.mkdirSync(CHAT_DIR, { recursive: true });
+
+  const chatStorage = multer.diskStorage({
+    destination: (_req, _file, cb) => cb(null, CHAT_DIR),
+    filename: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase();
+      const safe = path.basename(file.originalname || "file", ext)
+        .replace(/[^a-zA-Z0-9_-]+/g, "-")
+        .slice(0, 40);
+      cb(null, "chat_" + Date.now().toString(36) + "_" + crypto.randomBytes(4).toString("hex") + (safe ? "_" + safe : "") + ext);
+    },
+  });
+  const uploadChat = multer({
+    storage: chatStorage,
+    limits: { fileSize: 10 * 1024 * 1024 },
+    fileFilter: (_req, file, cb) => {
+      const ext = path.extname(file.originalname || "").toLowerCase();
+      const allowed = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".csv"];
+      if (allowed.includes(ext)) return cb(null, true);
+      cb(new Error("This file type is not allowed."));
+    },
+  }).single("file");
+
+  app.post("/api/chat/upload", need, (req, res) => {
+    uploadChat(req, res, (err) => {
+      if (err) {
+        const msg = err.code === "LIMIT_FILE_SIZE" ? "File must be 10 MB or smaller." : err.message || "Upload failed.";
+        return res.status(422).json({ ok: false, error: msg });
+      }
+      if (!req.file) return res.status(400).json({ ok: false, error: "No file selected." });
+      res.json({
+        ok: true,
+        file: {
+          original_name: req.file.originalname,
+          stored_name: req.file.filename,
+          mime_type: req.file.mimetype,
+          size: req.file.size,
+          url: "/api/chat/file/" + encodeURIComponent(req.file.filename),
+        },
+      });
+    });
+  });
+
+  app.get("/api/chat/file/:name", need, (req, res) => {
+    const name = path.basename(req.params.name || "");
+    const full = path.join(CHAT_DIR, name);
+    if (!full.startsWith(CHAT_DIR)) return res.status(403).end();
+    if (!fs.existsSync(full)) return res.status(404).end();
+    res.sendFile(full);
+  });
+
   async function contactList(user) {
     let rows = [];
     if (user.role === "student") {
       [rows] = await q(
-        `SELECT DISTINCT u.id, u.full_name, u.role, u.email
+        `SELECT DISTINCT u.id, u.full_name, u.role, u.email, u.photo
            FROM users u
            JOIN teacher_courses tc ON tc.teacher_id = u.id
           WHERE u.role = 'teacher' AND u.status = 'active'
@@ -89,12 +229,12 @@ function mount(app, core) {
       );
       if (!rows.length) {
         [rows] = await q(
-          "SELECT id, full_name, role, email FROM users WHERE role = 'teacher' AND status = 'active' ORDER BY full_name"
+          "SELECT id, full_name, role, email, photo FROM users WHERE role = 'teacher' AND status = 'active' ORDER BY full_name"
         );
       }
     } else {
       [rows] = await q(
-        `SELECT DISTINCT u.id, u.full_name, u.role, u.email
+        `SELECT DISTINCT u.id, u.full_name, u.role, u.email, u.photo
            FROM users u
            JOIN enrollments e ON e.user_id = u.id
           WHERE u.role = 'student' AND u.status = 'active' AND e.status <> 'rejected'
@@ -104,7 +244,7 @@ function mount(app, core) {
       );
       if (!rows.length) {
         [rows] = await q(
-          "SELECT id, full_name, role, email FROM users WHERE role = 'student' AND status = 'active' ORDER BY full_name"
+          "SELECT id, full_name, role, email, photo FROM users WHERE role = 'student' AND status = 'active' ORDER BY full_name"
         );
       }
     }
@@ -129,6 +269,7 @@ function mount(app, core) {
     const [recent] = await q(
       `SELECT m.sender_id, m.recipient_id,
               CASE WHEN m.deleted_at IS NULL THEN m.body ELSE 'Message deleted' END AS body,
+              (SELECT COUNT(*) FROM chat_attachments ca WHERE ca.message_id = m.id) AS att_n,
               m.created_at, m.read_at
          FROM chat_messages m
          LEFT JOIN chat_hidden h ON h.message_id = m.id AND h.user_id = ?
@@ -155,30 +296,54 @@ function mount(app, core) {
     const totalUnread = unread.reduce((a, r) => a + Number(r.n), 0);
 
     const data = {
-      me: { id: user.id, name: user.full_name, role: user.role },
+      me: { id: user.id, name: user.full_name, role: user.role, photo: photoUrl(user.photo) },
       contacts: contacts.map((c) => ({
         id: c.id,
         name: c.full_name,
         role: c.role,
+        photo: photoUrl(c.photo),
         unread: unreadBy[c.id] || 0,
-        last: lastBy[c.id] ? String(lastBy[c.id].body || "").slice(0, 70) : "",
+        last: lastBy[c.id]
+          ? (String(lastBy[c.id].body || "").trim() ||
+             (Number(lastBy[c.id].att_n) ? "Photo or document" : ""))
+              .slice(0, 70)
+          : "",
         at: lastBy[c.id] ? lastBy[c.id].created_at : null,
       })),
       secure: req.secure || String(req.headers["x-forwarded-proto"] || "").split(",")[0].trim() === "https",
     };
     const json = JSON.stringify(data).replace(/</g, "\\u003c");
 
+    const myPhoto = photoUrl(user.photo);
+    const myInitials = (user.full_name || "?").trim().split(/\s+/).slice(0, 2).map((x) => x[0]).join("").toUpperCase();
+    const avatarHtml = myPhoto
+      ? `<img src="${esc(myPhoto)}" alt="avatar" style="width:100%;height:100%;object-fit:cover;border-radius:50%">`
+      : `<span style="font-size:14px;font-weight:700;color:var(--acc)">${esc(myInitials)}</span>`;
+
     const body = `
       <div class="msg-shell">
         <div class="msg-side">
+          <div class="msg-my-profile" id="myProfileBar" title="Edit my profile" style="display:flex;align-items:center;gap:10px;padding:10px 14px;cursor:pointer;border-bottom:1px solid #1e2a44;background:#0b1220">
+            <div id="myAvatarThumb" style="width:36px;height:36px;border-radius:50%;background:#1a2540;border:2px solid var(--acc);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0">
+              ${avatarHtml}
+            </div>
+            <div style="flex:1;min-width:0">
+              <div style="font-weight:600;font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis" id="myNameLabel">${esc(user.full_name)}</div>
+              <div style="font-size:11px;color:var(--acc)">${esc(user.role === "teacher" ? "Teacher" : "Student")} &middot; <span style="color:#6b7a99">Edit profile</span></div>
+            </div>
+            <i class="fa-solid fa-pen" style="font-size:11px;color:#6b7a99"></i>
+          </div>
           <div class="msg-search"><input id="mq" placeholder="Search people" autocomplete="off"></div>
           <div id="people" class="people"></div>
         </div>
         <div class="msg-main">
           <div class="msg-head">
-            <div>
+            <div style="display:flex;align-items:center;gap:10px;min-width:0">
+              <div id="peerAvatar" aria-hidden="true" style="width:40px;height:40px;flex:0 0 40px;border-radius:50%;background:#1a2540;border:2px solid #1e2a44;display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--acc);font-weight:700"></div>
+              <div style="min-width:0">
               <strong id="peerName">Select a person</strong>
               <div id="peerSub" class="muted" style="font-size:11px">${totalUnread ? totalUnread + " unread message(s)" : "Chat and call"}</div>
+              </div>
             </div>
             <div class="row" style="gap:6px">
               <button type="button" class="btn ghost sm" id="btnAudio" disabled title="Voice call"><i class="fa-solid fa-phone"></i></button>
@@ -187,9 +352,48 @@ function mount(app, core) {
             </div>
           </div>
           <div id="thread" class="thread"><p class="empty">Choose a ${user.role === "student" ? "teacher" : "student"} to start chatting.</p></div>
+          <div id="attachPreview" class="attach-preview" style="display:none"></div>
           <form id="sendForm" class="sendbar">
+            <input type="file" id="filePick" style="display:none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv">
+            <button type="button" class="btn ghost sm" id="attachBtn" disabled title="Attach photo or document"><i class="fa-solid fa-paperclip"></i></button>
             <input id="msgIn" placeholder="Write a message" autocomplete="off" maxlength="${MAX_BODY}" disabled>
             <button class="btn primary sm" type="submit" id="sendBtn" disabled><i class="fa-solid fa-paper-plane"></i></button>
+          </form>
+        </div>
+      </div>
+
+      <!-- Profile Modal -->
+      <div class="modal" id="profileModal">
+        <div class="modal-box" style="max-width:440px">
+          <h3 style="margin-bottom:16px"><i class="fa-solid fa-user-pen"></i> My Profile</h3>
+          <div style="display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:20px">
+            <div id="profileAvatarWrap" style="width:90px;height:90px;border-radius:50%;background:#1a2540;border:3px solid var(--acc);display:flex;align-items:center;justify-content:center;overflow:hidden;position:relative;cursor:pointer" title="Click to change photo">
+              <div id="profileAvatarInner" style="width:100%;height:100%;display:flex;align-items:center;justify-content:center">
+                ${myPhoto
+                  ? `<img src="${esc(myPhoto)}" id="profileAvatarImg" alt="avatar" style="width:100%;height:100%;object-fit:cover">`
+                  : `<span id="profileAvatarInitials" style="font-size:28px;font-weight:700;color:var(--acc)">${esc(myInitials)}</span>`}
+              </div>
+              <div style="position:absolute;bottom:0;left:0;right:0;background:rgba(0,0,0,0.55);text-align:center;font-size:10px;padding:3px 0;pointer-events:none"><i class="fa-solid fa-camera"></i></div>
+            </div>
+            <input type="file" id="profileAvatarFile" accept="image/*" style="display:none">
+            <div style="display:flex;gap:8px">
+              <button type="button" class="btn ghost sm" id="profileChangePhoto"><i class="fa-solid fa-camera"></i> Change Photo</button>
+              <button type="button" class="btn ghost sm" id="profileRemovePhoto" style="color:#e74c3c"><i class="fa-solid fa-trash"></i> Remove</button>
+            </div>
+            <div id="profileAvatarStatus" style="font-size:12px;color:var(--acc);min-height:16px"></div>
+          </div>
+          <form id="profileForm">
+            <label style="font-size:12px;color:#6b7a99;display:block;margin-bottom:4px">Full Name</label>
+            <input type="text" id="profileName" class="form-control" maxlength="120" placeholder="Your full name" required style="width:100%;margin-bottom:12px;padding:8px 12px;background:#1a2540;border:1px solid #1e2a44;border-radius:6px;color:#e0e8f4;font-size:14px">
+            <label style="font-size:12px;color:#6b7a99;display:block;margin-bottom:4px">Phone (optional)</label>
+            <input type="text" id="profilePhone" class="form-control" maxlength="30" placeholder="e.g. +92 300 1234567" style="width:100%;margin-bottom:16px;padding:8px 12px;background:#1a2540;border:1px solid #1e2a44;border-radius:6px;color:#e0e8f4;font-size:14px">
+            <label style="font-size:12px;color:#6b7a99;display:block;margin-bottom:4px">Email</label>
+            <input type="text" id="profileEmail" disabled style="width:100%;margin-bottom:16px;padding:8px 12px;background:#0f1a2e;border:1px solid #1e2a44;border-radius:6px;color:#6b7a99;font-size:14px;cursor:not-allowed">
+            <div id="profileSaveStatus" style="font-size:12px;min-height:18px;margin-bottom:10px;color:var(--acc)"></div>
+            <div class="row" style="gap:8px;justify-content:flex-end">
+              <button type="button" class="btn ghost sm" id="profileClose">Cancel</button>
+              <button type="submit" class="btn primary sm" id="profileSaveBtn"><i class="fa-solid fa-floppy-disk"></i> Save Changes</button>
+            </div>
           </form>
         </div>
       </div>
@@ -197,6 +401,7 @@ function mount(app, core) {
       <div class="modal" id="incoming">
         <div class="modal-box" style="max-width:380px;text-align:center">
           <h3 style="margin-bottom:6px"><i class="fa-solid fa-phone-volume"></i> Incoming call</h3>
+          <div id="incAvatar" aria-hidden="true" style="width:64px;height:64px;margin:14px auto 8px;border-radius:50%;background:#1a2540;border:2px solid var(--acc);display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--acc);font-size:20px;font-weight:700"></div>
           <p class="muted" id="incWho">Someone is calling</p>
           <div class="row mt" style="justify-content:center">
             <button type="button" class="btn primary" id="incAccept"><i class="fa-solid fa-phone"></i> Accept</button>
@@ -223,6 +428,8 @@ function mount(app, core) {
         <video id="remoteV" autoplay playsinline></video>
         <video id="localV" autoplay playsinline muted></video>
         <div class="callbar">
+          <div id="callPeerAvatar" aria-hidden="true" style="width:34px;height:34px;border-radius:50%;background:#1a2540;border:2px solid var(--acc);display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--acc);font-weight:700"></div>
+          <strong id="callPeerName"></strong>
           <span id="callStatus">Connecting...</span>
           <span id="callNet" class="muted" style="font-size:11px"></span>
           <span id="callHealth" style="font-size:11px;color:#f5b301"></span>
@@ -236,7 +443,7 @@ function mount(app, core) {
       </div>
 
       <script>window.CNX_CHAT = ${json};</script>
-      <script src="/js/messages.js?v=20261022l"></script>`;
+      <script src="/js/messages.js?v=20261024-attach"></script>`;
 
     res.send(
       core.shell(user, "messages", "Messages", "Chat and call your " + (user.role === "student" ? "teachers" : "students") + " in real time.", body)
@@ -245,7 +452,7 @@ function mount(app, core) {
 
   app.get("/api/chat/contacts", need, async (req, res) => {
     const rows = await contactList(req.user);
-    res.json({ ok: true, contacts: rows.map((c) => ({ id: c.id, name: c.full_name, role: c.role })) });
+    res.json({ ok: true, contacts: rows.map((c) => ({ id: c.id, name: c.full_name, role: c.role, photo: photoUrl(c.photo) })) });
   });
 
   app.get("/api/chat/history", need, async (req, res) => {
@@ -265,7 +472,32 @@ function mount(app, core) {
     }
     sql += " ORDER BY m.created_at DESC LIMIT 60";
     const [rows] = await q(sql, params);
-    res.json({ ok: true, messages: rows.reverse() });
+    const ids = rows.map((r) => r.id);
+    let atts = [];
+    if (ids.length) {
+      try {
+        const [ar] = await q(
+          `SELECT id, message_id, original_name, stored_name, mime_type, file_size FROM chat_attachments WHERE message_id IN (${ids.map(() => "?").join(",")})`,
+          ids
+        );
+        atts = ar || [];
+      } catch (e) {}
+    }
+    const byMsg = {};
+    for (const a of atts) {
+      if (!byMsg[a.message_id]) byMsg[a.message_id] = [];
+      byMsg[a.message_id].push({
+        original_name: a.original_name,
+        stored_name: a.stored_name,
+        mime_type: a.mime_type,
+        size: a.file_size,
+        url: "/api/chat/file/" + encodeURIComponent(a.stored_name),
+      });
+    }
+    const messages = rows
+      .reverse()
+      .map((m) => ({ ...m, attachments: byMsg[m.id] || [] }));
+    res.json({ ok: true, messages });
   });
 
   app.get("/api/chat/unread", need, async (req, res) => {
@@ -390,7 +622,8 @@ function attach(server, getPool) {
       if (m.type === "msg") {
         const to = String(m.to || "");
         const body = String(m.body || "").trim().slice(0, MAX_BODY);
-        if (!to || !body) return;
+        const att = m.attachment || null;
+        if (!to || (!body && !att)) return;
         const [ok] = await pool.query(
           "SELECT id FROM users WHERE id = ? AND role IN ('student','teacher') AND status = 'active' LIMIT 1",
           [to]
@@ -402,7 +635,26 @@ function attach(server, getPool) {
           "INSERT INTO chat_messages (id, sender_id, recipient_id, body, created_at, delivered_at) VALUES (?,?,?,?,NOW(),?)",
           [id, me.id, to, body, isOnline ? new Date() : null]
         );
-        const payload = { type: "msg", id, from: me.id, fromName: me.full_name, to, body, at: new Date().toISOString() };
+        if (att && att.stored_name) {
+          try {
+            await pool.query(
+              "INSERT INTO chat_attachments (id, message_id, sender_id, original_name, stored_name, mime_type, file_size, created_at) VALUES (?,?,?,?,?,?,?,NOW())",
+              [rnd("ca_"), id, me.id, att.original_name || "", att.stored_name, att.mime_type || null, Number(att.size || 0)]
+            );
+          } catch (e) {
+            /* ignore */
+          }
+        }
+        const payload = {
+          type: "msg",
+          id,
+          from: me.id,
+          fromName: me.full_name,
+          to,
+          body,
+          at: new Date().toISOString(),
+          attachments: att && att.stored_name ? [att] : [],
+        };
         sendTo(me.id, { ...payload, self: true, tempId: m.tempId || null, delivered: isOnline });
         sendTo(to, payload);
         return;
