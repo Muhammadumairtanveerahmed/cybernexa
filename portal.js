@@ -824,6 +824,7 @@ tr:last-child td{border-bottom:0}
 /* Messages + WebRTC calls */
 .msg-shell{display:grid;grid-template-columns:280px 1fr;gap:14px;min-height:520px;height:calc(100vh - 215px)}
 .msg-side,.msg-main{background:var(--bg2);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;min-height:0}
+.msg-main{position:relative}
 .msg-search{padding:10px;border-bottom:1px solid var(--line)}
 .msg-search input{height:36px}
 .people{overflow-y:auto;flex:1}
@@ -873,6 +874,28 @@ tr:last-child td{border-bottom:0}
 .prev-file span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--txt)}
 .prev-rm{position:absolute;top:-6px;right:-6px;border:1px solid var(--line);background:var(--bg2);color:var(--txt);border-radius:50%;width:20px;height:20px;display:flex;align-items:center;justify-content:center;cursor:pointer;font-size:10px;padding:0}
 .prev-rm:hover{background:var(--red);border-color:var(--red);color:#fff}
+/* emoji picker */
+.emoji-panel{position:absolute;left:12px;right:12px;bottom:64px;max-height:220px;overflow:auto;display:none;grid-template-columns:repeat(auto-fill,minmax(34px,1fr));gap:2px;padding:8px;background:var(--bg2);border:1px solid var(--line2);border-radius:6px;box-shadow:0 18px 40px -18px rgba(0,0,0,.9);z-index:30}
+.emoji-panel.open{display:grid}
+.emoji-item{background:none;border:0;font-size:19px;line-height:1;padding:5px 0;cursor:pointer;border-radius:4px;font-family:"Segoe UI Emoji","Apple Color Emoji","Noto Color Emoji",sans-serif}
+.emoji-item:hover{background:rgba(255,255,255,.1)}
+/* voice recording */
+.rec-bar{display:none;align-items:center;gap:10px;padding:8px 12px;border-top:1px solid var(--line);background:rgba(220,38,38,.12);font-size:12px;color:var(--txt)}
+.rec-dot{width:9px;height:9px;border-radius:50%;background:var(--red);animation:recpulse 1s infinite}
+@keyframes recpulse{0%,100%{opacity:1}50%{opacity:.25}}
+#recTime{font-variant-numeric:tabular-nums;color:var(--mut)}
+.rec-bar .btn{margin-left:auto}
+.rec-bar #recCancel{margin-left:auto}
+.rec-bar #recSend{margin-left:0}
+#voiceBtn.rec{background:var(--red);border-color:var(--red);color:#fff}
+/* audio message */
+.att audio{max-width:250px;width:250px;height:36px;display:block}
+/* call: big profile picture */
+.call-avatar-big{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:1;background:radial-gradient(circle at 50% 38%,#152340,#05080f 72%)}
+.callov.audio .call-avatar-big,.callov.waiting .call-avatar-big{display:flex}
+.call-avatar-big .av{width:150px;height:150px;border-radius:50%;overflow:hidden;display:flex;align-items:center;justify-content:center;background:#1a2540;border:3px solid var(--acc);box-shadow:0 0 0 14px rgba(59,130,246,.08);font-size:48px;font-weight:700;color:var(--acc)}
+.call-avatar-big .av img{width:100%;height:100%;object-fit:cover}
+.call-avatar-big .av-name{font-size:1.1rem;font-weight:700;color:#fff}
 .callov{position:fixed;inset:0;background:rgba(3,6,15,.95);z-index:200;display:none;align-items:center;justify-content:center}
 .callov.on{display:flex}
 .callov video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}

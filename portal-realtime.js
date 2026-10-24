@@ -178,7 +178,7 @@ function mount(app, core) {
     limits: { fileSize: 10 * 1024 * 1024 },
     fileFilter: (_req, file, cb) => {
       const ext = path.extname(file.originalname || "").toLowerCase();
-      const allowed = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".csv"];
+      const allowed = [".jpg", ".jpeg", ".png", ".webp", ".gif", ".pdf", ".doc", ".docx", ".xls", ".xlsx", ".txt", ".csv", ".webm", ".ogg", ".mp3", ".m4a", ".wav"];
       if (allowed.includes(ext)) return cb(null, true);
       cb(new Error("This file type is not allowed."));
     },
@@ -353,10 +353,20 @@ function mount(app, core) {
           </div>
           <div id="thread" class="thread"><p class="empty">Choose a ${user.role === "student" ? "teacher" : "student"} to start chatting.</p></div>
           <div id="attachPreview" class="attach-preview" style="display:none"></div>
+          <div id="emojiPanel" class="emoji-panel" aria-hidden="true"></div>
+          <div id="recBar" class="rec-bar" style="display:none">
+            <span class="rec-dot"></span>
+            <span>Recording</span>
+            <span id="recTime">0:00</span>
+            <button type="button" class="btn ghost sm" id="recCancel">Cancel</button>
+            <button type="button" class="btn primary sm" id="recSend"><i class="fa-solid fa-paper-plane"></i> Send</button>
+          </div>
           <form id="sendForm" class="sendbar">
             <input type="file" id="filePick" style="display:none" accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.txt,.csv">
             <button type="button" class="btn ghost sm" id="attachBtn" disabled title="Attach photo or document"><i class="fa-solid fa-paperclip"></i></button>
+            <button type="button" class="btn ghost sm" id="emojiBtn" disabled title="Emoji"><i class="fa-regular fa-face-smile"></i></button>
             <input id="msgIn" placeholder="Write a message" autocomplete="off" maxlength="${MAX_BODY}" disabled>
+            <button type="button" class="btn ghost sm" id="voiceBtn" disabled title="Record voice message"><i class="fa-solid fa-microphone"></i></button>
             <button class="btn primary sm" type="submit" id="sendBtn" disabled><i class="fa-solid fa-paper-plane"></i></button>
           </form>
         </div>
@@ -427,6 +437,10 @@ function mount(app, core) {
       <div class="callov" id="callov">
         <video id="remoteV" autoplay playsinline></video>
         <video id="localV" autoplay playsinline muted></video>
+        <div class="call-avatar-big" id="callAvatarBig" aria-hidden="true">
+          <div class="av" id="callAvatarImg"></div>
+          <div class="av-name" id="callAvatarName"></div>
+        </div>
         <div class="callbar">
           <div id="callPeerAvatar" aria-hidden="true" style="width:34px;height:34px;border-radius:50%;background:#1a2540;border:2px solid var(--acc);display:flex;align-items:center;justify-content:center;overflow:hidden;color:var(--acc);font-weight:700"></div>
           <strong id="callPeerName"></strong>
@@ -443,7 +457,7 @@ function mount(app, core) {
       </div>
 
       <script>window.CNX_CHAT = ${json};</script>
-      <script src="/js/messages.js?v=20261024-attach"></script>`;
+      <script src="/js/messages.js?v=20261024-voice"></script>`;
 
     res.send(
       core.shell(user, "messages", "Messages", "Chat and call your " + (user.role === "student" ? "teachers" : "students") + " in real time.", body)

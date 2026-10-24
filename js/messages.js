@@ -33,6 +33,15 @@
   var ATTACH_BTN = document.getElementById("attachBtn");
   var FILE_PICK = document.getElementById("filePick");
   var ATT_PREV = document.getElementById("attachPreview");
+  var EMOJI_BTN = document.getElementById("emojiBtn");
+  var EMOJI_PANEL = document.getElementById("emojiPanel");
+  var VOICE_BTN = document.getElementById("voiceBtn");
+  var REC_BAR = document.getElementById("recBar");
+  var REC_TIME = document.getElementById("recTime");
+  var REC_SEND = document.getElementById("recSend");
+  var REC_CANCEL = document.getElementById("recCancel");
+  var CALL_AV = document.getElementById("callAvatarImg");
+  var CALL_AV_NAME = document.getElementById("callAvatarName");
   var AUDIO_BTN = document.getElementById("btnAudio");
   var VIDEO_BTN = document.getElementById("btnVideo");
   var MODAL = document.getElementById("incoming");
@@ -116,6 +125,8 @@
     if (!person) return;
     if (CALL_PEER_AVATAR) CALL_PEER_AVATAR.innerHTML = avatarHtml(person, 34);
     if (CALL_PEER_NAME) CALL_PEER_NAME.textContent = person.name || "";
+    if (CALL_AV) CALL_AV.innerHTML = avatarHtml(person, 140);
+    if (CALL_AV_NAME) CALL_AV_NAME.textContent = person.name || "";
   }
   function hhmm(v) {
     if (!v) return "";
@@ -187,6 +198,11 @@
     var n = String(name || "").toLowerCase();
     return /\.(jpg|jpeg|png|gif|webp)$/.test(n);
   }
+  function isAudio(mime, name) {
+    if (mime && mime.indexOf("audio/") === 0) return true;
+    var n = String(name || "").toLowerCase();
+    return /\.(webm|ogg|mp3|m4a|wav)$/.test(n);
+  }
   function fileIcon(name) {
     var n = String(name || "").toLowerCase();
     if (/\.pdf$/.test(n)) return "fa-file-pdf";
@@ -200,6 +216,9 @@
     if (!a) return "";
     var url = a.url || (a.stored_name ? "/api/chat/file/" + encodeURIComponent(a.stored_name) : "");
     var name = a.original_name || a.name || "file";
+    if (isAudio(a.mime_type || a.mime, name)) {
+      return '<div class="att"><audio controls preload="metadata" src="' + esc(url) + '"></audio></div>';
+    }
     if (isImg(a.mime_type || a.mime, name)) {
       return '<div class="att"><a href="' + esc(url) + '" target="_blank" rel="noopener"><img src="' + esc(url) + '" alt="' + esc(name) + '"></a></div>';
     }
@@ -357,6 +376,8 @@
     MSG_IN.disabled = false;
     SEND_BTN.disabled = false;
     if (ATTACH_BTN) ATTACH_BTN.disabled = false;
+    if (EMOJI_BTN) EMOJI_BTN.disabled = false;
+    if (VOICE_BTN) VOICE_BTN.disabled = false;
     AUDIO_BTN.disabled = false;
     VIDEO_BTN.disabled = false;
     MSG_IN.focus();
@@ -545,6 +566,7 @@
   function showCall(kind) {
     CALLOV.classList.add("on");
     CALLOV.classList.toggle("audio", kind !== "video");
+    CALLOV.classList.add("waiting");
     REMOTE_V.style.opacity = kind === "video" ? "1" : "0.001";
     LOCAL_V.style.display = kind === "video" ? "block" : "none";
     if (MIC_BTN) {
@@ -555,6 +577,7 @@
   }
   function hideCall() {
     CALLOV.classList.remove("on");
+    CALLOV.classList.remove("waiting");
     REMOTE_V.srcObject = null;
     LOCAL_V.srcObject = null;
     REMOTE_V.style.opacity = "1";
@@ -854,6 +877,7 @@
     p.ontrack = function (e) {
       if (e.streams && e.streams[0]) {
         REMOTE_V.srcObject = e.streams[0];
+        CALLOV.classList.remove("waiting");
         playRemote();
       }
     };
@@ -1072,7 +1096,147 @@
     }
   }
 
-  window.addEventListener("beforeunload", function () { stopRing(); });
+  window.addEventListener("beforeunload", function () { stopRing(); stopRecUi(); });
+
+  /* ------------------------------------------------------------- emojis */
+  var EMOJIS = [
+    "😀","😃","😄","😁","😆","😅","😂","🙂","🙃","😉","😊","😍","🥰","😘","😋","😎",
+    "🤩","🥳","🤗","🤔","🤨","😐","😴","😪","😌","😔","😢","😭","😤","😡","😱","🥺",
+    "😷","🤒","🤕","🤢","🤮","🥵","🥶","😵","🤯","🤠","🤓","🧐","🙄","😏","😬","🤫",
+    "👍","👎","👌","✌️","🤞","🤟","🤘","👏","🙌","🙏","💪","👋","🤝","☝️","👉","👈",
+    "❤️","🧡","💛","💚","💙","💜","🖤","💔","💖","💯","🔥","✨","⭐","🎉","🎁","🎈",
+    "✅","❌","❓","❗","⏰","📌","📎","📷","📄","🎓","💻","🔒","🚀","☕","🌙","☀️"
+  ];
+  function buildEmojiPanel() {
+    if (!EMOJI_PANEL) return;
+    EMOJI_PANEL.innerHTML = EMOJIS.map(function (e, i) {
+      return '<button type="button" class="emoji-item" data-i="' + i + '">' + e + "</button>";
+    }).join("");
+  }
+  function toggleEmoji(force) {
+    if (!EMOJI_PANEL) return;
+    var open = force === true ? true : force === false ? false : !EMOJI_PANEL.classList.contains("open");
+    EMOJI_PANEL.classList.toggle("open", open);
+    EMOJI_PANEL.setAttribute("aria-hidden", open ? "false" : "true");
+    if (open) buildEmojiPanel();
+  }
+  function insertAtCursor(el, text) {
+    var start = el.selectionStart == null ? el.value.length : el.selectionStart;
+    var end = el.selectionEnd == null ? el.value.length : el.selectionEnd;
+    el.value = el.value.slice(0, start) + text + el.value.slice(end);
+    var pos = start + text.length;
+    try { el.setSelectionRange(pos, pos); } catch (e) {}
+    el.focus();
+  }
+
+  /* ------------------------------------------------------ voice messages */
+  var recorder = null, recChunks = [], recStream = null, recTimer = null,
+      recStart = 0, recCancelled = false, recBusy = false;
+
+  function pickAudioMime() {
+    if (!window.MediaRecorder || !MediaRecorder.isTypeSupported) return "";
+    var list = ["audio/webm;codecs=opus", "audio/webm", "audio/ogg;codecs=opus", "audio/mp4"];
+    for (var i = 0; i < list.length; i++) {
+      if (MediaRecorder.isTypeSupported(list[i])) return list[i];
+    }
+    return "";
+  }
+  function extFor(mime) {
+    var m = String(mime || "");
+    if (m.indexOf("ogg") >= 0) return "ogg";
+    if (m.indexOf("mp4") >= 0 || m.indexOf("m4a") >= 0) return "m4a";
+    return "webm";
+  }
+  function stopRecUi() {
+    if (recTimer) { clearInterval(recTimer); recTimer = null; }
+    if (REC_BAR) REC_BAR.style.display = "none";
+    if (VOICE_BTN) {
+      VOICE_BTN.classList.remove("rec");
+      VOICE_BTN.innerHTML = "<i class='fa-solid fa-microphone'></i>";
+      VOICE_BTN.title = "Record voice message";
+    }
+  }
+  function stopRec() {
+    if (recorder && recorder.state !== "inactive") {
+      try { recorder.stop(); } catch (e) {}
+    } else {
+      stopRecUi();
+    }
+  }
+  function startRec() {
+    if (recBusy) return;
+    if (!SECURE) {
+      alert("Voice messages need a secure (HTTPS) connection.");
+      return;
+    }
+    if (!navigator.mediaDevices || !window.MediaRecorder) {
+      alert("This browser cannot record voice messages.");
+      return;
+    }
+    recBusy = true;
+    recCancelled = false;
+    navigator.mediaDevices.getUserMedia({ audio: audioConstraints() })
+      .catch(function () { return navigator.mediaDevices.getUserMedia({ audio: true }); })
+      .then(function (stream) {
+        recStream = stream;
+        var mime = pickAudioMime();
+        recorder = mime ? new MediaRecorder(stream, { mimeType: mime }) : new MediaRecorder(stream);
+        recChunks = [];
+        recorder.ondataavailable = function (e) {
+          if (e.data && e.data.size) recChunks.push(e.data);
+        };
+        recorder.onstop = function () {
+          recBusy = false;
+          stopRecUi();
+          try { recStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) {}
+          recStream = null;
+          var type = (recorder && recorder.mimeType) || "audio/webm";
+          var parts = recChunks;
+          recChunks = [];
+          recorder = null;
+          if (recCancelled) return;
+          var blob = new Blob(parts, { type: type });
+          if (blob.size < 1200) { alert("Recording is too short."); return; }
+          uploadVoice(blob, type);
+        };
+        recorder.start();
+        recStart = Date.now();
+        if (REC_BAR) REC_BAR.style.display = "flex";
+        if (REC_TIME) REC_TIME.textContent = "0:00";
+        if (VOICE_BTN) {
+          VOICE_BTN.classList.add("rec");
+          VOICE_BTN.innerHTML = "<i class='fa-solid fa-stop'></i>";
+          VOICE_BTN.title = "Stop recording";
+        }
+        recTimer = setInterval(function () {
+          var s = Math.floor((Date.now() - recStart) / 1000);
+          if (REC_TIME) REC_TIME.textContent = Math.floor(s / 60) + ":" + ("0" + (s % 60)).slice(-2);
+          if (s >= 120) stopRec();
+        }, 500);
+      })
+      .catch(function (e) {
+        recBusy = false;
+        stopRecUi();
+        alert(e && e.message ? e.message : "Could not open the microphone.");
+      });
+  }
+  function uploadVoice(blob, type) {
+    if (!peer) return;
+    var f = new File([blob], "voice-" + Date.now() + "." + extFor(type), { type: type });
+    if (f.size > 10 * 1024 * 1024) { alert("Voice message is too large."); return; }
+    var fd = new FormData();
+    fd.append("file", f);
+    var to = peer.id;
+    fetch("/api/chat/upload", { method: "POST", body: fd, credentials: "same-origin" })
+      .then(function (r) { return r.json(); })
+      .then(function (d) {
+        if (!d.ok) { alert(d.error || "Could not send the voice message."); return; }
+        if (!peer || peer.id !== to) return;
+        pendingAttach = { uploaded: d.file };
+        sendNow("");
+      })
+      .catch(function () { alert("Could not send the voice message."); });
+  }
 
   /* --------------------------------------------------------------- wiring */
   THREAD.addEventListener("click", function (e) {
@@ -1114,6 +1278,41 @@
       }
     });
   }
+  if (EMOJI_BTN) {
+    EMOJI_BTN.addEventListener("click", function (e) {
+      e.preventDefault();
+      e.stopPropagation();
+      toggleEmoji();
+    });
+  }
+  if (EMOJI_PANEL) {
+    EMOJI_PANEL.addEventListener("click", function (e) {
+      var b = e.target.closest ? e.target.closest(".emoji-item") : null;
+      if (!b) return;
+      insertAtCursor(MSG_IN, b.textContent);
+      if (peer) wsSend({ type: "typing", to: peer.id, on: !!MSG_IN.value });
+    });
+  }
+  document.addEventListener("click", function (e) {
+    if (!EMOJI_PANEL || !EMOJI_PANEL.classList.contains("open")) return;
+    if (EMOJI_PANEL.contains(e.target)) return;
+    if (EMOJI_BTN && EMOJI_BTN.contains(e.target)) return;
+    toggleEmoji(false);
+  });
+  if (VOICE_BTN) {
+    VOICE_BTN.addEventListener("click", function () {
+      if (recorder && recorder.state === "recording") stopRec();
+      else startRec();
+    });
+  }
+  if (REC_SEND) REC_SEND.addEventListener("click", function () { stopRec(); });
+  if (REC_CANCEL) {
+    REC_CANCEL.addEventListener("click", function () {
+      recCancelled = true;
+      stopRec();
+    });
+  }
+
   document.getElementById("sendForm").addEventListener("submit", function (e) {
     e.preventDefault();
     if (!peer) return;
@@ -1144,6 +1343,7 @@
     pendingAttach = null;
     if (ATT_PREV) { ATT_PREV.style.display = "none"; ATT_PREV.innerHTML = ""; }
     if (FILE_PICK) FILE_PICK.value = "";
+    toggleEmoji(false);
     SEND_BTN.disabled = false;
   }
   MSG_IN.addEventListener("input", function () {
