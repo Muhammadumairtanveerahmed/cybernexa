@@ -905,6 +905,16 @@ table.dataTable.hover tbody tr:hover,table.dataTable.display tbody tr:hover{back
 
 const DT_INIT = `<script>(function(){document.addEventListener("click",function(e){var o=e.target.closest("[data-open]");if(o){var m=document.querySelector(o.getAttribute("data-open"));if(m){m.classList.add("open");e.preventDefault();return}}var c=e.target.closest("[data-close]");if(c){var mm=c.closest(".modal");if(mm)mm.classList.remove("open");return}if(e.target.classList&&e.target.classList.contains("modal"))e.target.classList.remove("open")});function boot(){if(!window.jQuery||!jQuery.fn.DataTable)return;document.querySelectorAll("table").forEach(function(t){if(t.getAttribute("data-dt")==="off")return;if(!t.tHead){var first=t.rows[0];if(!first||!first.querySelector("th"))return;var thead=document.createElement("thead");var tbody=document.createElement("tbody");thead.appendChild(first);var rest=[];for(var i=1;i<t.rows.length;i++)rest.push(t.rows[i]);t.insertBefore(thead,t.firstChild);rest.forEach(function(r){tbody.appendChild(r)});t.appendChild(tbody)}try{jQuery(t).DataTable({pageLength:10,lengthMenu:[[10,25,50,-1],[10,25,50,"All"]],order:[],autoWidth:false,columnDefs:[{targets:-1,orderable:false,searchable:false}],language:{search:"",searchPlaceholder:"Search...",emptyTable:"No records",info:"Showing _START_ to _END_ of _TOTAL_",infoEmpty:"No records",zeroRecords:"No matching records",paginate:{previous:"Prev",next:"Next"}}})}catch(e){}})}if(document.readyState==="loading")document.addEventListener("DOMContentLoaded",boot);else boot()})();</script>`;
 
+/* users.photo has been stored in two shapes over time ("avatars/x.jpg" and
+   "/uploads/avatars/x.jpg"). Always resolve both to the one public URL. */
+function avatarSrc(v) {
+  const s = String(v || "").trim();
+  if (!s) return "";
+  if (s.startsWith("http://") || s.startsWith("https://")) return s;
+  if (s.startsWith("/uploads/")) return s;
+  return "/uploads/avatars/" + s.split("/").pop();
+}
+
 function head(title) {
   return `<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${esc(title)}</title>
@@ -992,7 +1002,7 @@ function shell(user, active, title, sub, body, extraNav = "") {
     ${extraNav}
     <a href="/" target="_blank"><i class="fa-solid fa-globe"></i> View Website</a>
     <div class="who">
-      ${user.photo ? `<img src="${esc(user.photo)}" alt="${esc(user.full_name)} profile photo" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin-bottom:8px;border:2px solid var(--line)">` : `<div aria-hidden="true" style="width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#1a2540;color:var(--acc);font-weight:700;margin-bottom:8px">${esc((user.full_name || "?").trim().split(/\s+/).slice(0,2).map((x) => x[0]).join("").toUpperCase())}</div>`}
+      ${user.photo ? `<img src="${esc(avatarSrc(user.photo))}" alt="${esc(user.full_name)} profile photo" style="width:48px;height:48px;border-radius:50%;object-fit:cover;margin-bottom:8px;border:2px solid var(--line)">` : `<div aria-hidden="true" style="width:48px;height:48px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#1a2540;color:var(--acc);font-weight:700;margin-bottom:8px">${esc((user.full_name || "?").trim().split(/\s+/).slice(0,2).map((x) => x[0]).join("").toUpperCase())}</div>`}
       <div class="nm">${esc(user.full_name)}</div>
       <div>${esc(user.role)} · ${esc(user.email)}</div>
       <form method="post" action="/portal/logout" style="margin-top:10px">
