@@ -30,6 +30,9 @@
   var CALL_PEER_NAME = document.getElementById("callPeerName");
   var MSG_IN = document.getElementById("msgIn");
   var SEND_BTN = document.getElementById("sendBtn");
+  var ATTACH_BTN = document.getElementById("attachBtn");
+  var FILE_PICK = document.getElementById("filePick");
+  var ATT_PREV = document.getElementById("attachPreview");
   var AUDIO_BTN = document.getElementById("btnAudio");
   var VIDEO_BTN = document.getElementById("btnVideo");
   var MODAL = document.getElementById("incoming");
@@ -42,6 +45,7 @@
   var SNDFIX = document.getElementById("sndFix");
   var MIC_BTN = document.getElementById("btnMute");
   var MIC_SEL = document.getElementById("micSel");
+  var pendingAttach = null;
 
   /* Remember the microphone the user picked (a wrong default device is the
      most common reason one side cannot be heard). */
