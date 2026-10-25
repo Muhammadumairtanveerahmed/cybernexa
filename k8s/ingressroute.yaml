@@ -49,7 +49,30 @@ spec:
   tls: {}
 ---
 # ---------------------------------------------------------------
-# Let's Encrypt for webnexa.duckdns.org
+# Trusted HTTPS without waiting for DuckDNS:
+# <ip>.nip.io resolves to <ip> automatically, so Let's Encrypt can
+# issue a real certificate for it. Use this URL for camera/mic
+# features (voice notes, calls) until webnexa.duckdns.org is fixed.
+# ---------------------------------------------------------------
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: cybernexa-nip
+  namespace: default
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`54.161.79.42.nip.io`) && PathPrefix(`/`)
+      kind: Rule
+      services:
+        - name: cybernexa
+          port: 80
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: 54.161.79.42.nip.io
+
 # Enable ONLY after the DuckDNS A record points to 54.161.79.42,
 # otherwise ACME validation fails and can hit rate limits.
 # To enable, replace `tls: {}` above with:
