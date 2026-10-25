@@ -300,7 +300,7 @@ module.exports = function mountAdmin(app) {
       .map(
         (e) => `<tr>
         <td><strong>${esc(e.course_title)}</strong><div class="muted" style="font-size:.78rem">${esc(e.enrollment_type)} · ${esc(e.id)}</div></td>
-        <td>${e.student ? esc(e.student) : `<span class="muted">guest</span>`}</td>
+        <td>${e.student ? esc(e.student) : e.email ? `<span class="muted">${esc(e.email)}</span>` : `<span class="muted">guest</span>`}</td>
         <td>${esc(e.price)}</td>
         <td>${badge(e.status)} ${badge(e.payment_status)}</td>
         <td class="muted">${esc(e.created_at)}</td>

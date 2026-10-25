@@ -1103,6 +1103,22 @@ select.enroll-input option { background: #0d1224; color: var(--text); }
 .enroll-status { font-size: 0.88rem; margin-top: 2px; min-height: 1.2em; }
 .enroll-status.ok { color: var(--green); }
 .enroll-status.err { color: #f87171; }
+
+/* Enrollment success panel (kept outside the form so it survives form hiding) */
+.enroll-success {
+  border: 1px solid rgba(34, 197, 94, 0.35);
+  background: rgba(34, 197, 94, 0.08);
+  border-radius: 14px;
+  padding: 18px 18px 16px;
+  margin-top: 6px;
+}
+.enroll-success-head { color: var(--green); font-weight: 700; display: flex; gap: 9px; align-items: flex-start; line-height: 1.45; }
+.enroll-success-text { color: var(--muted); font-size: 0.9rem; line-height: 1.6; margin: 9px 0 14px; }
+.enroll-success-actions { display: flex; flex-wrap: wrap; gap: 9px; }
+
+/* Contact form success note */
+.form-next { display: block; margin-top: 6px; font-size: 0.86rem; color: var(--muted); }
+.form-next a { color: var(--primary); }
 .enroll-form .enroll-btn:disabled { opacity: 0.6; cursor: wait; transform: none; }
 
 /* ---------- Enroll modal per-field errors ---------- */

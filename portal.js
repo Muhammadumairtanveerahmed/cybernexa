@@ -480,6 +480,7 @@ async function initSchema(pool) {
     "ALTER TABLE chat_messages ADD COLUMN delivered_at DATETIME NULL",
     "ALTER TABLE chat_messages ADD COLUMN edited_at DATETIME NULL",
     "ALTER TABLE chat_messages ADD COLUMN deleted_at DATETIME NULL",
+    "ALTER TABLE enrollments ADD COLUMN email VARCHAR(190) NULL",
   ]) {
     try {
       await pool.query(sql);
@@ -661,10 +662,10 @@ async function recordEnrollment({ user, course, courseId, price, enrollmentType,
     const id = uid("enr_");
     const numeric = String(price || "").replace(/[^0-9.]/g, "");
     await q(
-      `INSERT INTO enrollments (id, user_id, course_id, course_title, price, enrollment_type, status, payment_status, amount_total, notes, created_at, updated_at)
-       VALUES (?,?,?,?,?,?, 'pending', 'unpaid', ?, ?, NOW(), NOW())`,
+      `INSERT INTO enrollments (id, user_id, course_id, course_title, price, enrollment_type, status, payment_status, amount_total, notes, email, created_at, updated_at)
+       VALUES (?,?,?,?,?,?, 'pending', 'unpaid', ?, ?, ?, NOW(), NOW())`,
       [id, user ? user.id : null, courseId || "", course, price || "", enrollmentType || "Online",
-        numeric ? Number(numeric) : 0, notes || ""]
+        numeric ? Number(numeric) : 0, notes || "", String(email || "").trim().toLowerCase()]
     );
     // Attach uploaded documents
     for (const f of files || []) {
@@ -940,7 +941,10 @@ function avatarSrc(v) {
 
 function head(title) {
   return `<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#060912">
 <title>${esc(title)}</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -1116,7 +1120,16 @@ function mount(app, context) {
   // ---- nav helper for the public website ----
   app.get("/api/me", (req, res) => {
     if (!req.user) return res.json({ ok: true, user: null });
-    res.json({ ok: true, user: { name: req.user.full_name, role: req.user.role, status: req.user.status } });
+    res.json({
+      ok: true,
+      user: {
+        name: req.user.full_name,
+        role: req.user.role,
+        status: req.user.status,
+        email: req.user.email,
+        phone: req.user.phone,
+      },
+    });
   });
 
   // ============================= PUBLIC =============================
@@ -1208,7 +1221,9 @@ function mount(app, context) {
         userAgent: ua,
       });
       setSessionCookie(res, sid);
-      res.redirect(next && next.startsWith("/") ? next : "/portal/dashboard");
+      const safeNext =
+        next && next.startsWith("/") && !next.startsWith("//") && !next.startsWith("/\\") ? next : "/portal/dashboard";
+      res.redirect(safeNext);
     } catch (err) {
       console.error("login failed:", err.message);
       res.redirect("/portal/login?e=" + encodeURIComponent("Something went wrong. Try again."));
@@ -1247,9 +1262,9 @@ function mount(app, context) {
         <p class="muted" style="margin-bottom:8px">Create your account, then complete your profile.</p>
         ${req.query.e ? `<div class="err">${esc(req.query.e)}</div>` : ""}
         <form method="post" action="/portal/register/student">
-          <label>Full name *</label><input name="full_name" required maxlength="120">
+          <label>Full name *</label><input name="full_name" required maxlength="120" value="${esc(req.query.name || "")}">
           <div class="grid2">
-            <div><label>Email *</label><input type="email" name="email" required maxlength="190"></div>
+            <div><label>Email *</label><input type="email" name="email" required maxlength="190" value="${esc(req.query.email || "")}"></div>
             <div><label>Mobile *</label><input name="phone" required placeholder="03001234567"></div>
           </div>
           <div class="grid2">
@@ -1287,6 +1302,13 @@ function mount(app, context) {
         [id, "student", email, hashPassword(password), full_name, phone]
       );
       await q("INSERT INTO student_profiles (user_id, updated_at) VALUES (?, NOW())", [id]);
+      // Link any enrollment requests this person submitted from the public site
+      // before they had an account (matched on email).
+      try {
+        await q("UPDATE enrollments SET user_id = ?, updated_at = NOW() WHERE user_id IS NULL AND email = ?", [id, email]);
+      } catch (err) {
+        console.error("enrollment link failed:", err.message);
+      }
       await createNotice("user", id, "Welcome to CyberNexa", "Your student account is ready. Complete your profile and explore our courses.");
       const sid = await createSession(id, req.ip, req.headers["user-agent"]);
       setSessionCookie(res, sid);
@@ -1389,7 +1411,7 @@ function mount(app, context) {
       <div class="card narrow">
         <h1>Forgot your password?</h1>
         <p class="muted" style="margin-bottom:8px">Enter your email. Our team will verify and send you a reset link.</p>
-        ${req.query.sent ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> Request received. Our admin will send you a reset link shortly.</div>` : ""}
+        ${req.query.sent ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> Request received. If an account exists for that email, a reset link is on its way (valid for 3 days).<div class="muted" style="font-size:.86rem;margin-top:6px">No email within 15 minutes? <a href="https://wa.me/923237469306" target="_blank" rel="noopener">Message us on WhatsApp</a> and our team will verify your account and send a link.</div></div>` : ""}
         ${req.query.e ? `<div class="err">${esc(req.query.e)}</div>` : ""}
         <form method="post" action="/portal/forgot">
           <label>Email</label><input type="email" name="email" required>
@@ -1410,7 +1432,30 @@ function mount(app, context) {
           "INSERT INTO password_resets (id, token, user_id, requested_at, expires_at) VALUES (?,?,?,NOW(), DATE_ADD(NOW(), INTERVAL 3 DAY))",
           [uid("rst_"), token, user.id]
         );
-        await createNotice("user", user.id, "Password reset requested", "An admin will contact you with a reset link.");
+        const link = ctx.originOf(req) + "/portal/reset?token=" + encodeURIComponent(token);
+        let emailed = false;
+        if (ctx.sendUserEmail) {
+          emailed = await ctx.sendUserEmail({
+            to: user.email,
+            subject: "Reset your CyberNexa password",
+            text:
+              `Hi ${user.full_name},\n\n` +
+              "We received a request to reset your CyberNexa portal password.\n\n" +
+              `Set a new password (link valid for 3 days):\n${link}\n\n` +
+              "If you did not request this, you can safely ignore this email.\n\n— CyberNexa Solutions",
+            html:
+              `<p>Hi ${esc(user.full_name)},</p>` +
+              "<p>We received a request to reset your CyberNexa portal password.</p>" +
+              `<p><a href="${link}" style="background:#2563eb;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">Set a new password</a></p>` +
+              '<p style="color:#64748b;font-size:13px">This link is valid for 3 days. If you did not request it, you can safely ignore this email.</p>',
+          });
+        }
+        await createNotice(
+          "user",
+          user.id,
+          "Password reset requested",
+          emailed ? "We emailed you a reset link (valid for 3 days)." : "Our team will contact you with a reset link."
+        );
       }
     } catch (err) {
       console.error("forgot failed:", err.message);
@@ -1541,9 +1586,24 @@ function mount(app, context) {
       <td>${esc(en.price)}</td><td>${statusBadge(en.status)}</td><td>${statusBadge(en.payment_status)}</td>
       <td>${esc(en.created_at)}</td></tr>`).join("");
     const welcome = req.query.applied ? `<div class="ok"><i class="fa-solid fa-champagne-glasses"></i> Welcome! Your account is ready.</div>` : "";
+    const onboarding = enrollments.length === 0 ? `
+      <div class="panel" style="border:1px solid rgba(59,130,246,.35);background:linear-gradient(135deg,rgba(59,130,246,.10),rgba(37,99,235,.04))">
+        <h2><i class="fa-solid fa-graduation-cap"></i> Start your first course</h2>
+        <p class="muted">Your account is ready — you are not enrolled in a course yet. Three quick steps and you are in class.</p>
+        <div style="display:grid;gap:10px;margin-top:14px;line-height:1.6">
+          <div><strong>1.</strong> Complete your profile so we can issue your student record. ${comp.pct === 100 ? '<span style="color:var(--green)"><i class="fa-solid fa-circle-check"></i> Done</span>' : `<a href="/portal/profile">Complete profile (${comp.pct}%)</a>`}</div>
+          <div><strong>2.</strong> Pick a course and send an enrollment request — our team reviews it within one business day. <a href="/courses">Browse courses</a></div>
+          <div><strong>3.</strong> After approval, fees, timetable, assignments and materials unlock here automatically.</div>
+        </div>
+        <p class="mt" style="display:flex;gap:8px;flex-wrap:wrap">
+          <a class="btn primary sm" href="/courses">Browse courses</a>
+          <a class="btn ghost sm" href="/portal/profile">Complete profile</a>
+          <a class="btn ghost sm" href="https://wa.me/923237469306" target="_blank" rel="noopener">Ask on WhatsApp</a>
+        </p>
+      </div>` : "";
     res.send(shell(u, "dash", "Welcome, " + u.full_name.split(" ")[0],
       "Here is your learning overview.",
-      `${welcome}
+      `${welcome}${onboarding}
       <div class="cards">
         <div class="stat"><b>${enrollments.length}</b><span>Enrollments</span></div>
         <div class="stat"><b>${attPct === null ? "—" : attPct + "%"}</b><span>Attendance</span></div>

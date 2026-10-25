@@ -493,6 +493,28 @@ function originOf(req) {
   return "http://localhost:3000";
 }
 
+/**
+ * Send a transactional email to a portal user (password reset, etc.).
+ * Requires SMTP credentials; returns true only when the server accepted it.
+ */
+async function sendUserEmail({ to, subject, text, html }) {
+  const mailer = getMailer();
+  if (!mailer || !to) return false;
+  try {
+    await mailer.sendMail({
+      from: `"CyberNexa Solutions" <${process.env.SMTP_USER}>`,
+      to,
+      subject,
+      text,
+      html,
+    });
+    return true;
+  } catch (err) {
+    console.error("User email failed:", err.message);
+    return false;
+  }
+}
+
 async function notifyOwner(subject, fields, origin) {
   // 1) Direct SMTP (configured via .env)
   const mailer = getMailer();
@@ -624,6 +646,28 @@ app.post(
   const displayEmail = String(email).trim();
   const displayPhone = String(phone).trim();
   const enrollType = String(enrollmentType).trim();
+
+  // Prevent duplicate pending requests for the same person + course.
+  if (pool) {
+    try {
+      const [dup] = await pool.query(
+        `SELECT id FROM enrollments
+          WHERE course_title = ? AND status = 'pending'
+            AND (email = ? OR (user_id IS NOT NULL AND user_id = ?))
+          LIMIT 1`,
+        [courseName, displayEmail.toLowerCase(), req.user ? req.user.id : ""]
+      );
+      if (dup.length) {
+        return res.json({
+          ok: true,
+          duplicate: true,
+          msg: "You already have a pending request for this course — our team will contact you shortly.",
+        });
+      }
+    } catch (err) {
+      /* enrollments table may not exist yet — continue */
+    }
+  }
 
   // 1) Always save the request (admin dashboard)
   const attachMeta = buildAttachmentsMeta(files);
@@ -949,7 +993,10 @@ function adminLayout(title, active, body) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="robots" content="noindex,nofollow">
+<meta name="theme-color" content="#060912">
 <title>${title}</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <link rel="stylesheet" href="https://cdn.datatables.net/1.13.8/css/jquery.dataTables.min.css">
 <script src="https://code.jquery.com/jquery-3.7.1.min.js"></script>
@@ -1178,13 +1225,27 @@ app.get("/admin/dashboard", async (req, res) => {
     }
   }
 
+  // ---- academy operations snapshot ----
+  let academy = null;
+  if (pool) {
+    try {
+      const [[t]] = await pool.query("SELECT COUNT(*) n FROM users WHERE role='teacher' AND status='pending'");
+      const [[e]] = await pool.query("SELECT COUNT(*) n FROM enrollments WHERE status='pending'");
+      const [[r]] = await pool.query("SELECT COUNT(*) n FROM password_resets WHERE used=0 AND expires_at > NOW()");
+      const [[s]] = await pool.query("SELECT COUNT(*) n FROM users WHERE role='student' AND status='active'");
+      academy = { teachers: t.n, enrollments: e.n, resets: r.n, students: s.n };
+    } catch (err) {
+      /* portal tables not ready yet */
+    }
+  }
+
   res.send(
     adminLayout(
       "Admin — Dashboard",
       "dash",
       `
     <h1><i class="fa-solid fa-chart-column"></i> Dashboard</h1>
-    <p class="sub">Overview of your contact form activity · Storage: ${storageMode}</p>
+    <p class="sub">Website messages, academy queues and sign-in activity in one place · Storage: ${storageMode}</p>
 
     <div class="stats">
       <div class="box"><b>${total}</b><span>Total Messages</span></div>
@@ -1192,6 +1253,21 @@ app.get("/admin/dashboard", async (req, res) => {
       <div class="box g"><b>${read}</b><span>Read</span></div>
       <div class="box o"><b>${last7}</b><span>Last 7 Days</span></div>
     </div>
+
+    ${
+      academy
+        ? `<div class="panel">
+      <h2><i class="fa-solid fa-list-check"></i> Needs your attention</h2>
+      <div class="stats">
+        <a class="box" style="text-decoration:none;color:inherit" href="/admin/teachers?status=pending"><b>${academy.teachers}</b><span>Teacher approvals</span></a>
+        <a class="box v" style="text-decoration:none;color:inherit" href="/admin/enrollments?status=pending"><b>${academy.enrollments}</b><span>Pending enrollments</span></a>
+        <a class="box o" style="text-decoration:none;color:inherit" href="/admin/resets"><b>${academy.resets}</b><span>Password resets</span></a>
+        <a class="box g" style="text-decoration:none;color:inherit" href="/admin/students"><b>${academy.students}</b><span>Active students</span></a>
+      </div>
+      <p class="muted" style="margin-top:12px">Click any card to open that queue.</p>
+    </div>`
+        : ""
+    }
 
     <div class="panel">
       <h2>Messages — Last 7 Days</h2>
@@ -1495,6 +1571,7 @@ portal.mount(app, {
   emailIssue,
   emailDomainExists,
   notifyOwner,
+  sendUserEmail,
   originOf,
   adminLayout,
   getCourses,
@@ -1510,6 +1587,96 @@ mountPortalCampus(app);
 // Avatar photos ARE public so the browser can display them.
 app.use("/uploads/avatars", express.static(path.join(__dirname, "uploads", "avatars"), { maxAge: "7d" }));
 app.use("/uploads", (req, res) => res.status(403).send("<h1>403 — Forbidden</h1>"));
+
+// ---------- Brand assets & SEO files ----------
+// These are served before the public allow-list below, otherwise they would 404.
+const SITE_URL = (process.env.SITE_URL || "http://54.161.79.42").replace(/\/+$/, "");
+const SITE_PAGES = [
+  "/", "/courses", "/about", "/industries", "/legal",
+  "/services/managed-it-operations", "/services/cloud-infrastructure",
+  "/services/cybersecurity", "/services/software-development",
+  "/services/it-training", "/services/digital-agency",
+];
+
+app.get("/robots.txt", (req, res) => {
+  res.type("text/plain").send(
+    [
+      "User-agent: *",
+      "Allow: /",
+      "Disallow: /portal/",
+      "Disallow: /admin/",
+      "Disallow: /api/",
+      "Disallow: /uploads/",
+      "",
+      `Sitemap: ${SITE_URL}/sitemap.xml`,
+      "",
+    ].join("\n")
+  );
+});
+
+app.get("/sitemap.xml", (req, res) => {
+  const today = new Date().toISOString().slice(0, 10);
+  const urls = SITE_PAGES.map(
+    (p) => `  <url><loc>${SITE_URL}${p === "/" ? "/" : p}</loc><lastmod>${today}</lastmod><changefreq>${p === "/" ? "weekly" : "monthly"}</changefreq><priority>${p === "/" ? "1.0" : p === "/courses" ? "0.9" : "0.7"}</priority></url>`
+  ).join("\n");
+  res.type("application/xml").send(
+    `<?xml version="1.0" encoding="UTF-8"?>\n<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">\n${urls}\n</urlset>\n`
+  );
+});
+
+const FAVICON_SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
+<defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+<stop offset="0" stop-color="#3b82f6"/><stop offset="1" stop-color="#2563eb"/></linearGradient></defs>
+<rect width="64" height="64" rx="14" fill="#060912"/>
+<path d="M32 9l18 7v14c0 12-7.6 21.4-18 25-10.4-3.6-18-13-18-25V16z" fill="url(#g)"/>
+<path d="M24 32.5l6 6 11-12" fill="none" stroke="#fff" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>`;
+app.get("/favicon.svg", (req, res) => {
+  res.type("image/svg+xml").set("Cache-Control", "public, max-age=604800").send(FAVICON_SVG);
+});
+app.get("/favicon.ico", (req, res) => res.redirect(301, "/favicon.svg"));
+
+// ---------- Branded error pages ----------
+function siteErrorPage(code, title, message) {
+  const links = [
+    ["/", "Home"],
+    ["/courses", "Courses"],
+    ["/about", "About"],
+    ["/industries", "Industries"],
+    ["/legal", "Legal"],
+  ]
+    .map(([href, label]) => `<a class="btn btn-ghost btn-small" href="${href}">${label}</a>`)
+    .join("");
+  return `<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<meta name="robots" content="noindex" />
+<title>${code} | CyberNexa Solutions</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml" />
+<link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
+<link rel="stylesheet" href="/css/style.css" />
+</head>
+<body>
+<header class="navbar scrolled"><div class="container nav-inner">
+  <a href="/" class="logo"><span class="logo-mark"><i class="fa-solid fa-shield-halved"></i></span><span class="logo-text">Cyber<span class="accent">Nexa</span></span></a>
+  <nav class="nav-links" style="display:flex">${links}</nav>
+</div></header>
+<main class="section"><div class="container" style="max-width:720px;text-align:center;padding:40px 0">
+  <div style="font-family:Sora,sans-serif;font-size:clamp(4.5rem,14vw,7rem);font-weight:800;line-height:1;background:linear-gradient(120deg,var(--primary),var(--accent));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent">${code}</div>
+  <h1 style="margin:18px 0 10px;font-size:clamp(1.6rem,3.6vw,2.2rem)">${title}</h1>
+  <p style="color:var(--muted);max-width:520px;margin:0 auto 28px">${message}</p>
+  <div class="hero-actions" style="justify-content:center">
+    <a class="btn" href="/">Back to home</a>
+    <a class="btn btn-ghost" href="/courses">Browse courses</a>
+    <a class="btn btn-ghost" href="/portal/login">Portal login</a>
+  </div>
+  <p style="margin-top:30px;color:var(--muted);font-size:.92rem">Need a hand? <a href="https://wa.me/923237469306" style="color:var(--primary)">WhatsApp us</a> or email <a href="mailto:umair799283@gmail.com" style="color:var(--primary)">umair799283@gmail.com</a>.</p>
+</div></main>
+</body>
+</html>`;
+}
 
 // Only the public front-end is served. Anything else that happens to sit in the
 // project root (server.js, portal*.js, package.json, data/, deploy/, k8s/,
@@ -1527,7 +1694,7 @@ app.use((req, res, next) => {
   try {
     p = decodeURIComponent(p);
   } catch (_) {
-    return res.status(400).send("<h1>400 — Bad request</h1>");
+    return res.status(400).send(siteErrorPage("400", "Bad request", "That address wasn't understood. Please check the link and try again."));
   }
   // Normalise so tricks like /js/../server.js or /%2e%2e/server.js cannot pass.
   p = path.posix.normalize(p);
@@ -1535,13 +1702,17 @@ app.use((req, res, next) => {
 
   if (PUBLIC_PAGES.has(p)) return next();
   if (PUBLIC_DIRS.some((dir) => p.startsWith(dir))) return next();
-  return res.status(404).send("<h1>404 — Page not found</h1>");
+  return res.status(404).send(
+    siteErrorPage("404", "This page doesn't exist", "The link may be old, or the address may have a typo. Let's get you back on track.")
+  );
 });
 app.use(express.static(__dirname, { extensions: ["html"] }));
 
 // ---------- 404 ----------
 app.use((req, res) => {
-  res.status(404).send("<h1>404 — Page not found</h1>");
+  res.status(404).send(
+    siteErrorPage("404", "This page doesn't exist", "The link may be old, or the address may have a typo. Let's get you back on track.")
+  );
 });
 
 // ---------- Error handler ----------
@@ -1559,7 +1730,9 @@ app.use((err, req, res, next) => {
       /* fall through to the plain response below */
     }
   }
-  res.status(500).send("<h1>500 — Something went wrong</h1>");
+  res.status(500).send(
+    siteErrorPage("500", "Something went wrong", "We hit an unexpected error. Please try again in a moment — if it keeps happening, contact us and we'll fix it.")
+  );
 });
 
 // Last-resort safety nets: log instead of crashing the live site.

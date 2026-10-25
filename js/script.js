@@ -2,6 +2,15 @@
    CyberNexa Solutions — Interactions
    ========================================================== */
 
+// Small shared helper: safe HTML escaping for text we inject with innerHTML.
+function cnxEsc(s) {
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;");
+}
+
 // ---------- Student / Teacher portal links in the main nav ----------
 // Injected on every page so the portal is reachable from the whole website.
 (async () => {
@@ -25,6 +34,7 @@
   try {
     const res = await fetch("/api/me", { headers: { Accept: "application/json" } });
     const data = await res.json();
+    window.__cnxUser = (data && data.user) || null;
     if (data && data.user) {
       login.href = "/portal/dashboard";
       login.textContent = data.user.name.split(" ")[0] + " · " + (data.user.role === "teacher" ? "Teacher" : "Student");
@@ -40,6 +50,7 @@
 const navbar = document.getElementById("navbar");
 
 const onScroll = () => {
+  if (!navbar) return;
   navbar.classList.toggle("scrolled", window.scrollY > 40);
 };
 window.addEventListener("scroll", onScroll, { passive: true });
@@ -63,18 +74,20 @@ document.addEventListener("click", () => {
 const hamburger = document.getElementById("hamburger");
 const navLinks = document.getElementById("navLinks");
 
-hamburger.addEventListener("click", () => {
+hamburger?.addEventListener("click", () => {
   hamburger.classList.toggle("open");
   navLinks.classList.toggle("open");
 });
 
 // Close menu when a link is clicked
-navLinks.querySelectorAll("a").forEach((link) => {
-  link.addEventListener("click", () => {
-    hamburger.classList.remove("open");
-    navLinks.classList.remove("open");
+if (navLinks) {
+  navLinks.querySelectorAll("a").forEach((link) => {
+    link.addEventListener("click", () => {
+      hamburger.classList.remove("open");
+      navLinks.classList.remove("open");
+    });
   });
-});
+}
 
 // ---------- Scroll reveal ----------
 const revealElements = document.querySelectorAll(".reveal");
@@ -272,7 +285,10 @@ if (contactForm) {
       const json = await res.json();
 
       if (json.ok) {
-        resp.textContent = json.msg;
+        resp.innerHTML =
+          "<strong>" +
+          cnxEsc(json.msg) +
+          '</strong><span class="form-next">We usually reply within one business day. Need a faster answer? <a href="https://wa.me/923237469306" target="_blank" rel="noopener">WhatsApp us</a>.</span>';
         resp.classList.add("ok");
         contactForm.reset();
       } else {
@@ -305,6 +321,7 @@ if (contactForm) {
   var phoneI = document.getElementById("ef-phone");
   var sendBtn = document.getElementById("ef-send");
   var statusEl = document.getElementById("ef-msg");
+  var successEl = document.getElementById("ef-success");
   var current = { course: "", price: "" };
 
   var typeSel = document.getElementById("ef-enrollmentType");
@@ -413,6 +430,53 @@ if (contactForm) {
     statusEl.className = "enroll-status " + (isError ? "err" : "ok");
   }
 
+  function escHtml(s) {
+    return String(s == null ? "" : s)
+      .replace(/&/g, "&amp;")
+      .replace(/</g, "&lt;")
+      .replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;");
+  }
+
+  // Success panel sits OUTSIDE the <form> so it stays visible when the form is hidden.
+  function showSuccess(msg, info) {
+    var me = window.__cnxUser;
+    var accountBtn = me
+      ? '<a class="btn btn-small" href="/portal/enrollments">Track my enrollment</a>'
+      : '<a class="btn btn-small" href="/portal/register/student?email=' +
+        encodeURIComponent((info && info.email) || "") +
+        '">Create a portal account</a>';
+    var html =
+      '<div class="enroll-success-head"><i class="fa-solid fa-circle-check"></i> ' +
+      escHtml(msg || "Enrollment request received") +
+      "</div>" +
+      '<p class="enroll-success-text">What happens next: our admissions team reviews your documents and calls you within 24 hours (Mon–Sat, 10am–7pm). Keep your phone reachable.</p>' +
+      '<div class="enroll-success-actions">' +
+      accountBtn +
+      '<a class="btn btn-ghost btn-small" href="https://wa.me/923237469306" target="_blank" rel="noopener">Send documents on WhatsApp</a>' +
+      "</div>";
+    if (successEl) {
+      successEl.innerHTML = html;
+      successEl.hidden = false;
+    } else {
+      status(msg, false);
+    }
+  }
+
+  function resetSuccess() {
+    if (!successEl) return;
+    successEl.hidden = true;
+    successEl.innerHTML = "";
+  }
+
+  function prefillFromSession() {
+    var me = window.__cnxUser;
+    if (!me) return;
+    if (nameI && !nameI.value && me.name) nameI.value = me.name;
+    if (emailI && !emailI.value && me.email) emailI.value = me.email;
+    if (phoneI && !phoneI.value && me.phone) phoneI.value = me.phone;
+  }
+
   function openModal() {
     statusEl.textContent = "";
     statusEl.className = "enroll-status";
@@ -423,6 +487,8 @@ if (contactForm) {
     });
     if (typeSel) typeSel.value = "";
     Object.keys(fileInputs).forEach(function (field) { if (fileInputs[field]) fileInputs[field].value = ""; });
+    resetSuccess();
+    prefillFromSession();
     form.style.display = "";
     modal.classList.add("open");
     modal.setAttribute("aria-hidden", "false");
@@ -507,7 +573,7 @@ if (contactForm) {
           var d = res.data;
           if (d && d.ok) {
             form.style.display = "none";
-            status(d.msg, false);
+            showSuccess(d.msg, { name: name, email: email });
           } else {
             var msg = d && d.msg;
             if (d && d.errors) {

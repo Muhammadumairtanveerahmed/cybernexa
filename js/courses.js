@@ -137,8 +137,20 @@
     if (!anyTarget) return;
     fetch("/api/courses", { headers: { Accept: "application/json" } })
       .then(function (r) { return r.json(); })
-      .then(function (d) { if (d && d.ok) renderCourses(d); })
-      .catch(function () { /* fetch failed — sections stay empty on purpose */ });
+      .then(function (d) {
+        if (d && d.ok) return renderCourses(d);
+        throw new Error((d && d.msg) || "Course list unavailable");
+      })
+      .catch(function () {
+        var el = document.getElementById("courseCatalog") || document.getElementById("featuredCourses");
+        if (!el) return;
+        el.innerHTML =
+          '<div style="grid-column:1/-1;padding:28px;border:1px solid rgba(148,163,184,.25);border-radius:14px;text-align:center">' +
+          '<p style="margin:0 0 6px;font-weight:600">Courses could not load right now.</p>' +
+          '<p style="margin:0;color:var(--muted);font-size:.9rem">Please refresh the page, or ' +
+          '<a href="https://wa.me/923237469306" target="_blank" rel="noopener" style="color:var(--primary)">ask us on WhatsApp</a> and we will send the latest fee list.</p>' +
+          "</div>";
+      });
   }
 
   if (document.readyState === "loading") {
