@@ -813,8 +813,8 @@ function attach(server, getPool) {
           if (c) c.answered = true;
           try {
             await pool.query(
-              "UPDATE call_logs SET status = 'answered', answered_at = COALESCE(answered_at, NOW()) WHERE call_key = ? AND ended_at IS NULL",
-              [callId]
+              "UPDATE call_logs SET status = 'answered', answered_at = COALESCE(answered_at, NOW()) WHERE call_key = ? AND (caller_id = ? OR callee_id = ?) AND ended_at IS NULL",
+              [callId, me.id, me.id]
             );
           } catch {
             /* ignore */
@@ -826,8 +826,8 @@ function attach(server, getPool) {
               `UPDATE call_logs
                   SET status = CASE WHEN status = 'answered' THEN 'ended' WHEN ? = 'reject' THEN 'rejected' ELSE 'missed' END,
                       ended_at = NOW()
-                WHERE call_key = ? AND ended_at IS NULL`,
-              [action, callId]
+                WHERE call_key = ? AND (caller_id = ? OR callee_id = ?) AND ended_at IS NULL`,
+              [action, callId, me.id, me.id]
             );
           } catch {
             /* ignore */
@@ -846,10 +846,11 @@ function attach(server, getPool) {
         });
         if (!delivered && action === "offer") {
           try {
-            await pool.query("UPDATE call_logs SET ended_at = NOW() WHERE call_key = ? AND ended_at IS NULL", [callId]);
+            await pool.query("UPDATE call_logs SET ended_at = NOW() WHERE call_key = ? AND caller_id = ? AND ended_at IS NULL", [callId, me.id]);
           } catch {
             /* ignore */
           }
+          calls.delete(callId);
           sendTo(me.id, { type: "signal", action: "offline", from: to, callId });
         }
         return;
