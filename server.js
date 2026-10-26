@@ -1096,6 +1096,7 @@ function adminLayout(title, active, body) {
   <div class="brand"><i class="fa-solid fa-shield-halved"></i> Cyber<b>Nexa</b></div>
   <a href="/admin/dashboard" class="${active === "dash" ? "active" : ""}"><i class="fa-solid fa-chart-column"></i> Dashboard</a>
   <a href="/admin/messages" class="${active === "msgs" ? "active" : ""}"><i class="fa-solid fa-envelope"></i> Messages</a>
+  <a href="/admin/calls" class="${active === "calls" ? "active" : ""}"><i class="fa-solid fa-phone"></i> Call logs</a>
   <a href="/admin/courses" class="${active === "courses" ? "active" : ""}"><i class="fa-solid fa-graduation-cap"></i> Courses</a>
   <a href="/admin/students" class="${active === "students" ? "active" : ""}"><i class="fa-solid fa-user-graduate"></i> Students</a>
   <a href="/admin/teachers" class="${active === "teachers" ? "active" : ""}"><i class="fa-solid fa-chalkboard-user"></i> Teachers</a>

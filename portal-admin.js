@@ -918,6 +918,136 @@ module.exports = function mountAdmin(app) {
     res.send("\uFEFF" + lines.join("\r\n"));
   });
 
+  // ============================ CALL LOGS ============================
+  function callPill(s) {
+    const m = s === "answered" || s === "ended"
+      ? ["rgba(34,197,94,.14)", "#22c55e", "rgba(34,197,94,.35)", s === "ended" ? "Completed" : "Answered"]
+      : s === "rejected"
+        ? ["rgba(239,68,68,.14)", "#f87171", "rgba(239,68,68,.35)", "Rejected"]
+        : s === "missed"
+          ? ["rgba(249,115,22,.14)", "#fb923c", "rgba(249,115,22,.35)", "Missed"]
+          : ["rgba(148,163,184,.12)", "#9a9ab5", "rgba(148,163,184,.3)", s || "Unknown"];
+    return `<span style="display:inline-block;padding:3px 10px;border-radius:999px;font-size:.72rem;font-weight:700;background:${m[0]};color:${m[1]};border:1px solid ${m[2]}">${m[3]}</span>`;
+  }
+
+  function fmtDur(sec) {
+    if (sec == null) return "-";
+    const s = Math.max(0, Number(sec) || 0);
+    const m = Math.floor(s / 60);
+    return m ? `${m}m ${s % 60}s` : `${s}s`;
+  }
+
+  function callFilters(req) {
+    const kind = ["audio", "video"].includes(String(req.query.kind)) ? String(req.query.kind) : "all";
+    const status = ["missed", "answered", "rejected", "ended"].includes(String(req.query.status))
+      ? String(req.query.status) : "all";
+    const days = [1, 7, 30, 90, 180].includes(Number(req.query.days)) ? Number(req.query.days) : 7;
+    const search = String(req.query.q || "").trim();
+    const where = [];
+    const params = [];
+    if (kind !== "all") { where.push("c.kind = ?"); params.push(kind); }
+    if (status !== "all") { where.push("c.status = ?"); params.push(status); }
+    if (search) {
+      const like = "%" + search + "%";
+      where.push("(cu.full_name LIKE ? OR cu.email LIKE ? OR eu.full_name LIKE ? OR eu.email LIKE ?)");
+      params.push(like, like, like, like);
+    }
+    where.push("c.started_at >= DATE_SUB(NOW(), INTERVAL ? DAY)");
+    params.push(days);
+    return { kind, status, days, search, where: where.join(" AND "), params };
+  }
+
+  const callSelect = `SELECT c.*,
+      ${pktTime("c.started_at")} AS at_pkt,
+      cu.full_name AS caller_name, cu.email AS caller_email,
+      eu.full_name AS callee_name, eu.email AS callee_email,
+      CASE WHEN c.ended_at IS NOT NULL AND c.status IN ('answered','ended')
+           THEN TIMESTAMPDIFF(SECOND, COALESCE(c.answered_at, c.started_at), c.ended_at) END AS dur_sec
+    FROM call_logs c
+    LEFT JOIN users cu ON cu.id = c.caller_id
+    LEFT JOIN users eu ON eu.id = c.callee_id`;
+
+  app.get("/admin/calls", async (req, res) => {
+    const f = callFilters(req);
+    const [rows] = await q(`${callSelect} WHERE ${f.where} ORDER BY c.started_at DESC LIMIT 300`, f.params);
+
+    const [[today]] = await q(
+      `SELECT COUNT(*) AS total,
+              COALESCE(SUM(status IN ('answered','ended')),0) AS ok,
+              COALESCE(SUM(status IN ('missed','rejected')),0) AS bad,
+              COALESCE(SUM(CASE WHEN ended_at IS NOT NULL AND status IN ('answered','ended')
+                                THEN TIMESTAMPDIFF(SECOND, COALESCE(answered_at, started_at), ended_at) ELSE 0 END),0) AS secs
+         FROM call_logs WHERE started_at >= DATE_SUB(CURDATE(), INTERVAL 5 HOUR)`
+    );
+
+    const opt = (val, label, cur) =>
+      `<option value="${esc(val)}"${String(cur) === String(val) ? " selected" : ""}>${esc(label)}</option>`;
+
+    const rowHtml = rows.map((r) => `<tr>
+        <td class="muted" style="white-space:nowrap">${esc(r.at_pkt || "-")}</td>
+        <td><strong>${esc(r.caller_name) || "Unknown"}</strong><div class="muted" style="font-size:.78rem">${esc(r.caller_email)}</div></td>
+        <td><strong>${esc(r.callee_name) || "Unknown"}</strong><div class="muted" style="font-size:.78rem">${esc(r.callee_email)}</div></td>
+        <td><i class="fa-solid ${r.kind === "video" ? "fa-video" : "fa-phone"}"></i> ${r.kind === "video" ? "Video" : "Audio"}</td>
+        <td>${callPill(r.status)}</td>
+        <td>${fmtDur(r.dur_sec)}</td>
+      </tr>`).join("");
+
+    const talkMin = Math.round(Number(today.secs || 0) / 60);
+
+    res.send(layout("Admin — Call logs", "calls", `
+      <div class="head-row"><div>
+        <h1><i class="fa-solid fa-phone"></i> Call logs</h1>
+        <p class="sub">Every audio and video call between students and teachers, with caller, callee, status and duration.</p>
+      </div>
+      <a class="btn b-read" href="/admin/calls.csv?kind=${esc(f.kind)}&status=${esc(f.status)}&days=${esc(f.days)}&q=${encodeURIComponent(f.search)}"><i class="fa-solid fa-download"></i> Export CSV</a></div>
+
+      <div class="stats">
+        <div class="box"><b>${Number(today.total || 0)}</b><span>Calls today</span></div>
+        <div class="box g"><b>${Number(today.ok || 0)}</b><span>Answered / completed</span></div>
+        <div class="box o"><b>${Number(today.bad || 0)}</b><span>Missed / rejected</span></div>
+        <div class="box v"><b>${talkMin}</b><span>Talk minutes today</span></div>
+      </div>
+
+      <div class="panel">
+        <form method="get" action="/admin/calls" style="display:flex;gap:10px;flex-wrap:wrap;align-items:flex-end;margin-bottom:18px">
+          <div style="flex:2;min-width:180px"><label>Search</label><input type="text" name="q" value="${esc(f.search)}" placeholder="Caller or callee name / email"></div>
+          <div style="flex:1;min-width:120px"><label>Type</label><select name="kind">
+            ${opt("all", "All types", f.kind)}${opt("audio", "Audio", f.kind)}${opt("video", "Video", f.kind)}
+          </select></div>
+          <div style="flex:1;min-width:130px"><label>Status</label><select name="status">
+            ${opt("all", "All statuses", f.status)}${opt("answered", "Answered", f.status)}${opt("ended", "Completed", f.status)}${opt("missed", "Missed", f.status)}${opt("rejected", "Rejected", f.status)}
+          </select></div>
+          <div style="flex:1;min-width:120px"><label>Period</label><select name="days">
+            ${opt(1, "Today", f.days)}${opt(7, "Last 7 days", f.days)}${opt(30, "Last 30 days", f.days)}${opt(90, "Last 90 days", f.days)}${opt(180, "Last 180 days", f.days)}
+          </select></div>
+          <div><label>&nbsp;</label><button class="btn b-add" type="submit"><i class="fa-solid fa-magnifying-glass"></i> Filter</button></div>
+        </form>
+
+        <table>
+          <tr><th>Time (PKT)</th><th>Caller</th><th>Callee</th><th>Type</th><th>Status</th><th>Duration</th></tr>
+          ${rowHtml || `<tr><td colspan="6" class="empty">No calls in this period.</td></tr>`}
+        </table>
+        <p class="sub" style="margin:16px 0 0">Showing the latest ${rows.length} call(s). Each call is stored once with both participants.</p>
+      </div>
+    `));
+  });
+
+  app.get("/admin/calls.csv", async (req, res) => {
+    const f = callFilters(req);
+    const [rows] = await q(`${callSelect} WHERE ${f.where} ORDER BY c.started_at DESC LIMIT 5000`, f.params);
+    const cell = (v) => '"' + String(v == null ? "" : v).replace(/"/g, '""') + '"';
+    const lines = [["Time (PKT)", "Caller", "Caller email", "Callee", "Callee email", "Type", "Status", "Duration (seconds)", "Duration"].map(cell).join(",")];
+    for (const r of rows) {
+      lines.push([
+        r.at_pkt || "", r.caller_name || "", r.caller_email || "", r.callee_name || "", r.callee_email || "",
+        r.kind || "", r.status || "", r.dur_sec == null ? "" : r.dur_sec, r.dur_sec == null ? "" : fmtDur(r.dur_sec),
+      ].map(cell).join(","));
+    }
+    res.setHeader("Content-Type", "text/csv; charset=utf-8");
+    res.setHeader("Content-Disposition", 'attachment; filename="call-logs.csv"');
+    res.send("\uFEFF" + lines.join("\r\n"));
+  });
+
   // ============================ SHARED ACTIONS ============================
   app.post("/admin/account/status", form, async (req, res) => {
     await q("UPDATE users SET status = ?, updated_at = NOW() WHERE id = ? AND role <> 'admin'", [String(req.body.status || "active"), String(req.body.user_id || req.body.id || "")]);

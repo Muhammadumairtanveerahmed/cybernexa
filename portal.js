@@ -442,6 +442,7 @@ async function initSchema(pool) {
       kind ENUM('audio','video') NOT NULL DEFAULT 'audio',
       status ENUM('missed','answered','rejected','ended') NOT NULL DEFAULT 'missed',
       started_at DATETIME NOT NULL,
+      answered_at DATETIME NULL,
       ended_at DATETIME NULL,
       INDEX idx_call_key (call_key),
       INDEX idx_call_pair (caller_id, callee_id, started_at)
@@ -481,6 +482,7 @@ async function initSchema(pool) {
     "ALTER TABLE chat_messages ADD COLUMN edited_at DATETIME NULL",
     "ALTER TABLE chat_messages ADD COLUMN deleted_at DATETIME NULL",
     "ALTER TABLE enrollments ADD COLUMN email VARCHAR(190) NULL",
+    "ALTER TABLE call_logs ADD COLUMN answered_at DATETIME NULL",
   ]) {
     try {
       await pool.query(sql);

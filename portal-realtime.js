@@ -810,27 +810,29 @@ function attach(server, getPool) {
           }
         } else if (action === "answer") {
           const c = calls.get(callId);
-          if (c) {
-            c.answered = true;
-            try {
-              await pool.query("UPDATE call_logs SET status = 'answered' WHERE call_key = ?", [callId]);
-            } catch {
-              /* ignore */
-            }
+          if (c) c.answered = true;
+          try {
+            await pool.query(
+              "UPDATE call_logs SET status = 'answered', answered_at = COALESCE(answered_at, NOW()) WHERE call_key = ? AND ended_at IS NULL",
+              [callId]
+            );
+          } catch {
+            /* ignore */
           }
         } else if (action === "reject" || action === "end") {
           const c = calls.get(callId);
-          if (c) {
-            try {
-              await pool.query("UPDATE call_logs SET status = ?, ended_at = NOW() WHERE call_key = ? AND ended_at IS NULL", [
-                action === "reject" ? "rejected" : c.answered ? "ended" : "missed",
-                callId,
-              ]);
-            } catch {
-              /* ignore */
-            }
-            calls.delete(callId);
+          try {
+            await pool.query(
+              `UPDATE call_logs
+                  SET status = CASE WHEN status = 'answered' THEN 'ended' WHEN ? = 'reject' THEN 'rejected' ELSE 'missed' END,
+                      ended_at = NOW()
+                WHERE call_key = ? AND ended_at IS NULL`,
+              [action, callId]
+            );
+          } catch {
+            /* ignore */
           }
+          if (c) calls.delete(callId);
         }
 
         const delivered = sendTo(to, {
@@ -843,6 +845,11 @@ function attach(server, getPool) {
           payload: m.payload || null,
         });
         if (!delivered && action === "offer") {
+          try {
+            await pool.query("UPDATE call_logs SET ended_at = NOW() WHERE call_key = ? AND ended_at IS NULL", [callId]);
+          } catch {
+            /* ignore */
+          }
           sendTo(me.id, { type: "signal", action: "offline", from: to, callId });
         }
         return;
@@ -868,6 +875,15 @@ function attach(server, getPool) {
               from: me.id,
               callId: id,
             });
+            const pool = getPool();
+            if (pool) {
+              pool
+                .query(
+                  "UPDATE call_logs SET status = CASE WHEN status = 'answered' THEN 'ended' ELSE 'missed' END, ended_at = NOW() WHERE call_key = ? AND ended_at IS NULL",
+                  [id]
+                )
+                .catch(() => {});
+            }
             calls.delete(id);
           }
         }
