@@ -184,13 +184,27 @@ function mount(app, core) {
     },
   }).single("file");
 
-  app.post("/api/chat/upload", need, (req, res) => {
-    uploadChat(req, res, (err) => {
+  app.post("/api/chat/upload", need, async (req, res) => {
+    uploadChat(req, res, async (err) => {
       if (err) {
         const msg = err.code === "LIMIT_FILE_SIZE" ? "File must be 10 MB or smaller." : err.message || "Upload failed.";
         return res.status(422).json({ ok: false, error: msg });
       }
       if (!req.file) return res.status(400).json({ ok: false, error: "No file selected." });
+      // Register the file immediately so only the uploader can open it until the
+      // message is sent (message_id is filled in by the WebSocket handler).
+      try {
+        const pool = getPool();
+        if (!pool) throw new Error("Database unavailable");
+        await pool.query(
+          "INSERT INTO chat_attachments (id, message_id, sender_id, original_name, stored_name, mime_type, file_size, created_at) VALUES (?,?,?,?,?,?,?,NOW())",
+          ["ca_" + crypto.randomBytes(10).toString("hex"), "", req.user.id, req.file.originalname, req.file.filename, req.file.mimetype, req.file.size]
+        );
+      } catch (e) {
+        console.error("chat attachment index failed:", e.message);
+        try { fs.unlinkSync(req.file.path); } catch { /* already gone */ }
+        return res.status(500).json({ ok: false, error: "Could not store the file. Please try again." });
+      }
       res.json({
         ok: true,
         file: {
@@ -204,11 +218,36 @@ function mount(app, core) {
     });
   });
 
-  app.get("/api/chat/file/:name", need, (req, res) => {
+  app.get("/api/chat/file/:name", need, async (req, res) => {
     const name = path.basename(req.params.name || "");
     const full = path.join(CHAT_DIR, name);
     if (!full.startsWith(CHAT_DIR)) return res.status(403).end();
     if (!fs.existsSync(full)) return res.status(404).end();
+    // Privacy: only the uploader, the sender or the recipient of that message
+    // may open an attachment. Being signed in is not enough.
+    try {
+      const pool = getPool();
+      const [rows] = pool
+        ? await pool.query(
+            `SELECT a.sender_id, m.sender_id AS m_sender, m.recipient_id, m.deleted_at
+               FROM chat_attachments a
+               LEFT JOIN chat_messages m ON m.id = a.message_id
+              WHERE a.stored_name = ? LIMIT 1`,
+            [name]
+          )
+        : [[]];
+      if (!rows.length) return res.status(404).end();
+      const r = rows[0];
+      if (r.deleted_at) return res.status(404).end();
+      const allowed =
+        r.sender_id === req.user.id || r.m_sender === req.user.id || r.recipient_id === req.user.id;
+      if (!allowed) return res.status(403).end();
+    } catch (e) {
+      return res.status(500).end();
+    }
+    res.setHeader("Content-Disposition", "inline");
+    res.setHeader("Cache-Control", "private, no-store, max-age=0");
+    res.setHeader("X-Content-Type-Options", "nosniff");
     res.sendFile(full);
   });
 
@@ -457,7 +496,7 @@ function mount(app, core) {
       </div>
 
       <script>window.CNX_CHAT = ${json};</script>
-      <script src="/js/messages.js?v=20261024-voice"></script>`;
+      <script src="/js/messages.js?v=20261026-private"></script>`;
 
     res.send(
       core.shell(user, "messages", "Messages", "Chat and call your " + (user.role === "student" ? "teachers" : "students") + " in real time.", body)
@@ -651,10 +690,16 @@ function attach(server, getPool) {
         );
         if (att && att.stored_name) {
           try {
-            await pool.query(
-              "INSERT INTO chat_attachments (id, message_id, sender_id, original_name, stored_name, mime_type, file_size, created_at) VALUES (?,?,?,?,?,?,?,NOW())",
-              [rnd("ca_"), id, me.id, att.original_name || "", att.stored_name, att.mime_type || null, Number(att.size || 0)]
+            const [upd] = await pool.query(
+              "UPDATE chat_attachments SET message_id = ? WHERE stored_name = ? AND sender_id = ? AND message_id = ''",
+              [id, att.stored_name, me.id]
             );
+            if (!upd.affectedRows) {
+              await pool.query(
+                "INSERT INTO chat_attachments (id, message_id, sender_id, original_name, stored_name, mime_type, file_size, created_at) VALUES (?,?,?,?,?,?,?,NOW())",
+                [rnd("ca_"), id, me.id, att.original_name || "", att.stored_name, att.mime_type || null, Number(att.size || 0)]
+              );
+            }
           } catch (e) {
             /* ignore */
           }
@@ -717,6 +762,19 @@ function attach(server, getPool) {
         if (mine && m.scope !== "me") {
           if (!row.deleted_at) {
             await pool.query("UPDATE chat_messages SET body = '', deleted_at = NOW() WHERE id = ?", [id]);
+            // Remove any attachments from disk + DB so a deleted message can no
+            // longer be downloaded through a saved link.
+            try {
+              const chatDir = path.join(__dirname, "uploads", "chat");
+              const [atts] = await pool.query(
+                "SELECT stored_name FROM chat_attachments WHERE message_id = ?",
+                [id]
+              );
+              for (const a of atts) {
+                try { fs.unlinkSync(path.join(chatDir, path.basename(a.stored_name))); } catch { /* already gone */ }
+              }
+              if (atts.length) await pool.query("DELETE FROM chat_attachments WHERE message_id = ?", [id]);
+            } catch { /* best effort */ }
           }
           const ev = { type: "msg-del", id, from: me.id };
           sendTo(me.id, ev);

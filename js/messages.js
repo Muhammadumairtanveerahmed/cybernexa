@@ -217,13 +217,82 @@
     var url = a.url || (a.stored_name ? "/api/chat/file/" + encodeURIComponent(a.stored_name) : "");
     var name = a.original_name || a.name || "file";
     if (isAudio(a.mime_type || a.mime, name)) {
-      return '<div class="att"><audio controls preload="metadata" src="' + esc(url) + '"></audio></div>';
+      return '<div class="att"><audio controls preload="metadata" controlsList="nodownload noplaybackrate" disablePictureInPicture src="' + esc(url) + '"></audio></div>';
     }
     if (isImg(a.mime_type || a.mime, name)) {
-      return '<div class="att"><a href="' + esc(url) + '" target="_blank" rel="noopener"><img src="' + esc(url) + '" alt="' + esc(name) + '"></a></div>';
+      return '<div class="att"><img class="att-img" src="' + esc(url) + '" alt="' + esc(name) + '" data-name="' + esc(name) + '" draggable="false"></div>';
     }
-    return '<div class="att"><a class="att-file" href="' + esc(url) + '" target="_blank" rel="noopener"><i class="fa-solid ' + fileIcon(name) + '"></i><span>' + esc(name) + '</span><i class="fa-solid fa-download"></i></a></div>';
+    return '<div class="att"><a class="att-file" href="' + esc(url) + '" target="_blank" rel="noopener" data-name="' + esc(name) + '"><i class="fa-solid ' + fileIcon(name) + '"></i><span>' + esc(name) + '</span><i class="fa-solid fa-eye"></i></a></div>';
   }
+
+  /* Private attachment viewer: keeps photos and PDFs inside the portal instead
+     of opening the browser's download/save view. */
+  function ensureViewer() {
+    var v = document.getElementById("attViewer");
+    if (v) return v;
+    v = document.createElement("div");
+    v.id = "attViewer";
+    v.className = "att-viewer";
+    v.innerHTML =
+      '<div class="att-viewer-box">' +
+      '<div class="att-viewer-head"><span id="attViewerName"></span>' +
+      '<button type="button" class="att-viewer-x" aria-label="Close viewer"><i class="fa-solid fa-xmark"></i></button></div>' +
+      '<div class="att-viewer-body" id="attViewerBody"></div></div>';
+    document.body.appendChild(v);
+    v.addEventListener("click", function (e) {
+      if (e.target === v || (e.target.closest && e.target.closest(".att-viewer-x"))) closeViewer();
+    });
+    document.addEventListener("keydown", function (e) {
+      if (e.key === "Escape") closeViewer();
+    });
+    return v;
+  }
+
+  function closeViewer() {
+    var v = document.getElementById("attViewer");
+    if (!v) return;
+    v.classList.remove("open");
+    var b = document.getElementById("attViewerBody");
+    if (b) b.innerHTML = "";
+  }
+
+  function openViewer(url, name, kind) {
+    var v = ensureViewer();
+    var label = document.getElementById("attViewerName");
+    if (label) label.textContent = name || "Attachment";
+    var body = document.getElementById("attViewerBody");
+    body.innerHTML =
+      kind === "img"
+        ? '<img src="' + esc(url) + '" alt="' + esc(name) + '" draggable="false">'
+        : '<iframe src="' + esc(url) + '#toolbar=0&navpanes=0" title="' + esc(name) + '"></iframe>';
+    v.classList.add("open");
+  }
+
+  document.addEventListener("click", function (e) {
+    if (!e.target || !e.target.closest) return;
+    var img = e.target.closest(".atts img.att-img");
+    if (img) {
+      e.preventDefault();
+      openViewer(img.getAttribute("src"), img.getAttribute("data-name"), "img");
+      return;
+    }
+    var a = e.target.closest("a.att-file");
+    if (a) {
+      var n = String(a.getAttribute("data-name") || "").toLowerCase();
+      if (/\.(pdf|txt|csv)$/.test(n)) {
+        e.preventDefault();
+        openViewer(a.getAttribute("href"), a.getAttribute("data-name"), "doc");
+      }
+    }
+  });
+
+  // Deter casual saving/copying of attachments (server-side access is the real guard).
+  document.addEventListener("contextmenu", function (e) {
+    if (e.target && e.target.closest && e.target.closest(".atts, .att-viewer")) e.preventDefault();
+  });
+  document.addEventListener("dragstart", function (e) {
+    if (e.target && e.target.closest && e.target.closest(".atts, .att-viewer")) e.preventDefault();
+  });
   function bubbleHtml(m, mine, who, showWho) {
     var when = m.created_at || m.at;
     var status = m.status || (m.read_at ? "read" : m.delivered_at ? "delivered" : "sent");

@@ -891,6 +891,20 @@ tr:last-child td{border-bottom:0}
 #voiceBtn.rec{background:var(--red);border-color:var(--red);color:#fff}
 /* audio message */
 .att audio{max-width:250px;width:250px;height:36px;display:block}
+/* attachments: no download affordances */
+.att img,.att audio,.att-file{-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+.att img.att-img{cursor:zoom-in}
+.att-file{cursor:pointer}
+/* private attachment viewer */
+.att-viewer{position:fixed;inset:0;background:rgba(3,6,15,.96);z-index:300;display:none;align-items:center;justify-content:center;padding:22px}
+.att-viewer.open{display:flex}
+.att-viewer-box{width:100%;max-width:960px;max-height:92vh;display:flex;flex-direction:column;background:var(--bg2);border:1px solid var(--line);border-radius:10px;overflow:hidden}
+.att-viewer-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:10px 14px;border-bottom:1px solid var(--line);font-size:.85rem;color:var(--mut);word-break:break-all}
+.att-viewer-x{background:none;border:0;color:var(--mut);font-size:1.15rem;cursor:pointer;padding:2px 4px}
+.att-viewer-x:hover{color:var(--txt)}
+.att-viewer-body{flex:1;min-height:0;display:flex;align-items:center;justify-content:center;background:#05080f}
+.att-viewer-body img{max-width:100%;max-height:80vh;object-fit:contain;-webkit-user-drag:none;user-select:none}
+.att-viewer-body iframe{width:100%;height:80vh;border:0;background:#fff}
 /* call: big profile picture */
 .call-avatar-big{position:absolute;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:16px;z-index:1;background:radial-gradient(circle at 50% 38%,#152340,#05080f 72%)}
 .callov.audio .call-avatar-big,.callov.waiting .call-avatar-big{display:flex}
