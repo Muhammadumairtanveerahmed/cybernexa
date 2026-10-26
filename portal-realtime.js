@@ -481,8 +481,17 @@ function mount(app, core) {
           <span id="callStatus">Connecting...</span>
           <span id="callNet" class="muted" style="font-size:11px"></span>
           <span id="callHealth" style="font-size:11px;color:#f5b301"></span>
+          <button type="button" class="btn sm" id="btnMicPick" title="Microphone settings" style="display:none"><i class="fa-solid fa-microphone-lines"></i></button>
           <button type="button" class="btn sm" id="btnMute" title="Mute microphone" style="display:none"><i class="fa-solid fa-microphone"></i></button>
           <button type="button" class="btn danger sm" id="endCall"><i class="fa-solid fa-phone-slash"></i> End</button>
+        </div>
+        <div id="callMicPanel" style="display:none;position:absolute;bottom:78px;left:50%;transform:translateX(-50%);z-index:6;background:#0b1220;border:1px solid #1e2a44;border-radius:8px;padding:12px;min-width:260px;max-width:92vw">
+          <p style="font-size:12px;color:#9fb0d0;margin-bottom:6px">Microphone</p>
+          <select id="callMicSel" style="width:100%;background:#111a2e;color:#fff;border:1px solid #1e2a44;border-radius:6px;padding:8px"></select>
+          <div style="height:10px;background:#111a2e;border:1px solid #1e2a44;border-radius:5px;overflow:hidden;margin:10px 0 6px">
+            <div id="callMicBar" style="height:100%;width:0%;background:#3b82f6;transition:width .08s linear"></div>
+          </div>
+          <p id="callMicMsg" style="font-size:11px;color:#9fb0d0;min-height:14px">Speak to test your microphone.</p>
         </div>
         <button type="button" class="btn primary" id="sndFix"
           style="display:none;position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:5;padding:14px 22px;font-size:15px">
@@ -491,7 +500,7 @@ function mount(app, core) {
       </div>
 
       <script>window.CNX_CHAT = ${json};</script>
-      <script src="/js/messages.js?v=20261026-private"></script>`;
+      <script src="/js/messages.js?v=20261026-audiofix"></script>`;
 
     res.send(
       core.shell(user, "messages", "Messages", "Chat and call your " + (user.role === "student" ? "teachers" : "students") + " in real time.", body)

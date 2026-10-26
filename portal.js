@@ -918,6 +918,8 @@ tr:last-child td{border-bottom:0}
 .callov video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;background:#000}
 #localV{position:absolute;right:18px;bottom:80px;width:180px;height:120px;border-radius:8px;border:1px solid var(--line);object-fit:cover}
 .callbar{position:absolute;bottom:22px;left:0;right:0;display:flex;justify-content:center;align-items:center;gap:16px;color:#fff;z-index:2}
+#callHealth:not(:empty){position:fixed;top:18px;left:50%;transform:translateX(-50%);z-index:5;max-width:92vw;text-align:center;background:rgba(245,179,1,.14);border:1px solid rgba(245,179,1,.45);border-radius:8px;padding:8px 12px;font-size:12px;color:#f5b301;box-shadow:0 8px 24px -12px #000}
+@media(max-width:700px){.callbar{flex-wrap:wrap;padding:0 12px;gap:8px}.callbar #callNet{display:none}}
 @media(max-width:860px){.msg-shell{grid-template-columns:1fr;height:auto}.msg-side{max-height:240px}.thread{min-height:320px}}
 /* Modals */
 .topline{display:flex;justify-content:flex-end;align-items:center;gap:10px;margin-bottom:12px}

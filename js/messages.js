@@ -19,6 +19,8 @@
   var callPeer = null;
   var callKind = "audio";
   var iceQ = [];
+  var remoteStream = null;
+  var autoMicTried = false;
 
   var PEOPLE = document.getElementById("people");
   var THREAD = document.getElementById("thread");
@@ -53,6 +55,11 @@
   var HEALTH = document.getElementById("callHealth");
   var SNDFIX = document.getElementById("sndFix");
   var MIC_BTN = document.getElementById("btnMute");
+  var MIC_PICK_BTN = document.getElementById("btnMicPick");
+  var CALL_MIC_PANEL = document.getElementById("callMicPanel");
+  var CALL_MIC_SEL = document.getElementById("callMicSel");
+  var CALL_MIC_BAR = document.getElementById("callMicBar");
+  var CALL_MIC_MSG = document.getElementById("callMicMsg");
   var MIC_SEL = document.getElementById("micSel");
   var pendingAttach = null;
 
@@ -638,6 +645,11 @@
     CALLOV.classList.add("waiting");
     REMOTE_V.style.opacity = kind === "video" ? "1" : "0.001";
     LOCAL_V.style.display = kind === "video" ? "block" : "none";
+    autoMicTried = false;
+    if (CALL_MIC_PANEL) CALL_MIC_PANEL.style.display = "none";
+    if (CALL_MIC_BAR) CALL_MIC_BAR.style.width = "0%";
+    if (CALL_MIC_MSG) CALL_MIC_MSG.textContent = "Speak to test your microphone.";
+    if (MIC_PICK_BTN) MIC_PICK_BTN.style.display = "inline-flex";
     if (MIC_BTN) {
       MIC_BTN.style.display = "inline-flex";
       MIC_BTN.innerHTML = "<i class='fa-solid fa-microphone'></i>";
@@ -653,6 +665,8 @@
     LOCAL_V.style.display = "block";
     if (SNDFIX) SNDFIX.style.display = "none";
     if (MIC_BTN) MIC_BTN.style.display = "none";
+    if (MIC_PICK_BTN) MIC_PICK_BTN.style.display = "none";
+    if (CALL_MIC_PANEL) CALL_MIC_PANEL.style.display = "none";
     stopStats();
     stopMicTest();
   }
@@ -757,10 +771,11 @@
       var peak = readMicPeak();
       var secs = Math.round((Date.now() - started) / 1000);
       pc.getStats().then(function (rep) {
-        var inB = 0, outB = 0, level = -1;
+        var inB = 0, outB = 0, level = -1, inLevel = -1;
         rep.forEach(function (s) {
           if (s.type === "inbound-rtp" && (s.kind === "audio" || s.mediaType === "audio")) {
             inB = s.bytesReceived || 0;
+            if (typeof s.audioLevel === "number") inLevel = s.audioLevel;
           }
           if (s.type === "outbound-rtp" && (s.kind === "audio" || s.mediaType === "audio")) {
             outB = s.bytesSent || 0;
@@ -770,32 +785,53 @@
             level = s.audioLevel; /* 0..1, from the browser itself */
           }
         });
+        var micMuted = !!(mic && mic.enabled === false);
         /* use the browser's own level when available, WebAudio as fallback */
-        var silent = level >= 0 ? level <= 0.002 : (peak >= 0 && peak < 3);
+        var silent = micMuted ? true : (level >= 0 ? level <= 0.002 : (peak >= 0 && peak < 3));
         if (silent) micSilentTicks++; else micSilentTicks = 0;
         if (mic && mic.muted) { if (!micMutedSince) micMutedSince = Date.now(); }
         else micMutedSince = 0;
 
+        var meterPct = level >= 0 ? Math.round(level * 100) : (peak >= 0 ? Math.min(100, Math.round(peak * 1.6)) : 0);
+        if (CALL_MIC_BAR) CALL_MIC_BAR.style.width = (micMuted ? 0 : meterPct) + "%";
+        if (CALL_MIC_MSG) {
+          if (!mic) CALL_MIC_MSG.textContent = "No microphone found.";
+          else if (micMuted) CALL_MIC_MSG.textContent = "Microphone is muted. Tap the mic button to unmute.";
+          else if (silent && micSilentTicks >= 4) CALL_MIC_MSG.textContent = "No sound detected. Try another microphone.";
+          else CALL_MIC_MSG.textContent = "Microphone is live.";
+        }
+
         if (NET) {
           NET.textContent =
             "in " + Math.round(inB / 1024) + " KB / out " + Math.round(outB / 1024) + " KB" +
+            (inLevel >= 0 ? " / them " + Math.round(inLevel * 100) + "%" : "") +
             (level >= 0 ? " / mic " + Math.round(level * 100) + "%" : (peak >= 0 ? " / mic " + (silent ? "silent" : "live") : ""));
         }
         if (HEALTH) {
-          if (secs >= 6 && inB === 0) {
-            HEALTH.textContent = "No audio is arriving - check the other person's microphone.";
+          if (micMuted) {
+            HEALTH.textContent = "Your microphone is muted - the other person cannot hear you.";
+          } else if (secs >= 6 && inB === 0) {
+            HEALTH.textContent = "No audio is arriving - check the connection or the other person's microphone.";
+          } else if (secs >= 8 && inLevel >= 0 && inLevel <= 0.002) {
+            HEALTH.textContent = "Connected, but no sound is coming from the other person. Ask them to check their microphone.";
           } else if (secs >= 8 && micSilentTicks >= 5) {
-            HEALTH.textContent = "Your microphone is not picking up any sound - speak louder or pick another mic.";
+            HEALTH.textContent = "Your microphone is not picking up any sound - try another microphone.";
           } else {
             HEALTH.textContent = "";
           }
+        }
+        /* If the remembered device is silent, try the system default once. */
+        if (!autoMicTried && MIC_DEV && !micMuted && micSilentTicks >= 8) {
+          autoMicTried = true;
+          setStatus("Microphone seems silent - switching to default...");
+          switchCallMic("");
         }
         /* only warn after the mic has been muted for a while (browsers fire
            a short "mute" at the start of a call) */
         if (micMutedSince && Date.now() - micMutedSince > 5000) {
           setStatus("Your microphone is muted - reconnecting it...");
           recoverMic();
-        } else if (pc && pc.connectionState === "connected") {
+        } else if (pc && pc.connectionState === "connected" && !micSilentTicks) {
           setStatus("Connected");
         }
       }).catch(function () {});
@@ -933,22 +969,89 @@
       });
   }
 
+  /* In-call microphone picker: switch the live sender without dropping the call. */
+  var micSwitchBusy = false;
+  function fillCallMicList() {
+    if (!CALL_MIC_SEL || !navigator.mediaDevices || !navigator.mediaDevices.enumerateDevices) return;
+    navigator.mediaDevices.enumerateDevices().then(function (list) {
+      var mics = list.filter(function (d) { return d.kind === "audioinput"; });
+      CALL_MIC_SEL.innerHTML = "";
+      var def = document.createElement("option");
+      def.value = "";
+      def.textContent = "System default";
+      CALL_MIC_SEL.appendChild(def);
+      mics.forEach(function (d, i) {
+        var o = document.createElement("option");
+        o.value = d.deviceId;
+        o.textContent = d.label || "Microphone " + (i + 1);
+        if (MIC_DEV && d.deviceId === MIC_DEV) o.selected = true;
+        CALL_MIC_SEL.appendChild(o);
+      });
+    }).catch(function () {});
+  }
+
+  function switchCallMic(deviceId) {
+    if (!pc || !localStream || micSwitchBusy) return;
+    micSwitchBusy = true;
+    if (CALL_MIC_MSG) CALL_MIC_MSG.textContent = "Switching microphone...";
+    navigator.mediaDevices.getUserMedia({ audio: deviceId ? { deviceId: { exact: deviceId } } : true })
+      .then(function (s) {
+        if (!pc || !localStream) {
+          s.getTracks().forEach(function (t) { try { t.stop(); } catch (e) {} });
+          return;
+        }
+        var track = s.getAudioTracks()[0];
+        if (!track) throw new Error("No microphone found");
+        var sender = pc.getSenders().filter(function (x) { return x.track && x.track.kind === "audio"; })[0];
+        if (sender) sender.replaceTrack(track);
+        localStream.getAudioTracks().forEach(function (t) {
+          localStream.removeTrack(t);
+          try { t.stop(); } catch (e) {}
+        });
+        localStream.addTrack(track);
+        setMicDev(deviceId || "");
+        watchMic(localStream);
+        startMicMeter(localStream);
+        micSilentTicks = 0;
+        autoMicTried = true;
+        if (CALL_MIC_MSG) CALL_MIC_MSG.textContent = "Microphone switched. Speak to test.";
+        setStatus("Microphone switched");
+        if (MIC_SEL) MIC_SEL.value = deviceId || "";
+      })
+      .catch(function (e) {
+        if (CALL_MIC_MSG) CALL_MIC_MSG.textContent = "Could not switch: " + (e && e.message ? e.message : "failed");
+      })
+      .then(function () { micSwitchBusy = false; });
+  }
+
   function newPC() {
     var p = new RTCPeerConnection(ICE);
     var restarted = false;
     p._offerer = false;
     p._negotiated = false;
+    remoteStream = new MediaStream();
     p.onicecandidate = function (e) {
       if (e.candidate && callPeer) {
         wsSend({ type: "signal", action: "ice", to: callPeer, callId: callId, payload: e.candidate });
       }
     };
     p.ontrack = function (e) {
-      if (e.streams && e.streams[0]) {
-        REMOTE_V.srcObject = e.streams[0];
-        CALLOV.classList.remove("waiting");
-        playRemote();
+      if (!remoteStream) remoteStream = new MediaStream();
+      if (e.track) {
+        var exists = remoteStream.getTracks().some(function (t) { return t.id === e.track.id; });
+        if (!exists) remoteStream.addTrack(e.track);
+        if (e.track.kind === "audio") {
+          e.track.onunmute = function () { playRemote(); };
+          e.track.onmute = function () {
+            if (HEALTH) HEALTH.textContent = "The other person's microphone is muted.";
+          };
+        }
       }
+      /* Keep every incoming track in one stream. Assigning e.streams[0] on
+         each track can drop audio when video arrives second. */
+      REMOTE_V.srcObject = remoteStream;
+      CALLOV.classList.remove("waiting");
+      playRemote();
     };
     /* only the original caller re-offers, to avoid offer glare */
     p.onnegotiationneeded = function () {
@@ -1028,6 +1131,7 @@
     pc = null;
     if (localStream) localStream.getTracks().forEach(function (t) { t.stop(); });
     localStream = null;
+    remoteStream = null;
     pendingOffer = null;
     iceQ = [];
     hideCall();
@@ -1443,8 +1547,21 @@
         : "<i class='fa-solid fa-microphone-slash'></i>";
       MIC_BTN.title = t.enabled ? "Mute microphone" : "Unmute microphone";
       setStatus(t.enabled ? "Connected" : "Microphone muted");
+      if (HEALTH) HEALTH.textContent = t.enabled ? "" : "Your microphone is muted - the other person cannot hear you.";
+      if (CALL_MIC_MSG) CALL_MIC_MSG.textContent = t.enabled ? "Microphone is live." : "Microphone is muted.";
       micMutedSince = 0;
     });
+  }
+  if (MIC_PICK_BTN) {
+    MIC_PICK_BTN.addEventListener("click", function () {
+      if (!CALL_MIC_PANEL) return;
+      var open = CALL_MIC_PANEL.style.display !== "block";
+      CALL_MIC_PANEL.style.display = open ? "block" : "none";
+      if (open) fillCallMicList();
+    });
+  }
+  if (CALL_MIC_SEL) {
+    CALL_MIC_SEL.addEventListener("change", function () { switchCallMic(this.value); });
   }
   var MTEST_CLOSE = document.getElementById("micClose");
   if (MTEST_CLOSE) MTEST_CLOSE.addEventListener("click", stopMicTest);
