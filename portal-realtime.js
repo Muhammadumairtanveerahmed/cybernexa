@@ -194,9 +194,7 @@ function mount(app, core) {
       // Register the file immediately so only the uploader can open it until the
       // message is sent (message_id is filled in by the WebSocket handler).
       try {
-        const pool = getPool();
-        if (!pool) throw new Error("Database unavailable");
-        await pool.query(
+        await q(
           "INSERT INTO chat_attachments (id, message_id, sender_id, original_name, stored_name, mime_type, file_size, created_at) VALUES (?,?,?,?,?,?,?,NOW())",
           ["ca_" + crypto.randomBytes(10).toString("hex"), "", req.user.id, req.file.originalname, req.file.filename, req.file.mimetype, req.file.size]
         );
@@ -226,16 +224,13 @@ function mount(app, core) {
     // Privacy: only the uploader, the sender or the recipient of that message
     // may open an attachment. Being signed in is not enough.
     try {
-      const pool = getPool();
-      const [rows] = pool
-        ? await pool.query(
-            `SELECT a.sender_id, m.sender_id AS m_sender, m.recipient_id, m.deleted_at
-               FROM chat_attachments a
-               LEFT JOIN chat_messages m ON m.id = a.message_id
-              WHERE a.stored_name = ? LIMIT 1`,
-            [name]
-          )
-        : [[]];
+      const [rows] = await q(
+        `SELECT a.sender_id, m.sender_id AS m_sender, m.recipient_id, m.deleted_at
+           FROM chat_attachments a
+           LEFT JOIN chat_messages m ON m.id = a.message_id
+          WHERE a.stored_name = ? LIMIT 1`,
+        [name]
+      );
       if (!rows.length) return res.status(404).end();
       const r = rows[0];
       if (r.deleted_at) return res.status(404).end();
