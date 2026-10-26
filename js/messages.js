@@ -690,7 +690,7 @@
 
   var statTimer = null;
   var micCtx = null, micAnalyser = null, micBuf = null, micPeak = 0;
-  var micSilentTicks = 0, micMutedSince = 0;
+  var micSilentTicks = 0, micMutedSince = 0, inSilentTicks = 0;
   function stopMicMeter() {
     if (micCtx) { try { micCtx.close(); } catch (e) {} }
     micCtx = null; micAnalyser = null; micBuf = null; micPeak = 0;
@@ -758,6 +758,7 @@
     if (HEALTH) HEALTH.textContent = "";
     micSilentTicks = 0;
     micMutedSince = 0;
+    inSilentTicks = 0;
     stopMicMeter();
   }
   /* Live audio in/out counter + mic state, so a silent side is visible. */
@@ -789,6 +790,7 @@
         /* use the browser's own level when available, WebAudio as fallback */
         var silent = micMuted ? true : (level >= 0 ? level <= 0.002 : (peak >= 0 && peak < 3));
         if (silent) micSilentTicks++; else micSilentTicks = 0;
+        if (inLevel >= 0 && inLevel <= 0.002) inSilentTicks++; else inSilentTicks = 0;
         if (mic && mic.muted) { if (!micMutedSince) micMutedSince = Date.now(); }
         else micMutedSince = 0;
 
@@ -812,7 +814,7 @@
             HEALTH.textContent = "Your microphone is muted - the other person cannot hear you.";
           } else if (secs >= 6 && inB === 0) {
             HEALTH.textContent = "No audio is arriving - check the connection or the other person's microphone.";
-          } else if (secs >= 8 && inLevel >= 0 && inLevel <= 0.002) {
+          } else if (secs >= 8 && inSilentTicks >= 5) {
             HEALTH.textContent = "Connected, but no sound is coming from the other person. Ask them to check their microphone.";
           } else if (secs >= 8 && micSilentTicks >= 5) {
             HEALTH.textContent = "Your microphone is not picking up any sound - try another microphone.";
@@ -1031,11 +1033,13 @@
     p._negotiated = false;
     remoteStream = new MediaStream();
     p.onicecandidate = function (e) {
+      if (p !== pc) return;
       if (e.candidate && callPeer) {
         wsSend({ type: "signal", action: "ice", to: callPeer, callId: callId, payload: e.candidate });
       }
     };
     p.ontrack = function (e) {
+      if (p !== pc) return;
       if (!remoteStream) remoteStream = new MediaStream();
       if (e.track) {
         var exists = remoteStream.getTracks().some(function (t) { return t.id === e.track.id; });

@@ -808,14 +808,44 @@ function attach(server, getPool) {
         if (!allowed.includes(action)) return;
 
         if (action === "offer") {
-          calls.set(callId, { id: callId, caller: me.id, callee: to, kind: m.kind === "video" ? "video" : "audio", answered: false });
-          try {
-            await pool.query(
-              "INSERT INTO call_logs (id, call_key, caller_id, callee_id, kind, status, started_at) VALUES (?,?,?,?,?,'missed',NOW())",
-              [rnd("call_"), callId, me.id, to, m.kind === "video" ? "video" : "audio"]
-            );
-          } catch {
-            /* ignore */
+          let c = calls.get(callId);
+          if (!c) {
+            let row = null;
+            try {
+              const [rows] = await pool.query(
+                "SELECT caller_id, callee_id, kind, status, answered_at FROM call_logs WHERE call_key = ? ORDER BY started_at ASC LIMIT 1",
+                [callId]
+              );
+              row = rows[0] || null;
+            } catch {
+              /* ignore */
+            }
+            if (row) {
+              c = {
+                id: callId,
+                caller: row.caller_id,
+                callee: row.callee_id,
+                kind: row.kind,
+                answered: row.status === "answered" || row.status === "ended" || !!row.answered_at,
+              };
+            } else {
+              c = {
+                id: callId,
+                caller: me.id,
+                callee: to,
+                kind: m.kind === "video" ? "video" : "audio",
+                answered: false,
+              };
+              try {
+                await pool.query(
+                  "INSERT IGNORE INTO call_logs (id, call_key, caller_id, callee_id, kind, status, started_at) VALUES (?,?,?,?,?,'missed',NOW())",
+                  [rnd("call_"), callId, me.id, to, c.kind]
+                );
+              } catch {
+                /* ignore */
+              }
+            }
+            calls.set(callId, c);
           }
         } else if (action === "answer") {
           const c = calls.get(callId);

@@ -444,7 +444,7 @@ async function initSchema(pool) {
       started_at DATETIME NOT NULL,
       answered_at DATETIME NULL,
       ended_at DATETIME NULL,
-      INDEX idx_call_key (call_key),
+      UNIQUE INDEX uq_call_key (call_key),
       INDEX idx_call_pair (caller_id, callee_id, started_at)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
@@ -483,6 +483,10 @@ async function initSchema(pool) {
     "ALTER TABLE chat_messages ADD COLUMN deleted_at DATETIME NULL",
     "ALTER TABLE enrollments ADD COLUMN email VARCHAR(190) NULL",
     "ALTER TABLE call_logs ADD COLUMN answered_at DATETIME NULL",
+    `DELETE c1 FROM call_logs c1 INNER JOIN call_logs c2
+       ON c1.call_key = c2.call_key
+      AND (c1.started_at > c2.started_at OR (c1.started_at = c2.started_at AND c1.id > c2.id))`,
+    "ALTER TABLE call_logs ADD UNIQUE INDEX uq_call_key (call_key)",
   ]) {
     try {
       await pool.query(sql);
