@@ -823,7 +823,7 @@
           }
         }
         /* If the remembered device is silent, try the system default once. */
-        if (!autoMicTried && MIC_DEV && !micMuted && micSilentTicks >= 8) {
+        if (!autoMicTried && MIC_DEV && !micMuted && micSilentTicks >= 12) {
           autoMicTried = true;
           setStatus("Microphone seems silent - switching to default...");
           switchCallMic("");
@@ -833,7 +833,7 @@
         if (micMutedSince && Date.now() - micMutedSince > 5000) {
           setStatus("Your microphone is muted - reconnecting it...");
           recoverMic();
-        } else if (pc && pc.connectionState === "connected" && !micSilentTicks) {
+        } else if (pc && pc.connectionState === "connected") {
           setStatus("Connected");
         }
       }).catch(function () {});
