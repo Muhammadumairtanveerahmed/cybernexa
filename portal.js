@@ -843,7 +843,11 @@ tr:last-child td{border-bottom:0}
 .slot .tm{color:var(--acc);font-weight:600;white-space:nowrap;line-height:1.25;font-size:.78rem}
 .tags{display:flex;gap:6px;flex-wrap:wrap;margin-top:6px}
 .tag{font-size:.7rem;padding:2px 8px;border-radius:6px;background:rgba(148,163,255,.12);color:var(--mut);border:1px solid var(--line)}
-@media(max-width:860px){.shell{grid-template-columns:1fr}.side{flex-direction:row;overflow-x:auto;border-right:0;border-bottom:1px solid var(--line);align-items:center;position:static;height:auto}.side .brand,.side .who{display:none}.grid2{grid-template-columns:1fr}.main{padding:18px}}
+@media(max-width:860px){.shell{grid-template-columns:1fr}.side{position:fixed;left:-260px;top:0;height:100vh;width:260px;z-index:1000;transition:left .25s ease;flex-direction:column;align-items:stretch;overflow-y:auto;border-right:1px solid var(--line);border-bottom:0;box-shadow:0 0 40px rgba(0,0,0,.6)}.side.open{left:0}.side .brand,.side .who{display:block}.grid2{grid-template-columns:1fr}.main{padding:18px;padding-top:56px}}
+.portal-menu-btn{display:none}
+@media(max-width:860px){.portal-menu-btn{display:flex;position:fixed;top:12px;left:12px;z-index:1001;background:var(--bg2);border:1px solid var(--line);border-radius:8px;padding:8px 12px;color:var(--txt);cursor:pointer;font-size:18px;align-items:center;justify-content:center;box-shadow:0 4px 12px rgba(0,0,0,.4)}}
+.side-backdrop{display:none}
+@media(max-width:860px){.side-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:999}.side-backdrop.open{display:block}}
 /* Messages + WebRTC calls */
 .msg-shell{display:grid;grid-template-columns:280px 1fr;gap:14px;min-height:520px;height:calc(100vh - 215px)}
 .msg-side,.msg-main{background:var(--bg2);border:1px solid var(--line);border-radius:6px;display:flex;flex-direction:column;min-height:0}
@@ -1061,8 +1065,8 @@ function shell(user, active, title, sub, body, extraNav = "") {
     ? `<div class="note" style="margin:14px 0 0"><h4><i class="fa-solid fa-hourglass-half"></i> Account ${esc(user.status)}</h4><p>${user.role === "teacher" ? "Your teacher application is waiting for admin approval. You can complete your profile meanwhile." : "Your account is " + esc(user.status) + "."}</p></div>`
     : "";
   return `<!DOCTYPE html><html lang="en"><head>${head(title + " — CyberNexa Portal")}</head>
-<body><div class="shell">
-  <aside class="side">
+<body><button class="portal-menu-btn" id="portalMenuBtn" aria-label="Toggle menu"><i class="fa-solid fa-bars"></i></button><div class="side-backdrop" id="sideBackdrop"></div><div class="shell">
+  <aside class="side" id="portalSide">
     <div class="brand">Cyber<b>Nexa</b> Portal</div>
     ${nav}
     ${extraNav}
@@ -1086,7 +1090,7 @@ function shell(user, active, title, sub, body, extraNav = "") {
     ${pending}
     ${body}
   </main>
-</div>${DT_INIT}</body></html>`;
+</div><script>(function(){var btn=document.getElementById("portalMenuBtn");var side=document.getElementById("portalSide");var backdrop=document.getElementById("sideBackdrop");function open(){if(side)side.classList.add("open");if(backdrop)backdrop.classList.add("open");}function close(){if(side)side.classList.remove("open");if(backdrop)backdrop.classList.remove("open");}if(btn)btn.addEventListener("click",function(){if(side&&side.classList.contains("open"))close();else open();});if(backdrop)backdrop.addEventListener("click",close);if(side)side.querySelectorAll("a").forEach(function(a){a.addEventListener("click",close);});})();</script>${DT_INIT}</body></html>`;
 }
 
 function statusBadge(s) {

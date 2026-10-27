@@ -1059,13 +1059,18 @@ function adminLayout(title, active, body) {
   @media (max-width:900px){ .form-grid{ grid-template-columns:1fr; } }
   @media (max-width: 900px) {
     body { flex-direction:column; }
-    .side { width:100%; flex-direction:row; align-items:center; padding:14px 18px; gap:8px; overflow-x:auto; position:static; height:auto; }
-    .brand { margin:0 16px 0 0; white-space:nowrap; }
-    .side a { white-space:nowrap; margin:0; }
-    .side .foot { display:none; }
+    .side { position:fixed; left:-260px; top:0; height:100vh; width:260px; z-index:1000; transition:left .25s ease; flex-direction:column; align-items:stretch; padding:16px 10px; gap:2px; overflow-y:auto; border-right:1px solid var(--border); border-bottom:0; box-shadow:0 0 40px rgba(0,0,0,.6); }
+    .side.open { left:0; }
+    .side .brand { margin-bottom:16px; white-space:normal; }
+    .side a { white-space:normal; margin-bottom:2px; }
+    .side .foot { display:block; }
+    .admin-menu-btn { display:flex; position:fixed; top:12px; left:12px; z-index:1001; background:var(--card); border:1px solid var(--border); border-radius:8px; padding:8px 12px; color:var(--text); cursor:pointer; font-size:18px; align-items:center; justify-content:center; box-shadow:0 4px 12px rgba(0,0,0,.4); }
+    .side-backdrop { display:none; position:fixed; inset:0; background:rgba(0,0,0,.55); z-index:999; }
+    .side-backdrop.open { display:block; }
     .stats { grid-template-columns:repeat(2,1fr); }
-    .main { padding:22px 16px; }
+    .main { padding:22px 16px; padding-top:56px; }
   }
+  .admin-menu-btn { display:none; }
   /* Modals */
   .topline { display:flex; justify-content:flex-end; align-items:center; gap:10px; margin-bottom:12px; }
   .modal { position:fixed; inset:0; background:rgba(3,6,15,.72); display:none; align-items:center; justify-content:center; z-index:120; padding:20px; }
@@ -1092,7 +1097,9 @@ function adminLayout(title, active, body) {
 </style>
 </head>
 <body>
-<aside class="side">
+<button class="admin-menu-btn" id="adminMenuBtn" aria-label="Toggle menu"><i class="fa-solid fa-bars"></i></button>
+<div class="side-backdrop" id="sideBackdrop"></div>
+<aside class="side" id="adminSide">
   <div class="brand"><i class="fa-solid fa-shield-halved"></i> Cyber<b>Nexa</b></div>
   <a href="/admin/dashboard" class="${active === "dash" ? "active" : ""}"><i class="fa-solid fa-chart-column"></i> Dashboard</a>
   <a href="/admin/messages" class="${active === "msgs" ? "active" : ""}"><i class="fa-solid fa-envelope"></i> Messages</a>
@@ -1117,7 +1124,7 @@ function adminLayout(title, active, body) {
 </div>
 ${body}</main>
 <script>
-(function(){
+(function(){var btn=document.getElementById('adminMenuBtn');var side=document.getElementById('adminSide');var backdrop=document.getElementById('sideBackdrop');function open(){if(side)side.classList.add('open');if(backdrop)backdrop.classList.add('open');}function close(){if(side)side.classList.remove('open');if(backdrop)backdrop.classList.remove('open');}if(btn)btn.addEventListener('click',function(){if(side&&side.classList.contains('open'))close();else open();});if(backdrop)backdrop.addEventListener('click',close);if(side)side.querySelectorAll('a').forEach(function(a){a.addEventListener('click',close);});})();\n(function(){
   document.addEventListener("click",function(e){
     var o=e.target.closest("[data-open]");
     if(o){var m=document.querySelector(o.getAttribute("data-open"));if(m){m.classList.add("open");e.preventDefault();return}}
