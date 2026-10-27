@@ -695,7 +695,7 @@ module.exports = function mountCampus(app) {
         `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
          <div class="panel">
            <div class="row" style="justify-content:space-between"><h2 style="margin:0"><i class="fa-solid fa-flask"></i> My quizzes (${mine.length})</h2>
-             <a class="btn primary sm" href="/portal/quizzes/new"><i class="fa-solid fa-plus"></i> New quiz</a></div>
+             <a class="btn ghost sm" href="/portal/qbank"><i class="fa-solid fa-database"></i> Question bank</a> <a class="btn primary sm" href="/portal/quizzes/new"><i class="fa-solid fa-plus"></i> New quiz</a></div>
            ${mine.length ? `<table class="mt"><tr><th>Quiz</th><th>Questions</th><th>Duration</th><th>Attempts</th><th>Status</th><th></th></tr>${rows}</table>`
              : `<p class="muted mt">No quizzes yet. Click “New quiz” to build one.</p>`}
          </div>`));
@@ -746,11 +746,21 @@ module.exports = function mountCampus(app) {
     const courses = await teacherCourseTitles(req.user.id);
     const all = await allCourseTitles();
     const letterOpts = (await core.lkOptions("lk_quiz_option")).replace(/value="([A-D])"/g, (m, v) => `value="${v.toLowerCase()}"`);
-    res.send(core.shell(req.user, "quizzes", "New quiz", "Add MCQ questions — each question can carry its own marks.",
+    const selCourse = String(req.query.course || "").trim();
+    const bankWhere = ["teacher_id = ?"];
+    const bankParams = [req.user.id];
+    if (selCourse) { bankWhere.push("course_title = ?"); bankParams.push(selCourse); }
+    const bankQs = (await q(`SELECT * FROM question_bank WHERE ${bankWhere.join(" AND ")} ORDER BY course_title, created_at DESC`, bankParams))[0];
+    const bankRows = bankQs.map((r) => `<label style="display:flex;gap:10px;align-items:flex-start;padding:10px 12px;border:1px solid var(--line);border-radius:9px;margin:6px 0;background:#0b1020;cursor:pointer">
+      <input type="checkbox" name="qb_id" value="${esc(r.id)}" style="width:auto;margin-top:4px">
+      <span><strong>${esc(r.question)}</strong>
+      <div class="muted" style="font-size:.76rem;margin-top:4px">A. ${esc(r.option_a)} · B. ${esc(r.option_b)}${r.option_c ? " · C. " + esc(r.option_c) : ""}${r.option_d ? " · D. " + esc(r.option_d) : ""} · <span class="badge b-graded">${esc(String(r.correct).toUpperCase())}</span> · ${Number(r.marks)} mark(s)</div></span>
+    </label>`).join("");
+    res.send(core.shell(req.user, "quizzes", "New quiz", "Build a quiz from your question bank or type questions inline.",
       `${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
        <div class="panel">
          <form method="post" action="/portal/quizzes/new" id="qf">
-           <label>Course *</label>${courseOptions(courses, "", all)}
+           <label>Course *</label>${courseOptions(courses, selCourse, all)}
            <div class="grid2">
              <div><label>Quiz title *</label><input name="title" required maxlength="200" placeholder="e.g. Quiz 1 — Networking basics"></div>
              <div><label>Duration (minutes) *</label><input type="number" name="duration_minutes" min="1" max="240" value="15" required></div>
@@ -759,8 +769,22 @@ module.exports = function mountCampus(app) {
              <div><label>Passing percentage</label><input type="number" name="pass_percent" min="0" max="100" value="50"></div>
              <div><label>Instructions (optional)</label><input name="description" maxlength="400" placeholder="e.g. Attempt all questions"></div>
            </div>
+
+           <h2 class="mt"><i class="fa-solid fa-database"></i> Pick from question bank</h2>
+           <p class="muted" style="font-size:.8rem">Filter by course then tick the questions you want in this quiz. If you tick none, type questions manually below.</p>
+           <div class="row" style="gap:8px;margin-bottom:8px">
+             <select name="bank_course" onchange="location.href='/portal/quizzes/new?course='+encodeURIComponent(this.value)" style="max-width:260px">
+               <option value="">All my bank questions</option>
+               ${courses.map((c) => `<option value="${esc(c)}"${c === selCourse ? " selected" : ""}>${esc(c)}</option>`).join("")}
+             </select>
+             <a class="btn ghost sm" href="/portal/qbank/new${selCourse ? "?course=" + encodeURIComponent(selCourse) : ""}"><i class="fa-solid fa-plus"></i> Add to bank</a>
+           </div>
+           <div style="max-height:320px;overflow:auto;border:1px solid var(--line);border-radius:9px;padding:8px;background:#060a14">
+             ${bankQs.length ? bankRows : `<p class="muted">No bank questions yet. <a href="/portal/qbank/new">Add some</a>.</p>`}
+           </div>
+
            <div class="row mt" style="justify-content:space-between">
-             <h2 style="margin:0">Questions</h2>
+             <h2 style="margin:0">Or type questions manually</h2>
              <button type="button" class="btn ghost sm" onclick="addQ()"><i class="fa-solid fa-plus"></i> Add question</button>
            </div>
            <div id="qs"></div>
@@ -770,7 +794,7 @@ module.exports = function mountCampus(app) {
            </div>
          </form>
        </div>
-       <p class="muted">Tip: keep 4 options per question. The correct option is auto-marked when the student submits.</p>
+       <p class="muted">Tip: questions picked from the bank are copied into the quiz (editing the bank later won't change published quizzes).</p>
        <script>
          function addQ(){
            var w=document.getElementById('qs');
@@ -784,12 +808,12 @@ module.exports = function mountCampus(app) {
              +'<div><label>Marks</label><input type="number" name="mk" value="1" min="0" max="100"></div></div>';
            w.appendChild(d);
          }
-         document.addEventListener('DOMContentLoaded',function(){ for(var i=0;i<3;i++) addQ(); });
+         document.addEventListener('DOMContentLoaded',function(){});
        </script>`));
   });
 
   app.post("/portal/quizzes/new", need("teacher"), form, async (req, res) => {
-    const back = (m) => res.redirect("/portal/quizzes/new?e=" + encodeURIComponent(m));
+    const back = (m) => res.redirect("/portal/quizzes/new?e=" + encodeURIComponent(m) + (req.body.course_title ? "&course=" + encodeURIComponent(req.body.course_title) : ""));
     const course = String(req.body.course_title || "").trim();
     const title = String(req.body.title || "").trim();
     const description = String(req.body.description || "").trim();
@@ -797,17 +821,35 @@ module.exports = function mountCampus(app) {
     const passPct = Math.min(100, Math.max(0, num(req.body.pass_percent, 50)));
     if (!course) return back("Please choose a course");
     if (title.length < 2) return back("Please enter a quiz title");
-    const Q = toArr(req.body.q), OA = toArr(req.body.oa), OB = toArr(req.body.ob), OC = toArr(req.body.oc), OD = toArr(req.body.od), CA = toArr(req.body.ca), MK = toArr(req.body.mk);
+    const qbIds = toArr(req.body.qb_id).map((x) => String(x).trim()).filter(Boolean);
     const built = [];
-    for (let i = 0; i < Q.length; i++) {
-      const text = String(Q[i] || "").trim();
-      const a = String(OA[i] || "").trim(), b = String(OB[i] || "").trim(), c = String(OC[i] || "").trim(), d = String(OD[i] || "").trim();
-      if (!text && !a && !b) continue; // blank row skipped
-      if (!text || !a || !b) return back("Every question needs text and at least options A and B");
-      const correct = ["a", "b", "c", "d"].includes(String(CA[i] || "a").toLowerCase()) ? String(CA[i] || "a").toLowerCase() : "a";
-      built.push({ text, a, b, c, d, correct, marks: Math.max(0, num(MK[i], 1)) });
+    if (qbIds.length) {
+      const ph = qbIds.map(() => "?").join(",");
+      const [rows] = await q(
+        `SELECT * FROM question_bank WHERE id IN (${ph}) AND teacher_id = ?`,
+        [...qbIds, req.user.id]
+      );
+      for (const r of rows) {
+        built.push({
+          text: r.question,
+          a: r.option_a, b: r.option_b, c: r.option_c || "", d: r.option_d || "",
+          correct: String(r.correct || "a").toLowerCase(),
+          marks: Number(r.marks || 1),
+        });
+      }
     }
-    if (!built.length) return back("Add at least one question");
+    if (!built.length) {
+      const Q = toArr(req.body.q), OA = toArr(req.body.oa), OB = toArr(req.body.ob), OC = toArr(req.body.oc), OD = toArr(req.body.od), CA = toArr(req.body.ca), MK = toArr(req.body.mk);
+      for (let i = 0; i < Q.length; i++) {
+        const text = String(Q[i] || "").trim();
+        const a = String(OA[i] || "").trim(), b = String(OB[i] || "").trim(), c = String(OC[i] || "").trim(), d = String(OD[i] || "").trim();
+        if (!text && !a && !b) continue; // blank row skipped
+        if (!text || !a || !b) return back("Every question needs text and at least options A and B");
+        const correct = ["a", "b", "c", "d"].includes(String(CA[i] || "a").toLowerCase()) ? String(CA[i] || "a").toLowerCase() : "a";
+        built.push({ text, a, b, c, d, correct, marks: Math.max(0, num(MK[i], 1)) });
+      }
+    }
+    if (!built.length) return back("Pick at least one question from the bank or add one manually");
     try {
       const id = uid("qz_");
       await q(`INSERT INTO quizzes (id, course_title, teacher_id, title, description, duration_minutes, pass_percent, status, created_at, updated_at)
@@ -923,19 +965,43 @@ module.exports = function mountCampus(app) {
     }).join("");
     const seconds = Math.max(30, Number(z.duration_minutes || 15) * 60);
     res.send(core.shell(u, "quizzes", z.title, `${esc(z.course_title)} · ${questions.length} questions · ${Number(z.duration_minutes)} minutes`,
-      `<div class="panel" style="display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5">
-         <div><strong>Time remaining</strong> <span id="tmr" style="color:var(--acc);font-family:'Sora',sans-serif">--:--</span></div>
-         <div class="muted" style="font-size:.8rem">Do not close this page. The quiz auto-submits when time is up.</div>
+      `<div id="fsWarn" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999;background:#7f1d1d;color:#fff;padding:10px;text-align:center;font-size:.9rem">
+         <i class="fa-solid fa-triangle-exclamation"></i> You left fullscreen. Return to fullscreen to continue, otherwise the quiz may auto-submit.
+         <button type="button" class="btn sm" style="margin-left:10px;background:#fff;color:#7f1d1d" onclick="goFs()">Re-enter fullscreen</button>
        </div>
-       <form method="post" action="/portal/quizzes/submit" id="qzform">
-         <input type="hidden" name="quiz_id" value="${esc(z.id)}">
-         ${qs}
-         <button class="btn primary mt" type="submit" onclick="return confirm('Submit your answers?')"><i class="fa-solid fa-circle-check"></i> Submit quiz</button>
-       </form>
+       <div id="startOverlay" style="position:fixed;inset:0;z-index:1000;background:rgba(6,9,18,.97);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;text-align:center;padding:24px">
+         <div style="font-size:2.4rem;color:var(--acc)"><i class="fa-solid fa-flask"></i></div>
+         <h2 style="margin:0">${esc(z.title)}</h2>
+         <p class="muted">${esc(z.course_title)} · ${questions.length} questions · ${Number(z.duration_minutes)} minutes</p>
+         <p class="muted" style="max-width:560px">This quiz runs in fullscreen. Do not switch tabs or exit fullscreen — the quiz will auto-submit when the time is up.</p>
+         <button type="button" class="btn primary" onclick="startQuiz()" style="font-size:1.05rem;padding:12px 26px"><i class="fa-solid fa-play"></i> Start quiz</button>
+       </div>
+       <div id="quizWrap" style="display:none">
+         <div class="panel" style="display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5">
+           <div><strong>Time remaining</strong> <span id="tmr" style="color:var(--acc);font-family:'Sora',sans-serif">--:--</span></div>
+           <div class="muted" style="font-size:.8rem">Do not close this page. The quiz auto-submits when time is up.</div>
+         </div>
+         <form method="post" action="/portal/quizzes/submit" id="qzform">
+           <input type="hidden" name="quiz_id" value="${esc(z.id)}">
+           ${qs}
+           <button class="btn primary mt" type="submit" onclick="return confirm('Submit your answers?')"><i class="fa-solid fa-circle-check"></i> Submit quiz</button>
+         </form>
+       </div>
        <script>
-         (function(){var s=${seconds};var el=document.getElementById('tmr');var f=document.getElementById('qzform');if(!el)return;
-          function show(){var m=Math.floor(s/60),x=s%60;el.textContent=m+':'+(x<10?'0':'')+x;}
-          show();var t=setInterval(function(){s--;if(s<=0){clearInterval(t);el.textContent='0:00';f.submit();return;}show();},1000);})();
+         (function(){
+           var s=${seconds}; var el=document.getElementById('tmr'); var f=document.getElementById('qzform');
+           var wrap=document.getElementById('quizWrap'); var overlay=document.getElementById('startOverlay'); var warn=document.getElementById('fsWarn');
+           function show(){ if(!el) return; var m=Math.floor(s/60),x=s%60; el.textContent=m+':'+(x<10?'0':'')+x; }
+           function goFs(){ var r=(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen||document.documentElement.msRequestFullscreen); if(r) r.call(document.documentElement).catch(function(){}); }
+           window.goFs=goFs;
+           window.startQuiz=function(){ goFs(); if(overlay) overlay.style.display='none'; if(wrap) wrap.style.display='block'; show();
+             var t=setInterval(function(){ s--; if(s<=0){ clearInterval(t); if(el) el.textContent='0:00'; try{ if(document.exitFullscreen) document.exitFullscreen(); }catch(e){} f.submit(); return;} show(); },1000);
+             window.__qzTimer=t; };
+           function onFsChange(){ if(!(document.fullscreenElement||document.webkitFullscreenElement) && wrap && wrap.style.display==='block'){ if(warn) warn.style.display='block'; } else { if(warn) warn.style.display='none'; } }
+           document.addEventListener('fullscreenchange', onFsChange);
+           document.addEventListener('webkitfullscreenchange', onFsChange);
+           if(f){ f.addEventListener('submit', function(){ try{ if(document.exitFullscreen) document.exitFullscreen(); }catch(e){} }); }
+         })();
        </script>`));
   });
 
@@ -997,6 +1063,101 @@ module.exports = function mountCampus(app) {
          <table><tr><th>#</th><th>Question</th><th>Your answer</th><th>Correct</th><th>Marks</th></tr>${rows}</table>
        </div>
        <p><a class="btn ghost" href="/portal/quizzes">Back to quizzes</a></p>`));
+  });
+
+  /* =======================================================================
+   * QUESTION BANK (reusable MCQ questions for teachers)
+   * ===================================================================== */
+  app.get("/portal/qbank", need("teacher"), async (req, res) => {
+    const u = req.user;
+    const courses = await teacherCourseTitles(u.id);
+    const all = await allCourseTitles();
+    const filter = String(req.query.course || "").trim();
+    const where = ["teacher_id = ?"];
+    const params = [u.id];
+    if (filter) { where.push("course_title = ?"); params.push(filter); }
+    const rows = (await q(`SELECT * FROM question_bank WHERE ${where.join(" AND ")} ORDER BY course_title, created_at DESC`, params))[0];
+    const list = rows.map((r) => `<tr>
+      <td>${esc(r.course_title)}</td>
+      <td>${esc(r.question)}<div class="muted" style="font-size:.76rem;margin-top:4px">A. ${esc(r.option_a)} · B. ${esc(r.option_b)}${r.option_c ? " · C. " + esc(r.option_c) : ""}${r.option_d ? " · D. " + esc(r.option_d) : ""}</div></td>
+      <td><span class="badge b-graded">${esc(String(r.correct).toUpperCase())}</span></td>
+      <td>${Number(r.marks)}</td>
+      <td><a class="btn danger sm" href="/portal/qbank/delete?id=${esc(r.id)}" onclick="return confirm('Delete this question from the bank?')">Delete</a></td>
+    </tr>`).join("");
+    res.send(core.shell(u, "qbank", "Question bank", "Reusable MCQ questions. Use them to build quizzes quickly.",
+      `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
+       ${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
+       <div class="panel">
+         <div class="row" style="justify-content:space-between">
+           <h2 style="margin:0"><i class="fa-solid fa-database"></i> My question bank (${rows.length})</h2>
+           <a class="btn primary sm" href="/portal/qbank/new"><i class="fa-solid fa-plus"></i> Add question</a>
+         </div>
+         <form method="get" action="/portal/qbank" class="row mt" style="gap:8px">
+           <select name="course" style="max-width:260px">${courseOptions(courses, filter, all)}</select>
+           <button class="btn ghost sm" type="submit">Filter</button>
+           ${filter ? `<a class="btn ghost sm" href="/portal/qbank">Clear</a>` : ""}
+         </form>
+         ${rows.length ? `<table class="mt"><tr><th>Course</th><th>Question</th><th>Correct</th><th>Marks</th><th></th></tr>${list}</table>`
+           : `<p class="muted mt">No questions in the bank yet. Click "Add question" to start.</p>`}
+       </div>`));
+  });
+
+  app.get("/portal/qbank/new", need("teacher"), async (req, res) => {
+    const courses = await teacherCourseTitles(req.user.id);
+    const all = await allCourseTitles();
+    const letterOpts = (await core.lkOptions("lk_quiz_option")).replace(/value="([A-D])"/g, (m, v) => `value="${v.toLowerCase()}"`);
+    res.send(core.shell(req.user, "qbank", "Add question", "Add a reusable MCQ question to your question bank.",
+      `${req.query.e ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${esc(req.query.e)}</div>` : ""}
+       <div class="panel">
+         <form method="post" action="/portal/qbank/new">
+           <label>Course *</label>${courseOptions(courses, String(req.query.course || ""), all)}
+           <label>Question text *</label><input name="question" required maxlength="500" placeholder="e.g. What is 2+2?">
+           <div class="grid2">
+             <div><label>Option A *</label><input name="oa" required maxlength="400"></div>
+             <div><label>Option B *</label><input name="ob" required maxlength="400"></div>
+             <div><label>Option C</label><input name="oc" maxlength="400"></div>
+             <div><label>Option D</label><input name="od" maxlength="400"></div>
+           </div>
+           <div class="grid2">
+             <div><label>Correct option</label><select name="correct">${letterOpts}</select></div>
+             <div><label>Marks</label><input type="number" name="marks" value="1" min="0" max="100"></div>
+           </div>
+           <div class="row mt">
+             <button class="btn primary" type="submit"><i class="fa-solid fa-floppy-disk"></i> Save to bank</button>
+             <a class="btn ghost" href="/portal/qbank">Cancel</a>
+           </div>
+         </form>
+       </div>`));
+  });
+
+  app.post("/portal/qbank/new", need("teacher"), form, async (req, res) => {
+    const back = (m) => res.redirect("/portal/qbank/new?e=" + encodeURIComponent(m) + (req.body.course_title ? "&course=" + encodeURIComponent(req.body.course_title) : ""));
+    const course = String(req.body.course_title || "").trim();
+    const question = String(req.body.question || "").trim();
+    const a = String(req.body.oa || "").trim(), b = String(req.body.ob || "").trim();
+    const c = String(req.body.oc || "").trim(), d = String(req.body.od || "").trim();
+    const correct = ["a","b","c","d"].includes(String(req.body.correct || "a").toLowerCase()) ? String(req.body.correct).toLowerCase() : "a";
+    const marks = Math.max(0, num(req.body.marks, 1));
+    if (!course) return back("Please choose a course");
+    if (question.length < 2) return back("Question text is required");
+    if (!a || !b) return back("At least options A and B are required");
+    try {
+      await q(`INSERT INTO question_bank (id, teacher_id, course_title, question, option_a, option_b, option_c, option_d, correct, marks, created_at)
+               VALUES (?,?,?,?,?,?,?,?,?,?,NOW())`,
+        [uid("qb_"), req.user.id, course, question, a, b, c, d, correct, marks]);
+      res.redirect("/portal/qbank?course=" + encodeURIComponent(course) + "&ok=" + encodeURIComponent("Question saved to bank"));
+    } catch (e) {
+      res.redirect("/portal/qbank/new?e=" + encodeURIComponent(e.message || "Could not save question"));
+    }
+  });
+
+  app.get("/portal/qbank/delete", need("teacher"), async (req, res) => {
+    const id = String(req.query.id || "");
+    const [[r]] = await q("SELECT * FROM question_bank WHERE id = ? LIMIT 1", [id]);
+    if (r && r.teacher_id === req.user.id) {
+      await q("DELETE FROM question_bank WHERE id = ?", [id]);
+    }
+    res.redirect("/portal/qbank?ok=" + encodeURIComponent("Question deleted"));
   });
 
   /* =======================================================================

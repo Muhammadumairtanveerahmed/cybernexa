@@ -364,6 +364,22 @@ async function initSchema(pool) {
       INDEX idx_quiz (quiz_id)
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
 
+    `CREATE TABLE IF NOT EXISTS question_bank (
+      id VARCHAR(40) PRIMARY KEY,
+      teacher_id VARCHAR(40) NOT NULL,
+      course_title VARCHAR(190) NOT NULL,
+      question TEXT NOT NULL,
+      option_a VARCHAR(400) NOT NULL,
+      option_b VARCHAR(400) NOT NULL,
+      option_c VARCHAR(400) DEFAULT '',
+      option_d VARCHAR(400) DEFAULT '',
+      correct CHAR(1) NOT NULL,
+      marks DECIMAL(6,2) NOT NULL DEFAULT 1,
+      created_at DATETIME NOT NULL,
+      INDEX idx_teacher (teacher_id),
+      INDEX idx_course (course_title)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci`,
+
     `CREATE TABLE IF NOT EXISTS quiz_attempts (
       id VARCHAR(40) PRIMARY KEY,
       quiz_id VARCHAR(40) NOT NULL,
@@ -1006,6 +1022,7 @@ function shell(user, active, title, sub, body, extraNav = "") {
            ["/portal/courses", "<i class='fa-solid fa-book-open'></i> My Courses", "courses"],
            ["/portal/assignments", "<i class='fa-solid fa-pen-to-square'></i> Assignments", "assign"],
            ["/portal/quizzes", "<i class='fa-solid fa-flask'></i> Quizzes", "quizzes"],
+            ["/portal/qbank", "<i class='fa-solid fa-database'></i> Question bank", "qbank"],
            ["/portal/students", "<i class='fa-solid fa-user-graduate'></i> My Students", "students"]] },
        { t: "Class", items: [
            ["/portal/timetable", "<i class='fa-solid fa-calendar-days'></i> Timetable", "timetable"],
