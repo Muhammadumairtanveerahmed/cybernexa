@@ -770,6 +770,25 @@ module.exports = function mountCampus(app) {
              <div><label>Instructions (optional)</label><input name="description" maxlength="400" placeholder="e.g. Attempt all questions"></div>
            </div>
 
+           <h2 class="mt"><i class="fa-solid fa-robot"></i> Generate questions with AI</h2>
+           <p class="muted" style="font-size:.8rem">Enter a topic and the app will create MCQ questions for you. Review and edit before publishing.</p>
+           <div class="row" style="gap:8px;flex-wrap:wrap">
+             <input id="aiTopic" placeholder="e.g. OSPF routing, Python loops, AWS EC2" style="flex:2;min-width:200px">
+             <select id="aiCount" style="max-width:110px">
+               <option value="3">3 questions</option>
+               <option value="5" selected>5 questions</option>
+               <option value="10">10 questions</option>
+               <option value="15">15 questions</option>
+             </select>
+             <select id="aiDiff" style="max-width:110px">
+               <option value="easy">Easy</option>
+               <option value="medium" selected>Medium</option>
+               <option value="hard">Hard</option>
+             </select>
+             <button type="button" class="btn primary sm" id="aiBtn" onclick="genAI()"><i class="fa-solid fa-wand-magic-sparkles"></i> Generate</button>
+           </div>
+           <p id="aiMsg" class="muted" style="font-size:.8rem;margin-top:6px"></p>
+
            <h2 class="mt"><i class="fa-solid fa-database"></i> Pick from question bank</h2>
            <p class="muted" style="font-size:.8rem">Filter by course then tick the questions you want in this quiz. If you tick none, type questions manually below.</p>
            <div class="row" style="gap:8px;margin-bottom:8px">
@@ -807,6 +826,45 @@ module.exports = function mountCampus(app) {
              +'<div class="grid2"><div><label>Correct option</label><select name="ca">${letterOpts}</select></div>'
              +'<div><label>Marks</label><input type="number" name="mk" value="1" min="0" max="100"></div></div>';
            w.appendChild(d);
+         }
+         function addQFilled(q){
+           var w=document.getElementById('qs');
+           var d=document.createElement('div');
+           d.className='panel'; d.style.background='#0b1020'; d.style.padding='16px';
+           var esc=function(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); };
+           d.innerHTML='<div class="row" style="justify-content:space-between"><strong>Question</strong><button type="button" class="btn danger sm" onclick="this.closest(\\'.panel\\').remove()">Remove</button></div>'
+             +'<label>Question text *</label><input name="q" required maxlength="500" value="'+esc(q.text)+'">'
+             +'<div class="grid2"><div><label>Option A *</label><input name="oa" required maxlength="400" value="'+esc(q.a)+'"></div><div><label>Option B *</label><input name="ob" required maxlength="400" value="'+esc(q.b)+'"></div>'
+             +'<div><label>Option C</label><input name="oc" maxlength="400" value="'+esc(q.c)+'"></div><div><label>Option D</label><input name="od" maxlength="400" value="'+esc(q.d)+'"></div></div>'
+             +'<div class="grid2"><div><label>Correct option</label><select name="ca">'
+             +'<option value="a"'+(q.correct==='a'?' selected':'')+'>A</option>'
+             +'<option value="b"'+(q.correct==='b'?' selected':'')+'>B</option>'
+             +'<option value="c"'+(q.correct==='c'?' selected':'')+'>C</option>'
+             +'<option value="d"'+(q.correct==='d'?' selected':'')+'>D</option></select></div>'
+             +'<div><label>Marks</label><input type="number" name="mk" value="'+esc(String(q.marks||1))+'" min="0" max="100"></div></div>';
+           w.appendChild(d);
+         }
+         function genAI(){
+           var topic=document.getElementById('aiTopic').value.trim();
+           var count=document.getElementById('aiCount').value;
+           var diff=document.getElementById('aiDiff').value;
+           var msg=document.getElementById('aiMsg');
+           var btn=document.getElementById('aiBtn');
+           if(!topic){ if(msg) msg.textContent='Please enter a topic.'; return; }
+           if(msg) msg.textContent='Generating questions...';
+           if(btn){ btn.disabled=true; btn.textContent='Generating...'; }
+           fetch('/portal/quizzes/ai-generate',{method:'POST',headers:{'Content-Type':'application/x-www-form-urlencoded'},
+             body:'topic='+encodeURIComponent(topic)+'&count='+encodeURIComponent(count)+'&difficulty='+encodeURIComponent(diff)
+           }).then(function(r){return r.json();}).then(function(d){
+             if(btn){ btn.disabled=false; btn.textContent='Generate'; }
+             if(!d.ok){ if(msg) msg.textContent=d.error||'Generation failed.'; return; }
+             var qs=document.getElementById('qs'); if(qs) qs.innerHTML='';
+             (d.questions||[]).forEach(function(q){ addQFilled(q); });
+             if(msg) msg.textContent=(d.ai?'AI generated ':'Template ') + (d.questions||[]).length + ' question(s). Review and edit before creating.';
+           }).catch(function(e){
+             if(btn){ btn.disabled=false; btn.textContent='Generate'; }
+             if(msg) msg.textContent='Network error. Try again.';
+           });
          }
          document.addEventListener('DOMContentLoaded',function(){});
        </script>`));
@@ -1158,6 +1216,76 @@ module.exports = function mountCampus(app) {
       await q("DELETE FROM question_bank WHERE id = ?", [id]);
     }
     res.redirect("/portal/qbank?ok=" + encodeURIComponent("Question deleted"));
+  });
+
+  /* =======================================================================
+   * AI QUIZ GENERATION (optional — uses OPENAI_API_KEY if configured)
+   * ===================================================================== */
+  app.post("/portal/quizzes/ai-generate", need("teacher"), form, async (req, res) => {
+    const topic = String(req.body.topic || "").trim();
+    const count = Math.min(20, Math.max(1, num(req.body.count, 5)));
+    const difficulty = ["easy", "medium", "hard"].includes(String(req.body.difficulty)) ? String(req.body.difficulty) : "medium";
+    if (!topic) return res.status(400).json({ ok: false, error: "Topic is required" });
+
+    const apiKey = process.env.OPENAI_API_KEY || process.env.AI_API_KEY || "";
+    let questions = [];
+    let usedAI = false;
+
+    if (apiKey) {
+      try {
+        const prompt = `Generate ${count} multiple-choice quiz questions about "${topic}" at ${difficulty} difficulty. Return ONLY a JSON array. Each item: {"question":"...","a":"...","b":"...","c":"...","d":"...","correct":"a|b|c|d","marks":1}. Exactly 4 options, one correct. No markdown, no explanation.`;
+        const r = await fetch("https://api.openai.com/v1/chat/completions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json", "Authorization": "Bearer " + apiKey },
+          body: JSON.stringify({
+            model: "gpt-4o-mini",
+            messages: [{ role: "user", content: prompt }],
+            temperature: 0.7,
+            max_tokens: 3000,
+          }),
+        });
+        const data = await r.json();
+        const text = (data.choices && data.choices[0] && data.choices[0].message && data.choices[0].message.content) || "";
+        const match = text.match(/\[[\s\S]*\]/);
+        if (match) {
+          const parsed = JSON.parse(match[0]);
+          if (Array.isArray(parsed)) {
+            questions = parsed.map((q) => ({
+              text: String(q.question || "").trim(),
+              a: String(q.a || "").trim(),
+              b: String(q.b || "").trim(),
+              c: String(q.c || "").trim(),
+              d: String(q.d || "").trim(),
+              correct: ["a", "b", "c", "d"].includes(String(q.correct || "a").toLowerCase()) ? String(q.correct).toLowerCase() : "a",
+              marks: Math.max(1, num(q.marks, 1)),
+            })).filter((q) => q.text && q.a && q.b);
+            if (questions.length) usedAI = true;
+          }
+        }
+      } catch (e) {
+        return res.status(500).json({ ok: false, error: "AI generation failed: " + (e.message || "unknown") });
+      }
+    }
+
+    if (!questions.length) {
+      // Fallback template questions so the feature works without an API key
+      const templates = [
+        { q: `What is the primary purpose of ${topic}?`, a: `To provide ${topic} fundamentals`, b: "To replace manual processes", c: "To increase hardware cost", d: "To reduce network speed", correct: "a" },
+        { q: `Which of the following is a key concept in ${topic}?`, a: "Core principles", b: "Unrelated hardware", c: "Random data", d: "None of the above", correct: "a" },
+        { q: `In ${topic}, which practice is recommended?`, a: "Follow best practices", b: "Skip documentation", c: "Ignore security", d: "Avoid testing", correct: "a" },
+        { q: `A common challenge in ${topic} is:`, a: "Scalability", b: "Too much simplicity", c: "Zero cost", d: "No users", correct: "a" },
+        { q: `Which tool is most associated with ${topic}?`, a: "Industry-standard tools", b: "Unrelated software", c: "Legacy hardware only", d: "None", correct: "a" },
+        { q: `The best way to learn ${topic} is:`, a: "Hands-on practice", b: "Only reading theory", c: "Skipping labs", d: "Avoiding examples", correct: "a" },
+        { q: `A professional in ${topic} should:`, a: "Keep skills updated", b: "Ignore new trends", c: "Avoid certifications", d: "Work in isolation", correct: "a" },
+        { q: `Security in ${topic} means:`, a: "Protecting assets", b: "Ignoring threats", c: "No access control", d: "Open permissions", correct: "a" },
+      ];
+      for (let i = 0; i < count; i++) {
+        const t = templates[i % templates.length];
+        questions.push({ text: t.q, a: t.a, b: t.b, c: t.c, d: t.d, correct: t.correct, marks: 1 });
+      }
+    }
+
+    return res.json({ ok: true, questions, ai: usedAI });
   });
 
   /* =======================================================================
