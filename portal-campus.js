@@ -1,5 +1,5 @@
 /**
- * CyberNexa Solutions — Portal: Campus
+ * TechNexa Solutions — Portal: Campus
  * ---------------------------------------------------------------------------
  * A full university-style campus layer on top of the student/teacher portal:
  *   • Attendance      — teacher marks a class roster; students see % + detail.
@@ -1377,7 +1377,7 @@ module.exports = function mountCampus(app) {
       <p class="note">Remarks: ${esc(remarks)}</p>
       <div class="sig"><div>Class Coordinator</div><div>Controller of Examinations</div><div>Principal</div></div>
       <div class="stamp">CYBERNEXA SOLUTIONS · COMPUTER-GENERATED DOCUMENT</div>`;
-    res.send(printPage("Result Card — CyberNexa", "/portal/marks", body));
+    res.send(printPage("Result Card — TechNexa", "/portal/marks", body));
   });
 
   app.get("/portal/fees/receipt/:id", need("student"), async (req, res) => {
@@ -1413,7 +1413,7 @@ module.exports = function mountCampus(app) {
       <p class="note">This is a computer-generated receipt for the payment recorded above. Please retain it for your records.</p>
       <div class="sig"><div>Received by</div><div>Accounts Officer</div></div>
       <div class="stamp">CYBERNEXA SOLUTIONS · FEE OFFICE</div>`;
-    res.send(printPage("Fee Receipt — CyberNexa", "/portal/fees", body));
+    res.send(printPage("Fee Receipt — TechNexa", "/portal/fees", body));
   });
 
   app.get("/portal/fees/statement/:id", need("student"), async (req, res) => {
@@ -1448,7 +1448,7 @@ module.exports = function mountCampus(app) {
       </table>
       <div class="sig"><div>Accounts Officer</div><div>Authorised Signature</div></div>
       <div class="stamp">CYBERNEXA SOLUTIONS · FEE OFFICE</div>`;
-    res.send(printPage("Fee Statement — CyberNexa", "/portal/fees", body));
+    res.send(printPage("Fee Statement — TechNexa", "/portal/fees", body));
   });
 
   console.log(" Portal campus mounted");

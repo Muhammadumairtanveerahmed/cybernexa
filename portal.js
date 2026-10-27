@@ -1,5 +1,5 @@
 /**
- * CyberNexa Solutions — Student & Teacher Portal
+ * TechNexa Solutions — Student & Teacher Portal
  * ---------------------------------------------------------------
  * Server-rendered portal mounted into the main Express app:
  *   • Student registration, profile, enrollments, documents, fees
@@ -998,7 +998,7 @@ function head(title) {
 }
 
 function publicPage(title, body) {
-  return `<!DOCTYPE html><html lang="en"><head>${head(title + " — CyberNexa Portal")}</head>
+  return `<!DOCTYPE html><html lang="en"><head>${head(title + " — TechNexa Portal")}</head>
 <body><div class="wrap">
   <nav class="nav">
     <a href="/" class="logo">Cyber<b>Nexa</b></a>
@@ -1064,7 +1064,7 @@ function shell(user, active, title, sub, body, extraNav = "") {
   const pending = user.status !== "active"
     ? `<div class="note" style="margin:14px 0 0"><h4><i class="fa-solid fa-hourglass-half"></i> Account ${esc(user.status)}</h4><p>${user.role === "teacher" ? "Your teacher application is waiting for admin approval. You can complete your profile meanwhile." : "Your account is " + esc(user.status) + "."}</p></div>`
     : "";
-  return `<!DOCTYPE html><html lang="en"><head>${head(title + " — CyberNexa Portal")}</head>
+  return `<!DOCTYPE html><html lang="en"><head>${head(title + " — TechNexa Portal")}</head>
 <body><button class="portal-menu-btn" id="portalMenuBtn" aria-label="Toggle menu"><i class="fa-solid fa-bars"></i></button><div class="side-backdrop" id="sideBackdrop"></div><div class="shell">
   <aside class="side" id="portalSide">
     <div class="brand">Cyber<b>Nexa</b> Portal</div>
@@ -1284,7 +1284,7 @@ function mount(app, context) {
     if (req.user) return res.redirect("/portal/dashboard");
     res.send(publicPage("Register", `
       <div class="card narrow">
-        <h1>Join the CyberNexa Academy</h1>
+        <h1>Join the TechNexa Academy</h1>
         <p class="muted" style="margin-bottom:18px">Choose how you want to join.</p>
         <a class="file" href="/portal/register/student" style="padding:18px">
           <span style="font-size:1.6rem"><i class="fa-solid fa-graduation-cap"></i></span>
@@ -1352,7 +1352,7 @@ function mount(app, context) {
       } catch (err) {
         console.error("enrollment link failed:", err.message);
       }
-      await createNotice("user", id, "Welcome to CyberNexa", "Your student account is ready. Complete your profile and explore our courses.");
+      await createNotice("user", id, "Welcome to TechNexa", "Your student account is ready. Complete your profile and explore our courses.");
       const sid = await createSession(id, req.ip, req.headers["user-agent"]);
       setSessionCookie(res, sid);
       ctx.notifyOwner("New Student Registration", { Name: full_name, Email: email, Phone: phone }, ctx.originOf(req)).catch(() => {});
@@ -1367,7 +1367,7 @@ function mount(app, context) {
     res.send(publicPage("Teacher application", `
       <div class="card">
         <h1><i class="fa-solid fa-chalkboard-user"></i> Teacher application</h1>
-        <p class="muted" style="margin-bottom:8px">Apply to teach at CyberNexa. An admin reviews every application.</p>
+        <p class="muted" style="margin-bottom:8px">Apply to teach at TechNexa. An admin reviews every application.</p>
         ${req.query.e ? `<div class="err">${esc(req.query.e)}</div>` : ""}
         <form method="post" action="/portal/register/teacher" enctype="multipart/form-data">
           <label>Full name *</label><input name="full_name" required maxlength="120">
@@ -1480,15 +1480,15 @@ function mount(app, context) {
         if (ctx.sendUserEmail) {
           emailed = await ctx.sendUserEmail({
             to: user.email,
-            subject: "Reset your CyberNexa password",
+            subject: "Reset your TechNexa password",
             text:
               `Hi ${user.full_name},\n\n` +
-              "We received a request to reset your CyberNexa portal password.\n\n" +
+              "We received a request to reset your TechNexa portal password.\n\n" +
               `Set a new password (link valid for 3 days):\n${link}\n\n` +
-              "If you did not request this, you can safely ignore this email.\n\n— CyberNexa Solutions",
+              "If you did not request this, you can safely ignore this email.\n\n— TechNexa Solutions",
             html:
               `<p>Hi ${esc(user.full_name)},</p>` +
-              "<p>We received a request to reset your CyberNexa portal password.</p>" +
+              "<p>We received a request to reset your TechNexa portal password.</p>" +
               `<p><a href="${link}" style="background:#2563eb;color:#fff;padding:10px 18px;border-radius:8px;text-decoration:none;display:inline-block">Set a new password</a></p>` +
               '<p style="color:#64748b;font-size:13px">This link is valid for 3 days. If you did not request it, you can safely ignore this email.</p>',
           });

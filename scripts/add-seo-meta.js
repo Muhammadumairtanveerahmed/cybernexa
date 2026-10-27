@@ -35,7 +35,7 @@ for (const [file, route] of Object.entries(PAGES)) {
     console.log("already done:", file);
     continue;
   }
-  const title = (html.match(/<title>([\s\S]*?)<\/title>/i) || [, "CyberNexa Solutions"])[1].trim();
+  const title = (html.match(/<title>([\s\S]*?)<\/title>/i) || [, "TechNexa Solutions"])[1].trim();
   const desc = (html.match(/<meta\s+name="description"\s+content="([^"]*)"/i) || [, ""])[1].trim();
   const url = SITE + (route === "/" ? "/" : route);
 
@@ -47,7 +47,7 @@ for (const [file, route] of Object.entries(PAGES)) {
     '  <link rel="alternate icon" href="/favicon.ico" />',
     '  <meta name="theme-color" content="#060912" />',
     '  <meta property="og:type" content="website" />',
-    '  <meta property="og:site_name" content="CyberNexa Solutions" />',
+    '  <meta property="og:site_name" content="TechNexa Solutions" />',
     `  <meta property="og:title" content="${esc(title)}" />`,
     `  <meta property="og:description" content="${esc(desc)}" />`,
     `  <meta property="og:url" content="${url}" />`,
@@ -62,7 +62,7 @@ for (const [file, route] of Object.entries(PAGES)) {
         JSON.stringify({
           "@context": "https://schema.org",
           "@type": "Organization",
-          name: "CyberNexa Solutions",
+          name: "TechNexa Solutions",
           url: SITE + "/",
           logo: SITE + "/favicon.svg",
           description: desc,

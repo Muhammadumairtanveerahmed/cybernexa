@@ -1,5 +1,5 @@
 /**
- * CyberNexa Solutions — Portal administration (mounted under /admin)
+ * TechNexa Solutions — Portal administration (mounted under /admin)
  * -------------------------------------------------------------------
  * Manage students, teacher applications, enrollments, payments,
  * receipts/certificates, notices and password resets.

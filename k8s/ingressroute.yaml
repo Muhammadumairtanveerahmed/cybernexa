@@ -1,4 +1,4 @@
-# Routing for CyberNexa (Traefik CRDs).
+# Routing for TechNexa (Traefik CRDs).
 # Why CRDs: a standard Ingress produced 404s on this cluster; IngressRoute works.
 #
 # Works on:

@@ -1,5 +1,5 @@
 /* ==========================================================
-   CyberNexa — Dynamic course catalog loader
+   TechNexa — Dynamic course catalog loader
    Fetches /api/courses and renders:
    - courses.html catalog (course blocks + category chips + count)
    - index.html featured courses (homepage)

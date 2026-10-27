@@ -1,5 +1,5 @@
 /**
- * CyberNexa realtime layer.
+ * TechNexa realtime layer.
  *
  *  - WebSocket  : 1:1 chat, presence, typing and call signalling
  *  - WebRTC     : peer-to-peer audio / video between a student and a teacher

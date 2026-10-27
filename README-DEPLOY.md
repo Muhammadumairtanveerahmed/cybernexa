@@ -1,4 +1,4 @@
-# Deploy CyberNexa Solutions (Permanent Hosting)
+# Deploy TechNexa Solutions (Permanent Hosting)
 
 Your site is 100% ready to deploy. Two good options — **pick the one you can log into**:
 

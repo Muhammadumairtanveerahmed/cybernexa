@@ -1,5 +1,5 @@
 /**
- * CyberNexa Solutions — Node.js (Express) Backend
+ * TechNexa Solutions — Node.js (Express) Backend
  * Run: node server.js
  */
 const express = require("express");
@@ -502,7 +502,7 @@ async function sendUserEmail({ to, subject, text, html }) {
   if (!mailer || !to) return false;
   try {
     await mailer.sendMail({
-      from: `"CyberNexa Solutions" <${process.env.SMTP_USER}>`,
+      from: `"TechNexa Solutions" <${process.env.SMTP_USER}>`,
       to,
       subject,
       text,
@@ -522,7 +522,7 @@ async function notifyOwner(subject, fields, origin) {
     try {
       const lines = Object.entries(fields).map(([k, v]) => `${k}: ${v}`).join("\n");
       await mailer.sendMail({
-        from: `"CyberNexa Website" <${process.env.SMTP_USER}>`,
+        from: `"TechNexa Website" <${process.env.SMTP_USER}>`,
         to: OWNER_EMAIL,
         subject,
         text: lines,
@@ -908,7 +908,7 @@ function adminLoginPage(error) {
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Admin login | CyberNexa</title>
+<title>Admin login | TechNexa</title>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.2/css/all.min.css">
 <style>
   :root { --bg:#0a0a17; --card:#12122a; --border:#26264a; --violet:#3b82f6; --indigo:#2563eb; --cyan:#60a5fa; --text:#ececf5; --muted:#9a9ab5; }
@@ -1565,7 +1565,7 @@ app.get("/admin/courses/delete", async (req, res) => {
 
 // ---------- Health check (uptime monitors, Render, AWS load balancer) ----------
 app.get("/healthz", (req, res) =>
-  res.json({ ok: true, name: "CyberNexa Solutions", time: new Date().toISOString() })
+  res.json({ ok: true, name: "TechNexa Solutions", time: new Date().toISOString() })
 );
 
 // ---------- Student & Teacher Portal ----------
@@ -1661,7 +1661,7 @@ function siteErrorPage(code, title, message) {
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
 <meta name="robots" content="noindex" />
-<title>${code} | CyberNexa Solutions</title>
+<title>${code} | TechNexa Solutions</title>
 <link rel="icon" href="/favicon.svg" type="image/svg+xml" />
 <link href="https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=Inter:wght@400;500;600&display=swap" rel="stylesheet" />
 <link rel="stylesheet" href="/css/style.css" />

@@ -19,7 +19,7 @@ const services = [
   {
     slug: "cloud-infrastructure",
     title: "Cloud & Infrastructure",
-    meta: "CyberNexa Cloud & Infrastructure — migration, optimization and 24x7 managed cloud operations on AWS and Azure.",
+    meta: "TechNexa Cloud & Infrastructure — migration, optimization and 24x7 managed cloud operations on AWS and Azure.",
     heroBtn: "Talk to a Cloud Engineer",
     h1a: "Cloud & Infrastructure That",
     h1b: "Scales With Your Business",
@@ -43,7 +43,7 @@ const services = [
   {
     slug: "cybersecurity",
     title: "Managed Cybersecurity",
-    meta: "CyberNexa Managed Cybersecurity — 24x7 SOC monitoring, penetration testing and incident response.",
+    meta: "TechNexa Managed Cybersecurity — 24x7 SOC monitoring, penetration testing and incident response.",
     heroBtn: "Speak with a Security Engineer",
     h1a: "Cybersecurity That",
     h1b: "Protects What Matters Most",
@@ -67,7 +67,7 @@ const services = [
   {
     slug: "software-development",
     title: "Software House",
-    meta: "CyberNexa Software House — custom web apps, mobile apps, APIs and enterprise software.",
+    meta: "TechNexa Software House — custom web apps, mobile apps, APIs and enterprise software.",
     heroBtn: "Start Your Project",
     h1a: "Custom Software That",
     h1b: "Powers Your Digital Growth",
@@ -91,7 +91,7 @@ const services = [
   {
     slug: "it-training",
     title: "IT Training Academy",
-    meta: "CyberNexa IT Training Academy — cybersecurity, cloud, development and networking courses with labs.",
+    meta: "TechNexa IT Training Academy — cybersecurity, cloud, development and networking courses with labs.",
     heroBtn: "Explore Courses",
     h1a: "IT Training That",
     h1b: "Builds Real Careers",
@@ -115,7 +115,7 @@ const services = [
   {
     slug: "digital-agency",
     title: "Digital Agency",
-    meta: "CyberNexa Digital Agency — brand identity, UI/UX design, SEO and performance marketing.",
+    meta: "TechNexa Digital Agency — brand identity, UI/UX design, SEO and performance marketing.",
     heroBtn: "Talk to a Strategist",
     h1a: "Digital Experiences That",
     h1b: "Turn Visitors Into Customers",
@@ -168,7 +168,7 @@ function page(s) {
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <meta name="description" content="${s.meta}" />
-  <title>${s.title} | CyberNexa Solutions</title>
+  <title>${s.title} | TechNexa Solutions</title>
 
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -265,7 +265,7 @@ function page(s) {
   <section class="section section-alt" id="why">
     <div class="container">
       <div class="section-head reveal">
-        <span class="eyebrow">Why Choose CyberNexa?</span>
+        <span class="eyebrow">Why Choose TechNexa?</span>
         <h2>A Strategic IT Partner, <span class="gradient-text">Not Just a Service Provider</span></h2>
         <p>Proactive management, enterprise expertise and security-first operations — reduce complexity, control costs and accelerate growth.</p>
       </div>
@@ -351,7 +351,7 @@ function page(s) {
     </div>
 
     <div class="container footer-bottom">
-      <span>© <span id="year">2026</span> CyberNexa Solutions. All rights reserved. | <a href="/legal" style="color:var(--muted)">Legal</a></span>
+      <span>© <span id="year">2026</span> TechNexa Solutions. All rights reserved. | <a href="/legal" style="color:var(--muted)">Legal</a></span>
       <span class="footer-tag">MANAGED · MODERN · SECURE</span>
     </div>
   </footer>

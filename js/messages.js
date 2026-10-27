@@ -1,4 +1,4 @@
-/* CyberNexa - realtime chat + WebRTC calls (student <-> teacher) */
+/* TechNexa - realtime chat + WebRTC calls (student <-> teacher) */
 (function () {
   "use strict";
   var D = window.CNX_CHAT || { me: {}, contacts: [] };

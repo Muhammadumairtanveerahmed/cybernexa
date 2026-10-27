@@ -1,5 +1,5 @@
 /**
- * CyberNexa Solutions — Portal: Academics (Assignments, Submissions, Marks)
+ * TechNexa Solutions — Portal: Academics (Assignments, Submissions, Marks)
  * ------------------------------------------------------------------------
  * A university-style coursework module on top of the student/teacher portal:
  *   • Teacher: create assignments (with a brief/attachment) per course,
