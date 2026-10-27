@@ -1011,14 +1011,23 @@ module.exports = function mountCampus(app) {
     }
     const [questions] = await q("SELECT * FROM quiz_questions WHERE quiz_id = ? ORDER BY q_no", [z.id]);
     if (!questions.length) return res.redirect("/portal/quizzes?e=" + encodeURIComponent("This quiz has no questions yet"));
-    const qs = questions.map((x) => {
+    const qs = questions.map((x, idx) => {
       const opts = [["a", x.option_a], ["b", x.option_b], ["c", x.option_c], ["d", x.option_d]]
         .filter(([, v]) => String(v || "").trim())
         .map(([k, v]) => `<label style="display:flex;gap:9px;align-items:center;padding:9px 12px;border:1px solid var(--line);border-radius:9px;margin:6px 0;background:#0b1020;color:var(--txt);cursor:pointer">
             <input type="radio" name="ans_${esc(x.id)}" value="${k}" style="width:auto"> <span><b>${k.toUpperCase()}.</b> ${esc(v)}</span></label>`).join("");
-      return `<div class="acard" style="margin-bottom:12px">
-        <div class="row" style="justify-content:space-between"><strong>Q${Number(x.q_no)}. ${esc(x.question)}</strong><span class="pill">${Number(x.marks)} mark(s)</span></div>
+      return `<div class="qstep" data-idx="${idx}" style="display:${idx === 0 ? "block" : "none"}">
+        <div class="row" style="justify-content:space-between;margin-bottom:10px">
+          <strong>Q${Number(x.q_no)}. ${esc(x.question)}</strong>
+          <span class="pill">${Number(x.marks)} mark(s)</span>
+        </div>
         ${opts}
+        <div class="row mt" style="justify-content:space-between">
+          ${idx > 0 ? `<button type="button" class="btn ghost" onclick="showStep(${idx - 1})"><i class="fa-solid fa-arrow-left"></i> Previous</button>` : `<span></span>`}
+          ${idx < questions.length - 1
+            ? `<button type="button" class="btn primary" onclick="showStep(${idx + 1})">Next <i class="fa-solid fa-arrow-right"></i></button>`
+            : `<button class="btn primary" type="submit" onclick="return confirm('Submit your answers?')"><i class="fa-solid fa-circle-check"></i> Submit quiz</button>`}
+        </div>
       </div>`;
     }).join("");
     const seconds = Math.max(30, Number(z.duration_minutes || 15) * 60);
@@ -1037,22 +1046,30 @@ module.exports = function mountCampus(app) {
        <div id="quizWrap" style="display:none">
          <div class="panel" style="display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:5">
            <div><strong>Time remaining</strong> <span id="tmr" style="color:var(--acc);font-family:'Sora',sans-serif">--:--</span></div>
-           <div class="muted" style="font-size:.8rem">Do not close this page. The quiz auto-submits when time is up.</div>
+           <div class="muted" style="font-size:.8rem">Question <span id="qno">1</span> of ${questions.length} · Do not close this page.</div>
          </div>
          <form method="post" action="/portal/quizzes/submit" id="qzform">
            <input type="hidden" name="quiz_id" value="${esc(z.id)}">
            ${qs}
-           <button class="btn primary mt" type="submit" onclick="return confirm('Submit your answers?')"><i class="fa-solid fa-circle-check"></i> Submit quiz</button>
+           <div class="row mt" style="justify-content:space-between;align-items:center">
+             <span class="muted" style="font-size:.8rem">Answer all questions, then submit on the last question.</span>
+           </div>
          </form>
        </div>
        <script>
          (function(){
            var s=${seconds}; var el=document.getElementById('tmr'); var f=document.getElementById('qzform');
            var wrap=document.getElementById('quizWrap'); var overlay=document.getElementById('startOverlay'); var warn=document.getElementById('fsWarn');
+           var total=${questions.length};
            function show(){ if(!el) return; var m=Math.floor(s/60),x=s%60; el.textContent=m+':'+(x<10?'0':'')+x; }
            function goFs(){ var r=(document.documentElement.requestFullscreen||document.documentElement.webkitRequestFullscreen||document.documentElement.msRequestFullscreen); if(r) r.call(document.documentElement).catch(function(){}); }
            window.goFs=goFs;
-           window.startQuiz=function(){ goFs(); if(overlay) overlay.style.display='none'; if(wrap) wrap.style.display='block'; show();
+           window.showStep=function(idx){
+             var steps=document.querySelectorAll('.qstep');
+             for(var i=0;i<steps.length;i++){ steps[i].style.display = (i===idx)?'block':'none'; }
+             var qno=document.getElementById('qno'); if(qno) qno.textContent=(idx+1);
+           };
+           window.startQuiz=function(){ goFs(); if(overlay) overlay.style.display='none'; if(wrap) wrap.style.display='block'; showStep(0); show();
              var t=setInterval(function(){ s--; if(s<=0){ clearInterval(t); if(el) el.textContent='0:00'; try{ if(document.exitFullscreen) document.exitFullscreen(); }catch(e){} f.submit(); return;} show(); },1000);
              window.__qzTimer=t; };
            function onFsChange(){ if(!(document.fullscreenElement||document.webkitFullscreenElement) && wrap && wrap.style.display==='block'){ if(warn) warn.style.display='block'; } else { if(warn) warn.style.display='none'; } }
