@@ -1688,6 +1688,7 @@ const PUBLIC_PAGES = new Set([
   "/courses", "/courses.html",
   "/industries", "/industries.html",
   "/legal", "/legal.html",
+  "/APP-TEST-REPORT.pdf",
 ]);
 const PUBLIC_DIRS = ["/css/", "/js/", "/services/"];
 app.use((req, res, next) => {
