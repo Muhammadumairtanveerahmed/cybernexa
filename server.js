@@ -932,7 +932,7 @@ function adminLoginPage(error) {
 </head>
 <body>
   <form class="card" method="post" action="/admin/login">
-    <div class="brand"><i class="fa-solid fa-shield-halved"></i> Cyber<b>Nexa</b> Admin</div>
+    <div class="brand"><i class="fa-solid fa-shield-halved"></i> Tech<b>Nexa</b> Admin</div>
     <div class="sub">Sign in to manage the website, students and academy.</div>
     ${error ? `<div class="err"><i class="fa-solid fa-triangle-exclamation"></i> ${error}</div>` : ""}
     <label for="password">Admin password</label>
@@ -1100,7 +1100,7 @@ function adminLayout(title, active, body) {
 <button class="admin-menu-btn" id="adminMenuBtn" aria-label="Toggle menu"><i class="fa-solid fa-bars"></i></button>
 <div class="side-backdrop" id="sideBackdrop"></div>
 <aside class="side" id="adminSide">
-  <div class="brand"><i class="fa-solid fa-shield-halved"></i> Cyber<b>Nexa</b></div>
+  <div class="brand"><i class="fa-solid fa-shield-halved"></i> Tech<b>Nexa</b></div>
   <a href="/admin/dashboard" class="${active === "dash" ? "active" : ""}"><i class="fa-solid fa-chart-column"></i> Dashboard</a>
   <a href="/admin/messages" class="${active === "msgs" ? "active" : ""}"><i class="fa-solid fa-envelope"></i> Messages</a>
   <a href="/admin/calls" class="${active === "calls" ? "active" : ""}"><i class="fa-solid fa-phone"></i> Call logs</a>
@@ -1668,7 +1668,7 @@ function siteErrorPage(code, title, message) {
 </head>
 <body>
 <header class="navbar scrolled"><div class="container nav-inner">
-  <a href="/" class="logo"><span class="logo-mark"><i class="fa-solid fa-shield-halved"></i></span><span class="logo-text">Cyber<span class="accent">Nexa</span></span></a>
+  <a href="/" class="logo"><span class="logo-mark"><i class="fa-solid fa-shield-halved"></i></span><span class="logo-text">Tech<span class="accent">Nexa</span></span></a>
   <nav class="nav-links" style="display:flex">${links}</nav>
 </div></header>
 <main class="section"><div class="container" style="max-width:720px;text-align:center;padding:40px 0">

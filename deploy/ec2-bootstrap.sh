@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# CyberNexa Solutions — server-side one-shot installer
+# TechNexa Solutions — server-side one-shot installer
 # Run THIS FILE ON THE EC2 SERVER (Ubuntu 22.04 / 24.04 / 26.04)
 #
 # Usage:
@@ -77,7 +77,7 @@ ENV
 echo "[6/7] systemd service (auto-restart)"
 cat > /etc/systemd/system/cybernexa.service <<'SVC'
 [Unit]
-Description=CyberNexa Solutions website
+Description=TechNexa Solutions website
 After=network.target mysql.service
 
 [Service]
@@ -111,7 +111,7 @@ echo "--- Health check ---"
 curl -fsS http://localhost/healthz && echo
 PUBIP=$(curl -fsS https://ifconfig.me || echo "<this-server-public-ip>")
 echo "======================================================"
-echo "DONE! CyberNexa is LIVE."
+echo "DONE! TechNexa is LIVE."
 echo "Open this in your browser:  http://${PUBIP}"
 echo "Admin panel:                http://${PUBIP}/admin"
 echo "======================================================"

@@ -1,9 +1,9 @@
 @echo off
-title CyberNexa Solutions - Website Server + Live Link
+title TechNexa Solutions - Website Server + Live Link
 cd /d "%~dp0"
 
 echo ==========================================================
-echo   CyberNexa Solutions
+echo   TechNexa Solutions
 echo   Website Server + Public Link - Starting...
 echo ==========================================================
 echo.
@@ -11,7 +11,7 @@ echo.
 REM --- Start the website server (node) ---
 where node >nul 2>nul
 if %errorlevel%==0 (
-    start "CyberNexa-Server" /min cmd /k "node server.js"
+    start "TechNexa-Server" /min cmd /k "node server.js"
 ) else (
     echo [ERROR] Node.js not found in PATH. Please install Node.js first.
     pause

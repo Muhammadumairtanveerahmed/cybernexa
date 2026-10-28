@@ -181,7 +181,7 @@ function printPage(title, backHref, body) {
 }
 function letterhead(docTitle, metaLines) {
   return `<div class="lh">
-    <div class="brand">Cyber<b>Nexa</b> Solutions<small>Institute of Technology &amp; Cyber Security</small></div>
+    <div class="brand">Tech<b>Nexa</b> Solutions<small>Institute of Technology &amp; Cyber Security</small></div>
     <div class="meta">
       <div><strong>${esc(docTitle)}</strong></div>
       <div>Issued: ${esc(todayLong())}</div>
@@ -1376,7 +1376,7 @@ module.exports = function mountCampus(app) {
       </div>
       <p class="note">Remarks: ${esc(remarks)}</p>
       <div class="sig"><div>Class Coordinator</div><div>Controller of Examinations</div><div>Principal</div></div>
-      <div class="stamp">CYBERNEXA SOLUTIONS · COMPUTER-GENERATED DOCUMENT</div>`;
+      <div class="stamp">TECHNEXA SOLUTIONS · COMPUTER-GENERATED DOCUMENT</div>`;
     res.send(printPage("Result Card — TechNexa", "/portal/marks", body));
   });
 
@@ -1412,7 +1412,7 @@ module.exports = function mountCampus(app) {
       </table>
       <p class="note">This is a computer-generated receipt for the payment recorded above. Please retain it for your records.</p>
       <div class="sig"><div>Received by</div><div>Accounts Officer</div></div>
-      <div class="stamp">CYBERNEXA SOLUTIONS · FEE OFFICE</div>`;
+      <div class="stamp">TECHNEXA SOLUTIONS · FEE OFFICE</div>`;
     res.send(printPage("Fee Receipt — TechNexa", "/portal/fees", body));
   });
 
@@ -1447,7 +1447,7 @@ module.exports = function mountCampus(app) {
         </tfoot>
       </table>
       <div class="sig"><div>Accounts Officer</div><div>Authorised Signature</div></div>
-      <div class="stamp">CYBERNEXA SOLUTIONS · FEE OFFICE</div>`;
+      <div class="stamp">TECHNEXA SOLUTIONS · FEE OFFICE</div>`;
     res.send(printPage("Fee Statement — TechNexa", "/portal/fees", body));
   });
 

@@ -66,7 +66,7 @@ for (const [file, route] of Object.entries(PAGES)) {
           url: SITE + "/",
           logo: SITE + "/favicon.svg",
           description: desc,
-          email: "info@cybernexa.solutions",
+          email: "info@technexa.solutions",
           telephone: "+92-323-7469306",
           address: { "@type": "PostalAddress", addressCountry: "PK" },
           sameAs: ["https://wa.me/923237469306"],

@@ -1,5 +1,5 @@
 // ============================================================
-//  CyberNexa Solutions — Jenkins CI/CD pipeline
+//  TechNexa Solutions — Jenkins CI/CD pipeline
 //  Builds the site image and rolls it out onto the single-node
 //  k3s cluster running on this EC2 host.
 //
@@ -71,7 +71,7 @@ pipeline {
 
   post {
     success {
-      echo 'CyberNexa deployed successfully to k3s'
+      echo 'TechNexa deployed successfully to k3s'
     }
     failure {
       echo '❌ Deploy FAILED — check the stage logs above'

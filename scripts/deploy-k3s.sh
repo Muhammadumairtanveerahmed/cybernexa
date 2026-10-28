@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # ============================================================
-# CyberNexa — rebuild the site image from source and roll it
+# TechNexa — rebuild the site image from source and roll it
 # out on the single-node k3s cluster running on this EC2 box.
 #
 # Usage (on the server):
@@ -33,7 +33,7 @@ sudo k3s kubectl rollout status deployment/cybernexa --timeout=180s
 
 PUBIP="$(curl -fsS -m 5 https://ifconfig.me || echo '<server-ip>')"
 echo "======================================================"
-echo "DONE — CyberNexa is LIVE"
+echo "DONE — TechNexa is LIVE"
 echo "Site  : http://${PUBIP}"
 echo "Admin : http://${PUBIP}/admin"
 echo "======================================================"

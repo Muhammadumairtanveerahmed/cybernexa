@@ -1,7 +1,7 @@
-﻿{
-  "name": "CyberNexa-website",
+{
+  "name": "TechNexa-website",
   "version": "1.0.0",
-  "description": "CyberNexa Solutions - Website with Node.js backend",
+  "description": "TechNexa Solutions - Website with Node.js backend",
   "main": "server.js",
   "scripts": {
     "start": "node server.js"

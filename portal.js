@@ -1001,7 +1001,7 @@ function publicPage(title, body) {
   return `<!DOCTYPE html><html lang="en"><head>${head(title + " — TechNexa Portal")}</head>
 <body><div class="wrap">
   <nav class="nav">
-    <a href="/" class="logo">Cyber<b>Nexa</b></a>
+    <a href="/" class="logo">Tech<b>Nexa</b></a>
     <span class="sp"></span>
     <a class="lnk" href="/">Website</a>
     <a class="lnk" href="/portal/login">Sign in</a>
@@ -1067,7 +1067,7 @@ function shell(user, active, title, sub, body, extraNav = "") {
   return `<!DOCTYPE html><html lang="en"><head>${head(title + " — TechNexa Portal")}</head>
 <body><button class="portal-menu-btn" id="portalMenuBtn" aria-label="Toggle menu"><i class="fa-solid fa-bars"></i></button><div class="side-backdrop" id="sideBackdrop"></div><div class="shell">
   <aside class="side" id="portalSide">
-    <div class="brand">Cyber<b>Nexa</b> Portal</div>
+    <div class="brand">Tech<b>Nexa</b> Portal</div>
     ${nav}
     ${extraNav}
     <a href="/" target="_blank"><i class="fa-solid fa-globe"></i> View Website</a>

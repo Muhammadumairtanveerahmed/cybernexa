@@ -1,6 +1,6 @@
 #!/bin/bash
 # ============================================================
-# CyberNexa Solutions — AWS EC2 one-click setup (Ubuntu 22.04)
+# TechNexa Solutions — AWS EC2 one-click setup (Ubuntu 22.04)
 # Paste this as the EC2 "User data" when launching the instance,
 # or run it on the server as root:  sudo bash ec2-userdata.sh
 # It installs: Node 20, MySQL 8, the app, systemd service, firewall
@@ -69,7 +69,7 @@ ENV
 echo "[6/6] systemd service + firewall"
 cat > /etc/systemd/system/cybernexa.service <<'SVC'
 [Unit]
-Description=CyberNexa Solutions website
+Description=TechNexa Solutions website
 After=network.target mysql.service
 
 [Service]
@@ -96,5 +96,5 @@ ufw --force enable
 sleep 3
 echo "--- Health check ---"
 curl -fsS http://localhost:3000/healthz && echo
-echo "CyberNexa is LIVE at http://<your-instance-public-ip>:3000"
+echo "TechNexa is LIVE at http://<your-instance-public-ip>:3000"
 echo "Full setup log: /var/log/cybernexa-setup.log"
