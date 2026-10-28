@@ -1598,8 +1598,10 @@ function mount(app, context) {
               a.status AS at_status, a.score, a.total
        FROM quizzes z
        LEFT JOIN quiz_attempts a ON a.quiz_id = z.id AND a.student_id = ?
-       WHERE z.status = 'published' AND z.course_title IN (
-         SELECT course_title FROM enrollments WHERE user_id = ? AND status <> 'rejected' AND course_title <> ''
+       WHERE z.status = 'published' AND (
+         z.audience = 'all' OR z.course_title IN (
+           SELECT course_title FROM enrollments WHERE user_id = ? AND status <> 'rejected' AND course_title <> ''
+         )
        )
        ORDER BY (a.status = 'submitted'), z.created_at DESC LIMIT 20`,
       [u.id, u.id]
