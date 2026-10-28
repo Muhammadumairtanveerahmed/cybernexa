@@ -120,6 +120,12 @@ async function notifyStudents(courseTitle, title, body) {
     for (const s of st) await core.createNotice("user", s.id, title, body);
   } catch (e) { /* notices are best-effort */ }
 }
+async function notifyAllStudents(title, body) {
+  try {
+    const [st] = await q("SELECT id FROM users WHERE role = 'student' LIMIT 400");
+    for (const s of st) await core.createNotice("user", s.id, title, body);
+  } catch (e) { /* notices are best-effort */ }
+}
 function courseOptions(titles, selected, fallbackAll) {
   const list = titles.length ? titles : fallbackAll || [];
   const opts = list.map((t) => `<option value="${esc(t)}" ${t === selected ? "selected" : ""}>${esc(t)}</option>`).join("");
@@ -682,7 +688,7 @@ module.exports = function mountCampus(app) {
         [u.id]
       ))[0];
       const rows = mine.map((z) => `<tr>
-        <td><strong>${esc(z.title)}</strong><div class="muted" style="font-size:.78rem">${esc(z.course_title)}</div></td>
+        <td><strong>${esc(z.title)}</strong><div class="muted" style="font-size:.78rem">${esc(z.course_title)} · ${z.audience === "all" ? "All students" : "Enrolled only"}</div></td>
         <td>${Number(z.qn)}</td>
         <td>${Number(z.duration_minutes)} min</td>
         <td>${Number(z.attempts)}</td>
@@ -702,20 +708,20 @@ module.exports = function mountCampus(app) {
     }
     // student
     const courses = await studentCourseTitles(u.id);
-    let list = [];
-    if (courses.length) {
-      const ph = courses.map(() => "?").join(",");
-      list = (await q(
-        `SELECT z.*, t.full_name AS teacher,
-                a.status AS at_status, a.score, a.total
-         FROM quizzes z
-         LEFT JOIN users t ON t.id = z.teacher_id
-         LEFT JOIN quiz_attempts a ON a.quiz_id = z.id AND a.student_id = ?
-         WHERE z.status <> 'draft' AND z.course_title IN (${ph})
-         ORDER BY z.created_at DESC LIMIT 200`,
-        [u.id, ...courses]
-      ))[0];
-    }
+    const ph = courses.map(() => "?").join(",");
+    const audienceWhere = courses.length
+      ? `(z.audience = 'all' OR z.course_title IN (${ph}))`
+      : `z.audience = 'all'`;
+    const list = (await q(
+      `SELECT z.*, t.full_name AS teacher,
+              a.status AS at_status, a.score, a.total
+       FROM quizzes z
+       LEFT JOIN users t ON t.id = z.teacher_id
+       LEFT JOIN quiz_attempts a ON a.quiz_id = z.id AND a.student_id = ?
+       WHERE z.status <> 'draft' AND ${audienceWhere}
+       ORDER BY z.created_at DESC LIMIT 200`,
+      [u.id, ...courses]
+    ))[0];
     const rows = list.map((z) => {
       const done = z.at_status === "submitted";
       const p = done && Number(z.total) > 0 ? pct(Number(z.score), Number(z.total)) : 0;
@@ -767,8 +773,14 @@ module.exports = function mountCampus(app) {
            </div>
            <div class="grid2">
              <div><label>Passing percentage</label><input type="number" name="pass_percent" min="0" max="100" value="50"></div>
-             <div><label>Instructions (optional)</label><input name="description" maxlength="400" placeholder="e.g. Attempt all questions"></div>
+             <div><label>Who can attempt this quiz? *</label>
+               <select name="audience">
+                 <option value="all" selected>All students</option>
+                 <option value="course">Only students enrolled in the selected course</option>
+               </select>
+             </div>
            </div>
+           <div><label>Instructions (optional)</label><input name="description" maxlength="400" placeholder="e.g. Attempt all questions"></div>
 
            <h2 class="mt"><i class="fa-solid fa-robot"></i> Generate questions with AI</h2>
            <p class="muted" style="font-size:.8rem">Enter a topic and the app will create MCQ questions for you. Review and edit before publishing.</p>
@@ -877,6 +889,7 @@ module.exports = function mountCampus(app) {
     const description = String(req.body.description || "").trim();
     const duration = Math.min(240, Math.max(1, num(req.body.duration_minutes, 15)));
     const passPct = Math.min(100, Math.max(0, num(req.body.pass_percent, 50)));
+    const audience = String(req.body.audience) === "course" ? "course" : "all";
     if (!course) return back("Please choose a course");
     if (title.length < 2) return back("Please enter a quiz title");
     const qbIds = toArr(req.body.qb_id).map((x) => String(x).trim()).filter(Boolean);
@@ -910,16 +923,20 @@ module.exports = function mountCampus(app) {
     if (!built.length) return back("Pick at least one question from the bank or add one manually");
     try {
       const id = uid("qz_");
-      await q(`INSERT INTO quizzes (id, course_title, teacher_id, title, description, duration_minutes, pass_percent, status, created_at, updated_at)
-               VALUES (?,?,?,?,?,?,?, 'published', NOW(), NOW())`,
-        [id, course, req.user.id, title, description, duration, passPct]);
+      await q(`INSERT INTO quizzes (id, course_title, teacher_id, title, description, duration_minutes, pass_percent, audience, status, created_at, updated_at)
+               VALUES (?,?,?,?,?,?,?,?, 'published', NOW(), NOW())`,
+        [id, course, req.user.id, title, description, duration, passPct, audience]);
       let n = 1;
       for (const b of built) {
         await q(`INSERT INTO quiz_questions (id, quiz_id, q_no, question, option_a, option_b, option_c, option_d, correct, marks)
                  VALUES (?,?,?,?,?,?,?,?,?,?)`,
           [uid("qq_"), id, n++, b.text, b.a, b.b, b.c, b.d, b.correct, b.marks]);
       }
-      await notifyStudents(course, "New quiz: " + title, `${built.length} question(s) · ${duration} minutes.\nOpen the Quizzes section to attempt it.`);
+      if (audience === "all") {
+        await notifyAllStudents("New quiz: " + title, `${built.length} question(s) · ${duration} minutes.\nOpen the Quizzes section to attempt it.`);
+      } else {
+        await notifyStudents(course, "New quiz: " + title, `${built.length} question(s) · ${duration} minutes.\nOpen the Quizzes section to attempt it.`);
+      }
       res.redirect("/portal/quizzes/view?id=" + id + "&ok=" + encodeURIComponent("Quiz published"));
     } catch (e) {
       res.redirect("/portal/quizzes/new?e=" + encodeURIComponent(e.message || "Could not create quiz"));
@@ -952,13 +969,15 @@ module.exports = function mountCampus(app) {
         <td>${a.status === "submitted" ? `<span class="badge ${p >= z.pass_percent ? "b-graded" : "b-rejected"}">${p.toFixed(0)}%</span>` : "—"}</td>
       </tr>`;
     }).join("");
-    res.send(core.shell(req.user, "quizzes", z.title, `${esc(z.course_title)} · ${st.questions} questions · ${Number(z.duration_minutes)} minutes`,
+    const audienceLabel = z.audience === "all" ? "All students" : "Enrolled students only";
+    res.send(core.shell(req.user, "quizzes", z.title, `${esc(z.course_title)} · ${audienceLabel} · ${st.questions} questions · ${Number(z.duration_minutes)} minutes`,
       `${req.query.ok ? `<div class="ok"><i class="fa-solid fa-circle-check"></i> ${esc(req.query.ok)}</div>` : ""}
        <div class="cards">
          <div class="stat"><b>${st.questions}</b><span>Questions</span></div>
          <div class="stat"><b>${st.total}</b><span>Total marks</span></div>
          <div class="stat"><b>${st.attempts}</b><span>Attempts</span></div>
          <div class="stat"><b>${st.total ? st.avg.toFixed(1) : "0"}</b><span>Average score</span></div>
+         <div class="stat"><b>${esc(audienceLabel)}</b><span>Audience</span></div>
        </div>
        <div class="panel">
          <div class="row" style="justify-content:space-between">
@@ -1001,7 +1020,7 @@ module.exports = function mountCampus(app) {
     const u = req.user;
     const [[z]] = await q("SELECT * FROM quizzes WHERE id = ? LIMIT 1", [String(req.query.id || "")]);
     if (!z || z.status !== "published") return res.redirect("/portal/quizzes?e=" + encodeURIComponent("Quiz not available"));
-    if (!(await studentEnrolled(u.id, z.course_title))) return res.redirect("/portal/quizzes?e=" + encodeURIComponent("You are not enrolled in this course"));
+    if (z.audience !== "all" && !(await studentEnrolled(u.id, z.course_title))) return res.redirect("/portal/quizzes?e=" + encodeURIComponent("You are not enrolled in this course"));
     let attempt = (await q("SELECT * FROM quiz_attempts WHERE quiz_id = ? AND student_id = ? LIMIT 1", [z.id, u.id]))[0][0];
     if (attempt && attempt.status === "submitted") return res.redirect("/portal/quizzes/result?id=" + z.id);
     if (!attempt) {
