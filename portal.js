@@ -1595,7 +1595,8 @@ function mount(app, context) {
     // quizzes available / pending
     const qz = (await q(
       `SELECT z.id, z.title, z.course_title, z.duration_minutes, z.status,
-              a.status AS at_status, a.score, a.total
+              a.status AS at_status, a.score, a.total,
+              (SELECT COALESCE(SUM(qq.marks),0) FROM quiz_questions qq WHERE qq.quiz_id = z.id) AS quiz_marks
        FROM quizzes z
        LEFT JOIN quiz_attempts a ON a.quiz_id = z.id AND a.student_id = ?
        WHERE z.status = 'published' AND (
@@ -1677,11 +1678,12 @@ function mount(app, context) {
       <div class="panel">
         <h2><i class="fa-solid fa-flask"></i> Quizzes</h2>
         ${qz.length
-          ? `<table><tr><th>Quiz</th><th>Duration</th><th>Status</th><th>Score</th><th></th></tr>${qz.slice(0, 5).map((z) => {
+          ? `<table><tr><th>Quiz</th><th>Duration</th><th>Total marks</th><th>Status</th><th>Score</th><th></th></tr>${qz.slice(0, 5).map((z) => {
               const done = z.at_status === "submitted";
               return `<tr>
                 <td><strong>${esc(z.title)}</strong><div class="muted" style="font-size:.78rem">${esc(z.course_title)}</div></td>
                 <td class="muted">${Number(z.duration_minutes)} min</td>
+                <td>${Number(z.quiz_marks)}</td>
                 <td>${done ? `<span class="badge b-graded">completed</span>` : `<span class="badge b-pending">to attempt</span>`}</td>
                 <td>${done ? `<strong>${esc(z.score)}</strong> / ${esc(z.total)}` : `<span class="muted">—</span>`}</td>
                 <td><a class="btn ${done ? "ghost" : "primary"} sm" href="/portal/quizzes/${done ? "result" : "take"}?id=${esc(z.id)}">${done ? "Result" : "Attempt"}</a></td>

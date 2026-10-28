@@ -683,6 +683,7 @@ module.exports = function mountCampus(app) {
     if (u.role === "teacher") {
       const mine = (await q(
         `SELECT z.*, (SELECT COUNT(*) FROM quiz_questions qq WHERE qq.quiz_id = z.id) AS qn,
+                (SELECT COALESCE(SUM(qq.marks),0) FROM quiz_questions qq WHERE qq.quiz_id = z.id) AS quiz_marks,
                 (SELECT COUNT(*) FROM quiz_attempts a WHERE a.quiz_id = z.id AND a.status='submitted') AS attempts
          FROM quizzes z WHERE z.teacher_id = ? ORDER BY z.created_at DESC LIMIT 200`,
         [u.id]
@@ -690,6 +691,7 @@ module.exports = function mountCampus(app) {
       const rows = mine.map((z) => `<tr>
         <td><strong>${esc(z.title)}</strong><div class="muted" style="font-size:.78rem">${esc(z.course_title)} · ${z.audience === "all" ? "All students" : "Enrolled only"}</div></td>
         <td>${Number(z.qn)}</td>
+        <td>${Number(z.quiz_marks)}</td>
         <td>${Number(z.duration_minutes)} min</td>
         <td>${Number(z.attempts)}</td>
         <td>${badge(z.status)}</td>
@@ -702,7 +704,7 @@ module.exports = function mountCampus(app) {
          <div class="panel">
            <div class="row" style="justify-content:space-between"><h2 style="margin:0"><i class="fa-solid fa-flask"></i> My quizzes (${mine.length})</h2>
              <a class="btn ghost sm" href="/portal/qbank"><i class="fa-solid fa-database"></i> Question bank</a> <a class="btn primary sm" href="/portal/quizzes/new"><i class="fa-solid fa-plus"></i> New quiz</a></div>
-           ${mine.length ? `<table class="mt"><tr><th>Quiz</th><th>Questions</th><th>Duration</th><th>Attempts</th><th>Status</th><th></th></tr>${rows}</table>`
+           ${mine.length ? `<table class="mt"><tr><th>Quiz</th><th>Questions</th><th>Total marks</th><th>Duration</th><th>Attempts</th><th>Status</th><th></th></tr>${rows}</table>`
              : `<p class="muted mt">No quizzes yet. Click “New quiz” to build one.</p>`}
          </div>`));
     }
@@ -714,7 +716,8 @@ module.exports = function mountCampus(app) {
       : `z.audience = 'all'`;
     const list = (await q(
       `SELECT z.*, t.full_name AS teacher,
-              a.status AS at_status, a.score, a.total
+              a.status AS at_status, a.score, a.total,
+              (SELECT COALESCE(SUM(qq.marks),0) FROM quiz_questions qq WHERE qq.quiz_id = z.id) AS quiz_marks
        FROM quizzes z
        LEFT JOIN users t ON t.id = z.teacher_id
        LEFT JOIN quiz_attempts a ON a.quiz_id = z.id AND a.student_id = ?
@@ -728,9 +731,10 @@ module.exports = function mountCampus(app) {
       return `<tr>
         <td><strong>${esc(z.title)}</strong><div class="muted" style="font-size:.78rem">${esc(z.course_title)}${z.teacher ? " · " + esc(z.teacher) : ""}</div></td>
         <td>${Number(z.duration_minutes)} min</td>
+        <td>${Number(z.quiz_marks)}</td>
         <td>${badge(z.status)}</td>
         <td>${done ? `<strong>${Number(z.score)}</strong> / ${Number(z.total)} <span class="badge b-graded">${esc(letterGrade(p))}</span>`
-          : z.at_status ? badge("submitted") : `<span class="badge b-pending">not attempted</span>`}</td>
+          : z.at_status === "in_progress" ? `<span class="badge b-pending">in progress</span>` : `<span class="badge b-pending">not attempted</span>`}</td>
         <td><a class="btn ${done ? "ghost" : "primary"} sm" href="/portal/quizzes/${done ? "result" : "take"}?id=${esc(z.id)}">${done ? "Result" : "Attempt"}</a></td>
       </tr>`;
     }).join("");
@@ -743,7 +747,7 @@ module.exports = function mountCampus(app) {
         <div class="stat"><b>${done}</b><span>Completed</span></div>
       </div>` : ""}
       <div class="panel"><h2><i class="fa-solid fa-flask"></i> Quizzes</h2>
-        ${list.length ? `<table><tr><th>Quiz</th><th>Duration</th><th>Status</th><th>Score</th><th></th></tr>${rows}</table>`
+        ${list.length ? `<table><tr><th>Quiz</th><th>Duration</th><th>Total marks</th><th>Status</th><th>Score</th><th></th></tr>${rows}</table>`
           : `<p class="muted">No quizzes published for your courses yet.</p>`}
       </div>`));
   });
@@ -992,7 +996,7 @@ module.exports = function mountCampus(app) {
          <table><tr><th>#</th><th>Question</th><th>Correct</th><th>Marks</th></tr>${qRows || `<tr><td colspan="4" class="empty">No questions.</td></tr>`}</table>
        </div>
        <div class="panel"><h2><i class="fa-solid fa-users"></i> Attempts (${attempts.length})</h2>
-         <table><tr><th>Student</th><th>Submitted</th><th>Score</th><th>%</th></tr>${aRows || `<tr><td colspan="4" class="empty">No attempts yet.</td></tr>`}</table>
+         <table><tr><th>Student</th><th>Submitted</th><th>Score / Total</th><th>%</th></tr>${aRows || `<tr><td colspan="4" class="empty">No attempts yet.</td></tr>`}</table>
        </div>`));
   });
 
@@ -1030,6 +1034,7 @@ module.exports = function mountCampus(app) {
     }
     const [questions] = await q("SELECT * FROM quiz_questions WHERE quiz_id = ? ORDER BY q_no", [z.id]);
     if (!questions.length) return res.redirect("/portal/quizzes?e=" + encodeURIComponent("This quiz has no questions yet"));
+    const quizTotalMarks = questions.reduce((sum, x) => sum + Number(x.marks || 0), 0);
     const qs = questions.map((x, idx) => {
       const opts = [["a", x.option_a], ["b", x.option_b], ["c", x.option_c], ["d", x.option_d]]
         .filter(([, v]) => String(v || "").trim())
@@ -1050,7 +1055,7 @@ module.exports = function mountCampus(app) {
       </div>`;
     }).join("");
     const seconds = Math.max(30, Number(z.duration_minutes || 15) * 60);
-    res.send(core.shell(u, "quizzes", z.title, `${esc(z.course_title)} · ${questions.length} questions · ${Number(z.duration_minutes)} minutes`,
+    res.send(core.shell(u, "quizzes", z.title, `${esc(z.course_title)} · ${questions.length} questions · ${quizTotalMarks} marks · ${Number(z.duration_minutes)} minutes`,
       `<div id="fsWarn" style="display:none;position:fixed;top:0;left:0;right:0;z-index:999;background:#7f1d1d;color:#fff;padding:10px;text-align:center;font-size:.9rem">
          <i class="fa-solid fa-triangle-exclamation"></i> You left fullscreen. Return to fullscreen to continue, otherwise the quiz may auto-submit.
          <button type="button" class="btn sm" style="margin-left:10px;background:#fff;color:#7f1d1d" onclick="goFs()">Re-enter fullscreen</button>
@@ -1058,7 +1063,7 @@ module.exports = function mountCampus(app) {
        <div id="startOverlay" style="position:fixed;inset:0;z-index:1000;background:rgba(6,9,18,.97);display:flex;align-items:center;justify-content:center;flex-direction:column;gap:16px;text-align:center;padding:24px">
          <div style="font-size:2.4rem;color:var(--acc)"><i class="fa-solid fa-flask"></i></div>
          <h2 style="margin:0">${esc(z.title)}</h2>
-         <p class="muted">${esc(z.course_title)} · ${questions.length} questions · ${Number(z.duration_minutes)} minutes</p>
+         <p class="muted">${esc(z.course_title)} · ${questions.length} questions · ${quizTotalMarks} marks · ${Number(z.duration_minutes)} minutes</p>
          <p class="muted" style="max-width:560px">This quiz runs in fullscreen. Do not switch tabs or exit fullscreen — the quiz will auto-submit when the time is up.</p>
          <button type="button" class="btn primary" onclick="startQuiz()" style="font-size:1.05rem;padding:12px 26px"><i class="fa-solid fa-play"></i> Start quiz</button>
        </div>
@@ -1149,6 +1154,7 @@ module.exports = function mountCampus(app) {
     res.send(core.shell(u, "quizzes", "Quiz Result", `${esc(z.title)} · ${esc(z.course_title)}`,
       `<div class="cards">
          <div class="stat"><b>${Number(attempt.score)} / ${Number(attempt.total)}</b><span>Your score</span></div>
+         <div class="stat"><b>${Number(attempt.total)}</b><span>Total marks</span></div>
          <div class="stat"><b>${p.toFixed(0)}%</b><span>Percentage</span></div>
          <div class="stat"><b>${letterGrade(p)}</b><span>Grade</span></div>
          <div class="stat"><b>${passed ? "PASS" : "FAIL"}</b><span>Result (pass ${Number(z.pass_percent)}%)</span></div>
