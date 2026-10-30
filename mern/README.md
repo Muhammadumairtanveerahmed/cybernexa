@@ -43,6 +43,12 @@ The frontend is **React**, the backend is **Node.js + Express**, and the databas
 - Files are stored in `server/uploads/calls` and are **not** publicly accessible.
 - Admins can play recordings from **Portal → Call Logs**; participants can access only their own call recording through the authenticated API.
 
+### Light and dark theme
+
+- Every page has a sun/moon switch in the public navbar, auth pages and portal top bar.
+- The selected theme is stored in `localStorage` and follows the operating system preference on first visit.
+- Both the public website and the student/teacher/admin portal use the same theme state, so the choice follows the user across the app.
+
 ---
 
 ## 2. Planned folder structure

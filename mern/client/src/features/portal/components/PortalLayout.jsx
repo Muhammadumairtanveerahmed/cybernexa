@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, Navigate, Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext.jsx";
+import ThemeToggle from "../../../components/common/ThemeToggle.jsx";
 import portalCssUrl from "../../../styles/portal.css?url";
 import extraCssUrl from "../../../styles/portal-extra.css?url";
 
@@ -186,6 +187,7 @@ export default function PortalLayout() {
         <main className="main">
           <div className="topline">
             <span className="muted-sm">{user.email}</span>
+            <ThemeToggle className="portal-theme-toggle" />
             <button className="btn ghost sm" type="button" onClick={signOut}>
               Sign out
             </button>

@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { Link, Outlet } from "react-router-dom";
+import ThemeToggle from "../../../components/common/ThemeToggle.jsx";
 import portalCssUrl from "../../../styles/portal.css?url";
 
 export default function AuthLayout() {
@@ -28,6 +29,7 @@ export default function AuthLayout() {
         <Link className="btn primary sm" to="/register">
           Register
         </Link>
+        <ThemeToggle />
       </nav>
       <div
         style={{

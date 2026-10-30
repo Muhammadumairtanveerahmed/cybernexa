@@ -213,3 +213,204 @@ table.dataTable.no-footer{border-bottom:1px solid var(--line)}
 table.dataTable tbody tr{background:transparent!important}
 table.dataTable.stripe tbody tr.odd,table.dataTable.display tbody tr.odd{background:rgba(148,163,255,.04)!important}
 table.dataTable.hover tbody tr:hover,table.dataTable.display tbody tr:hover{background:rgba(59,130,246,.08)!important}
+
+/* ==========================================================
+   LIGHT THEME
+   ========================================================== */
+html[data-theme="light"] {
+  --bg: #f6f8fc;
+  --bg2: #ffffff;
+  --bg3: #eef3fa;
+  --line: rgba(15, 23, 42, 0.12);
+  --line2: rgba(15, 23, 42, 0.2);
+  --p: #2563eb;
+  --p2: #1d4ed8;
+  --acc: #2563eb;
+  --txt: #0f172a;
+  --mut: #526079;
+}
+
+html[data-theme="light"] body {
+  background: var(--bg);
+  color: var(--txt);
+}
+
+html[data-theme="light"] .nav {
+  background: rgba(255, 255, 255, 0.9);
+  border-bottom-color: var(--line);
+}
+html[data-theme="light"] .card,
+html[data-theme="light"] .panel,
+html[data-theme="light"] .stat,
+html[data-theme="light"] .acard,
+html[data-theme="light"] .chat-side,
+html[data-theme="light"] .chat-main {
+  background: #ffffff;
+  border-color: var(--line);
+  box-shadow: 0 18px 42px -34px rgba(15, 23, 42, 0.3);
+}
+html[data-theme="light"] .side {
+  background: #ffffff;
+  border-right-color: var(--line);
+}
+html[data-theme="light"] .side a:hover {
+  background: rgba(37, 99, 235, 0.08);
+}
+html[data-theme="light"] .who {
+  border-top-color: var(--line);
+}
+html[data-theme="light"] .chip {
+  background: #ffffff;
+  border-color: var(--line);
+}
+html[data-theme="light"] input,
+html[data-theme="light"] select,
+html[data-theme="light"] textarea,
+html[data-theme="light"] .file,
+html[data-theme="light"] .slot,
+html[data-theme="light"] .mini-item,
+html[data-theme="light"] .quiz-q,
+html[data-theme="light"] .file-row,
+html[data-theme="light"] .code,
+html[data-theme="light"] .dataTables_wrapper .dataTables_filter input,
+html[data-theme="light"] .dataTables_wrapper .dataTables_length select {
+  background: #ffffff;
+  border-color: var(--line);
+  color: var(--txt);
+}
+html[data-theme="light"] .progress {
+  background: #e2e8f0;
+}
+html[data-theme="light"] .btn.ghost {
+  background: #ffffff;
+  border-color: var(--line2);
+  color: var(--txt);
+}
+html[data-theme="light"] .btn.ghost:hover {
+  background: #eff6ff;
+  border-color: rgba(37, 99, 235, 0.4);
+}
+html[data-theme="light"] .btn.danger {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.28);
+  color: #b91c1c;
+}
+html[data-theme="light"] .btn.ok {
+  background: rgba(34, 197, 94, 0.09);
+  border-color: rgba(34, 197, 94, 0.28);
+  color: #15803d;
+}
+html[data-theme="light"] .err {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #b91c1c;
+}
+html[data-theme="light"] .ok {
+  background: rgba(34, 197, 94, 0.09);
+  border-color: rgba(34, 197, 94, 0.28);
+  color: #15803d;
+}
+html[data-theme="light"] .note {
+  background: rgba(37, 99, 235, 0.06);
+}
+html[data-theme="light"] .b-pending,
+html[data-theme="light"] .b-partial,
+html[data-theme="light"] .b-in_progress,
+html[data-theme="light"] .b-late {
+  background: rgba(245, 158, 11, 0.1);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #b45309;
+}
+html[data-theme="light"] .b-approved,
+html[data-theme="light"] .b-submitted {
+  background: rgba(37, 99, 235, 0.08);
+  border-color: rgba(37, 99, 235, 0.28);
+  color: #1d4ed8;
+}
+html[data-theme="light"] .b-completed,
+html[data-theme="light"] .b-paid,
+html[data-theme="light"] .b-graded,
+html[data-theme="light"] .b-active,
+html[data-theme="light"] .b-success,
+html[data-theme="light"] .b-answered,
+html[data-theme="light"] .b-present {
+  background: rgba(34, 197, 94, 0.09);
+  border-color: rgba(34, 197, 94, 0.28);
+  color: #15803d;
+}
+html[data-theme="light"] .b-rejected,
+html[data-theme="light"] .b-inactive,
+html[data-theme="light"] .b-suspended,
+html[data-theme="light"] .b-blocked,
+html[data-theme="light"] .b-failed,
+html[data-theme="light"] .b-missed,
+html[data-theme="light"] .b-absent {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: rgba(239, 68, 68, 0.28);
+  color: #b91c1c;
+}
+html[data-theme="light"] .b-unpaid,
+html[data-theme="light"] .b-draft,
+html[data-theme="light"] .b-closed,
+html[data-theme="light"] .b-excused,
+html[data-theme="light"] .b-ended {
+  background: rgba(100, 116, 139, 0.08);
+  border-color: rgba(100, 116, 139, 0.22);
+  color: #475569;
+}
+html[data-theme="light"] .field-error {
+  color: #b91c1c;
+}
+html[data-theme="light"] .tab:hover {
+  background: rgba(15, 23, 42, 0.05);
+}
+html[data-theme="light"] .chat-person {
+  border-bottom-color: rgba(15, 23, 42, 0.06);
+}
+html[data-theme="light"] .chat-person:hover {
+  background: rgba(37, 99, 235, 0.06);
+}
+html[data-theme="light"] .chat-person.on {
+  background: rgba(37, 99, 235, 0.1);
+}
+html[data-theme="light"] .chat-bubble {
+  background: #f1f5f9;
+  border-color: var(--line);
+}
+html[data-theme="light"] .chat-bubble.me {
+  background: rgba(37, 99, 235, 0.12);
+  border-color: rgba(37, 99, 235, 0.24);
+}
+html[data-theme="light"] .call-note {
+  background: rgba(37, 99, 235, 0.05);
+}
+html[data-theme="light"] .modal {
+  background: rgba(15, 23, 42, 0.35);
+}
+html[data-theme="light"] .modal-box {
+  background: #ffffff;
+  border-color: var(--line);
+  box-shadow: 0 36px 80px -44px rgba(15, 23, 42, 0.4);
+}
+html[data-theme="light"] .att-viewer {
+  background: rgba(15, 23, 42, 0.6);
+}
+html[data-theme="light"] .att-viewer-box {
+  background: #ffffff;
+  border-color: var(--line);
+}
+html[data-theme="light"] .att-viewer-body {
+  background: #f8fafc;
+}
+html[data-theme="light"] .dataTables_wrapper .dataTables_paginate .paginate_button:hover {
+  background: rgba(37, 99, 235, 0.08) !important;
+  color: var(--txt) !important;
+}
+html[data-theme="light"] table.dataTable.stripe tbody tr.odd,
+html[data-theme="light"] table.dataTable.display tbody tr.odd {
+  background: rgba(37, 99, 235, 0.03) !important;
+}
+html[data-theme="light"] table.dataTable.hover tbody tr:hover,
+html[data-theme="light"] table.dataTable.display tbody tr:hover {
+  background: rgba(37, 99, 235, 0.06) !important;
+}

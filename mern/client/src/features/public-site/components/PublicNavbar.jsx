@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { useAuth } from "../../../context/AuthContext.jsx";
+import ThemeToggle from "../../../components/common/ThemeToggle.jsx";
 import { brand, navMenus } from "../data/siteData.js";
 
 export default function PublicNavbar() {
@@ -89,18 +90,21 @@ export default function PublicNavbar() {
           </Link>
         </nav>
 
-        <button
-          className={`hamburger${menuOpen ? " open" : ""}`}
-          id="hamburger"
-          type="button"
-          aria-label="Toggle menu"
-          aria-expanded={menuOpen}
-          onClick={() => setMenuOpen((open) => !open)}
-        >
-          <span />
-          <span />
-          <span />
-        </button>
+        <div className="nav-actions">
+          <ThemeToggle />
+          <button
+            className={`hamburger${menuOpen ? " open" : ""}`}
+            id="hamburger"
+            type="button"
+            aria-label="Toggle menu"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <span />
+            <span />
+            <span />
+          </button>
+        </div>
       </div>
 
       <span className="sr-only">{brand.tagline}</span>

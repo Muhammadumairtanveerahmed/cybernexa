@@ -109,3 +109,28 @@
 .empty-lg{padding:50px 18px}
 .mobile-hide{display:block}
 @media(max-width:640px){.mobile-hide{display:none}.kv{grid-template-columns:1fr}.q-option-row{grid-template-columns:24px 1fr}.q-option-row select{grid-column:2}}
+
+/* ==========================================================
+   LIGHT THEME EXTRAS
+   ========================================================== */
+html[data-theme="light"] .stat-card,
+html[data-theme="light"] .mini-item,
+html[data-theme="light"] .quiz-q,
+html[data-theme="light"] .file-row,
+html[data-theme="light"] .code {
+  background: #ffffff;
+  border-color: var(--line);
+}
+html[data-theme="light"] .stat-card.green .stat-icon {
+  color: #15803d;
+}
+html[data-theme="light"] .stat-card.amber .stat-icon {
+  color: #b45309;
+}
+html[data-theme="light"] .stat-card.red .stat-icon {
+  color: #b91c1c;
+}
+html[data-theme="light"] .chat-bubble .editin {
+  background: #ffffff;
+  border-color: var(--line2);
+}
