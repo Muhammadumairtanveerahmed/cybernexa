@@ -1,0 +1,59 @@
+name: technexa
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: technexa-mysql
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: technexa
+      MYSQL_USER: technexa
+      MYSQL_PASSWORD: technexa
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-uroot", "-proot"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  server:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.server
+    container_name: technexa-server
+    restart: unless-stopped
+    environment:
+      NODE_ENV: development
+      PORT: 5000
+      CLIENT_URL: http://localhost:5173
+      DB_HOST: mysql
+      DB_PORT: 3306
+      DB_USER: technexa
+      DB_PASSWORD: technexa
+      DB_NAME: technexa
+      JWT_SECRET: dev-only-change-me
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./server/uploads:/app/uploads
+
+  client:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.client
+    container_name: technexa-client
+    restart: unless-stopped
+    depends_on:
+      - server
+    ports:
+      - "5173:80"
+
+volumes:
+  mysql_data:
