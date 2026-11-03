@@ -15,6 +15,7 @@ import {
 } from "../utils/upload.js";
 import { requireAuth, requireRole } from "../middleware/auth.middleware.js";
 import { listCourses } from "../services/course.service.js";
+import { generateQuizQuestions } from "../services/quizGenerator.js";
 
 const router = express.Router();
 router.use(requireAuth);
@@ -1622,51 +1623,21 @@ router.post(
   "/qbank/ai",
   requireRole("teacher", "admin"),
   asyncHandler(async (req, res) => {
-    const apiKey = process.env.OPENAI_API_KEY;
-    if (!apiKey) throw new ApiError(503, "AI generation is not configured. Add OPENAI_API_KEY to the server environment.");
-
     const topic = clean(req.body.topic, 200);
-    const count = Math.max(1, Math.min(10, Number(req.body.count || 5)));
     if (!topic) throw new ApiError(422, "Please enter a topic");
 
-    const response = await fetch("https://api.openai.com/v1/chat/completions", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`
-      },
-      body: JSON.stringify({
-        model: process.env.OPENAI_MODEL || "gpt-4o-mini",
-        temperature: 0.5,
-        response_format: { type: "json_object" },
-        messages: [
-          {
-            role: "system",
-            content:
-              "You write multiple-choice exam questions. Return JSON: { questions: [{ question, option_a, option_b, option_c, option_d, correct, marks }] }. correct must be one of a,b,c,d."
-          },
-          {
-            role: "user",
-            content: `Create ${count} questions about ${topic} for a professional IT course.`
-          }
-        ]
-      })
+    const result = await generateQuizQuestions({
+      topic,
+      count: req.body.count,
+      apiKey: clean(process.env.OPENAI_API_KEY, 400),
+      model: clean(process.env.OPENAI_MODEL, 100)
     });
 
-    if (!response.ok) {
-      const text = await response.text();
-      throw new ApiError(502, `AI request failed: ${text.slice(0, 200)}`);
-    }
-
-    const payload = await response.json();
-    let parsed = {};
-    try {
-      parsed = JSON.parse(payload.choices?.[0]?.message?.content || "{}");
-    } catch {
-      throw new ApiError(502, "AI returned an invalid response");
-    }
-
-    res.json({ ok: true, data: parsed.questions || [] });
+    res.json({
+      ok: true,
+      data: result.questions,
+      meta: { source: result.source, warning: result.warning }
+    });
   })
 );
 

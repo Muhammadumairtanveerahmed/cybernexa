@@ -5,6 +5,9 @@ The frontend is **React**, the backend is **Node.js + Express**, and the databas
 
 > **Quick summary for your teacher:** open `docs/ONE-PAGE-SUMMARY.md` for a one-page overview of the
 > stack, folder tree, request flow and role-based routes.
+>
+> **Formal documents:** `docs/SRS.md` contains the Software Requirements Specification, and
+> `docs/FYP_REPORT.md` contains the full final-year project report with feature screenshots.
 
 > **Important for the teacher:** MERN stands for **MongoDB, Express, React, Node.js**. Because this
 > project uses **MySQL** instead of MongoDB, the accurate name is **React + Node.js + Express + MySQL**
@@ -31,7 +34,7 @@ The frontend is **React**, the backend is **Node.js + Express**, and the databas
 | Calls | WebRTC + STUN | Audio/video calls |
 | Uploads | Multer | Avatars, assignments, materials, chat files |
 | Email | Nodemailer | Password reset and notifications |
-| AI | OpenAI API | Optional quiz generation |
+| AI | OpenAI API (optional) + built-in fallback | Quiz question generation |
 | Dev tools | Nodemon, Vite | Local development |
 | Deployment | Docker + Docker Compose + Nginx | Local and production examples |
 
@@ -42,6 +45,13 @@ The frontend is **React**, the backend is **Node.js + Express**, and the databas
 - Both participants see a red **Recording** indicator while recording is active.
 - Files are stored in `server/uploads/calls` and are **not** publicly accessible.
 - Admins can play recordings from **Portal → Call Logs**; participants can access only their own call recording through the authenticated API.
+
+### Quiz question generation
+
+- Teachers enter a topic and a question count (1-10) in **Portal -> Question Bank**.
+- With `OPENAI_API_KEY` set, the server requests validated MCQs from OpenAI.
+- Without a key, or if the AI request fails, the server uses a built-in topic-aware generator so the workflow never stops.
+- Generated questions can be reviewed and saved to the reusable question bank.
 
 ### Light and dark theme
 

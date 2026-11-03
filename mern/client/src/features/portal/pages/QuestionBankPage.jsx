@@ -34,6 +34,7 @@ export default function QuestionBankPage() {
   const [aiCount, setAiCount] = useState(5);
   const [aiBusy, setAiBusy] = useState(false);
   const [generated, setGenerated] = useState([]);
+  const [aiNotice, setAiNotice] = useState("");
 
   const courseOptions = useMemo(
     () => (courses.data || []).map((course) => course.title || course.course_title).filter(Boolean),
@@ -75,9 +76,13 @@ export default function QuestionBankPage() {
     event.preventDefault();
     setAiBusy(true);
     setMessage("");
+    setAiNotice("");
     try {
       const response = await portalApi.generateQuestions({ topic: aiTopic, count: aiCount });
-      setGenerated(response.data?.data || []);
+      const questions = response.data?.data || [];
+      setGenerated(questions);
+      setAiNotice(response.data?.meta?.warning || "");
+      if (!questions.length) setMessage("No questions were generated. Try a different topic.");
     } catch (err) {
       setMessage(err.message || "Could not generate questions.");
     } finally {
@@ -132,7 +137,10 @@ export default function QuestionBankPage() {
             {aiBusy ? "Generating..." : "Generate"}
           </button>
         </form>
-        <p className="form-note">Requires OPENAI_API_KEY on the server. You can still add questions manually.</p>
+        <p className="form-note">
+          Works out of the box with the built-in generator. Add OPENAI_API_KEY on the server to use live AI.
+        </p>
+        {aiNotice ? <p className="form-note">{aiNotice}</p> : null}
         {generated.length ? (
           <div className="stack" style={{ marginTop: 14 }}>
             {generated.map((question, index) => (
