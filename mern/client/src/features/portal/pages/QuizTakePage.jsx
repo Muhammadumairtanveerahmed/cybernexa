@@ -224,17 +224,36 @@ export default function QuizTakePage() {
       }
     };
     const onCopy = () => report("copy_attempt", "Student copied quiz content.");
+    const onPageLeave = () => {
+      if (!active) return;
+      try {
+        const apiBase = import.meta.env.VITE_API_URL || "/api";
+        const payload = JSON.stringify({
+          attempt_id: attempt.id,
+          type: "page_leave",
+          details: "Student closed, refreshed or left the quiz page."
+        });
+        navigator.sendBeacon(
+          `${apiBase}/portal/quizzes/${id}/violations`,
+          new Blob([payload], { type: "application/json" })
+        );
+      } catch {
+        /* best-effort only */
+      }
+    };
 
     document.addEventListener("visibilitychange", onVisibility);
     window.addEventListener("blur", onBlur);
     document.addEventListener("fullscreenchange", onFullscreen);
     document.addEventListener("copy", onCopy);
+    window.addEventListener("beforeunload", onPageLeave);
     return () => {
       active = false;
       document.removeEventListener("visibilitychange", onVisibility);
       window.removeEventListener("blur", onBlur);
       document.removeEventListener("fullscreenchange", onFullscreen);
       document.removeEventListener("copy", onCopy);
+      window.removeEventListener("beforeunload", onPageLeave);
     };
   }, [attempt, result, id]);
 
