@@ -54,6 +54,7 @@ All primary keys are strings such as `usr_...`, `qz_...`, `qa_...` so records ca
 | `question_bank` | `id`, `teacher_id`, `course_title`, `question`, `option_a`…`option_d`, `correct`, `marks` | Reusable questions |
 | `quiz_attempts` | `id`, `quiz_id`, `student_id`, `started_at`, `submitted_at`, `score`, `total`, `status` | One attempt per student per quiz |
 | `quiz_answers` | `id`, `attempt_id`, `question_id`, `choice`, `correct`, `marks` | Per-question answers |
+| `quiz_violations` | `id`, `quiz_id`, `attempt_id`, `student_id`, `violation_type`, `details`, `ip`, `user_agent`, `occurred_at` | Screen-off, tab-switch, focus-loss and copy events recorded during a quiz |
 
 ### Files
 
@@ -98,6 +99,7 @@ courses 1 ─── * attendance_sessions 1 ─── * attendance
 quizzes 1 ─── * quiz_questions
 quizzes 1 ─── * quiz_attempts * ─── 1 users (student)
 quiz_attempts 1 ─── * quiz_answers * ─── 1 quiz_questions
+quiz_attempts 1 ─── * quiz_violations * ─── 1 users (student)
 users 1 ─── * chat_messages * ─── 1 users
 chat_messages 1 ─── * chat_attachments
 users 1 ─── * call_logs (caller) * ─── 1 users (callee)
@@ -109,6 +111,7 @@ users 1 ─── * call_logs (caller) * ─── 1 users (callee)
 - `submissions`: unique `(assignment_id, student_id)`.
 - `attendance`: unique `(session_id, student_id)`.
 - `quiz_attempts`: unique `(quiz_id, student_id)`.
+- `quiz_violations`: index on `quiz_id`, `attempt_id`, `student_id` and `occurred_at`.
 - `call_logs`: unique `call_key`.
 - `chat_messages`: index on `(sender_id, recipient_id, created_at)` and `(recipient_id, read_at)`.
 - `documents`: index on `(scope, ref_id)` and `user_id`.

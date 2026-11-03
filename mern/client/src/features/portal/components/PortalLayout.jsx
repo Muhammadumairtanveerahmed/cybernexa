@@ -26,6 +26,11 @@ const items = {
   teachers: { to: "/portal/teachers", label: "Teachers", icon: "fa-chalkboard-user" },
   logs: { to: "/portal/logs", label: "Login Logs", icon: "fa-clock-rotate-left" },
   calls: { to: "/portal/calls", label: "Call Logs", icon: "fa-phone" },
+  violations: {
+    to: "/portal/quiz-violations",
+    label: "Quiz Violations",
+    icon: "fa-triangle-exclamation"
+  },
   resets: { to: "/portal/resets", label: "Password Resets", icon: "fa-key" },
   inbox: { to: "/portal/contact-messages", label: "Website Messages", icon: "fa-envelope" },
   subscribers: { to: "/portal/subscribers", label: "Subscribers", icon: "fa-users" }
@@ -53,7 +58,7 @@ const navByRole = {
     { title: "Academics", keys: ["enrollments", "courses", "assignments", "quizzes"] },
     { title: "Campus", keys: ["timetable", "attendance", "materials"] },
     { title: "Communication", keys: ["messages", "announcements", "notices"] },
-    { title: "System", keys: ["logs", "calls", "resets", "inbox", "subscribers"] },
+    { title: "System", keys: ["logs", "calls", "violations", "resets", "inbox", "subscribers"] },
     { title: "Account", keys: ["profile"] }
   ]
 };

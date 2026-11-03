@@ -22,6 +22,7 @@ import TeachersPage from "../features/portal/pages/TeachersPage.jsx";
 import QuestionBankPage from "../features/portal/pages/QuestionBankPage.jsx";
 import LogsPage from "../features/portal/pages/LogsPage.jsx";
 import CallsPage from "../features/portal/pages/CallsPage.jsx";
+import QuizViolationsPage from "../features/portal/pages/QuizViolationsPage.jsx";
 import ResetsPage from "../features/portal/pages/ResetsPage.jsx";
 import ContactMessagesPage from "../features/portal/pages/ContactMessagesPage.jsx";
 import SubscribersPage from "../features/portal/pages/SubscribersPage.jsx";
@@ -91,6 +92,14 @@ export default function PortalRoutes() {
           element={
             <RoleGuard roles={["admin"]}>
               <CallsPage />
+            </RoleGuard>
+          }
+        />
+        <Route
+          path="quiz-violations"
+          element={
+            <RoleGuard roles={["admin"]}>
+              <QuizViolationsPage />
             </RoleGuard>
           }
         />

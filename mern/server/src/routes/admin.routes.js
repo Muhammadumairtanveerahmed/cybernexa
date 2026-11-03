@@ -28,7 +28,8 @@ router.get(
       [revenue],
       [pendingTeachers],
       [failedLogins],
-      [pendingEnrollments]
+      [pendingEnrollments],
+      [quizViolations]
     ] = await Promise.all([
       pool.query("SELECT COUNT(*) AS count FROM users WHERE role = 'student'"),
       pool.query("SELECT COUNT(*) AS count FROM users WHERE role = 'teacher'"),
@@ -38,7 +39,8 @@ router.get(
       pool.query(
         "SELECT COUNT(*) AS count FROM login_logs WHERE status IN ('failed','blocked','suspended')"
       ),
-      pool.query("SELECT COUNT(*) AS count FROM enrollments WHERE status = 'pending'")
+      pool.query("SELECT COUNT(*) AS count FROM enrollments WHERE status = 'pending'"),
+      pool.query("SELECT COUNT(*) AS count FROM quiz_violations")
     ]);
 
     const [recentEnrollments] = await pool.query(
@@ -59,7 +61,8 @@ router.get(
           revenue: Number(revenue[0]?.total || 0),
           pendingTeachers: Number(pendingTeachers[0]?.count || 0),
           failedLogins: Number(failedLogins[0]?.count || 0),
-          pendingEnrollments: Number(pendingEnrollments[0]?.count || 0)
+          pendingEnrollments: Number(pendingEnrollments[0]?.count || 0),
+          quizViolations: Number(quizViolations[0]?.count || 0)
         },
         recentEnrollments,
         recentLogs
@@ -332,6 +335,21 @@ router.get(
        LEFT JOIN users caller ON caller.id = c.caller_id
        LEFT JOIN users callee ON callee.id = c.callee_id
        ORDER BY c.started_at DESC LIMIT 500`
+    );
+    res.json({ ok: true, data: rows });
+  })
+);
+
+router.get(
+  "/quiz-violations",
+  asyncHandler(async (req, res) => {
+    const [rows] = await pool.query(
+      `SELECT v.*, u.full_name AS student_name, u.email AS student_email,
+              q.title AS quiz_title, q.course_title
+       FROM quiz_violations v
+       LEFT JOIN users u ON u.id = v.student_id
+       LEFT JOIN quizzes q ON q.id = v.quiz_id
+       ORDER BY v.occurred_at DESC LIMIT 500`
     );
     res.json({ ok: true, data: rows });
   })

@@ -53,6 +53,14 @@ The frontend is **React**, the backend is **Node.js + Express**, and the databas
 - Without a key, or if the AI request fails, the server uses a built-in topic-aware generator so the workflow never stops.
 - Generated questions can be reviewed and saved to the reusable question bank.
 
+### Quiz attempts and violations
+
+- Students see every question, an answered count and a progress bar before submitting.
+- Manual submission is blocked until every question is answered; the server repeats the same check.
+- If the timer expires first, the attempt is submitted automatically and an incomplete attempt can be retaken.
+- Leaving the quiz tab, turning off the screen, switching apps, losing window focus, exiting fullscreen or copying quiz content is recorded as a violation.
+- Admins can review all violations in **Portal -> Quiz Violations** and see the total on the admin dashboard.
+
 ### Light and dark theme
 
 - Every page has a sun/moon switch in the public navbar, auth pages and portal top bar.

@@ -33,13 +33,32 @@ function StudentQuizzes() {
           <EmptyState icon="fa-flask" text="No quizzes published yet." />
         ) : (
           <div className="stack">
-            {data.map((quiz) => (
+            {data.map((quiz) => {
+              const canRetake =
+                quiz.attempt_status === "submitted" && Number(quiz.unanswered_count || 0) > 0;
+              return (
               <div className="note" key={quiz.id}>
                 <div className="inline" style={{ justifyContent: "space-between" }}>
                   <h4>{quiz.title}</h4>
                   <Badge
-                    status={quiz.attempt_status === "submitted" ? "completed" : quiz.attempt_status === "in_progress" ? "pending" : "active"}
-                    label={quiz.attempt_status === "submitted" ? "Submitted" : quiz.attempt_status === "in_progress" ? "In progress" : "Not started"}
+                    status={
+                      canRetake
+                        ? "pending"
+                        : quiz.attempt_status === "submitted"
+                          ? "completed"
+                          : quiz.attempt_status === "in_progress"
+                            ? "pending"
+                            : "active"
+                    }
+                    label={
+                      canRetake
+                        ? "Retake available"
+                        : quiz.attempt_status === "submitted"
+                          ? "Submitted"
+                          : quiz.attempt_status === "in_progress"
+                            ? "In progress"
+                            : "Not started"
+                    }
                   />
                 </div>
                 <p>{quiz.description || `${quiz.course_title} quiz`}</p>
@@ -47,16 +66,21 @@ function StudentQuizzes() {
                   <span className="tag">{quiz.course_title || "All students"}</span>
                   <span className="muted-sm">{quiz.duration_minutes} minutes</span>
                   <span className="muted-sm">Pass {quiz.pass_percent}%</span>
-                  {quiz.attempt_status === "submitted" ? (
+                  {quiz.attempt_status === "submitted" && !canRetake ? (
                     <span className="muted-sm">Score: {quiz.score}/{quiz.total}</span>
                   ) : (
                     <Link className="btn primary sm" to={`/portal/quizzes/${quiz.id}`}>
-                      {quiz.attempt_status === "in_progress" ? "Continue" : "Start quiz"}
+                      {canRetake
+                        ? "Retake quiz"
+                        : quiz.attempt_status === "in_progress"
+                          ? "Continue"
+                          : "Start quiz"}
                     </Link>
                   )}
                 </div>
               </div>
-            ))}
+              );
+            })}
           </div>
         )}
       </div>

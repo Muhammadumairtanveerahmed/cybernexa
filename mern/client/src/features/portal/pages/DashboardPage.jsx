@@ -278,6 +278,12 @@ export default function DashboardPage() {
         <StatCard icon="fa-sack-dollar" value={formatMoney(stats.revenue || 0)} label="Revenue" tone="green" />
         <StatCard icon="fa-hourglass-half" value={stats.pendingTeachers || 0} label="Pending teachers" tone="amber" />
         <StatCard icon="fa-shield-halved" value={stats.failedLogins || 0} label="Failed logins" tone="red" />
+        <StatCard
+          icon="fa-triangle-exclamation"
+          value={stats.quizViolations || 0}
+          label="Quiz violations"
+          tone="red"
+        />
       </div>
 
       <div className="panel">

@@ -234,6 +234,11 @@ Priority scale: **M** = mandatory, **S** = should have, **C** = could have.
 | FR-QUIZ-11 | If no OpenAI key is configured or the AI request fails, the system shall fall back to a built-in question generator instead of showing an error. | M |
 | FR-QUIZ-12 | The system shall validate AI output, normalise option keys and correct-answer letters, and fill missing options safely. | M |
 | FR-QUIZ-13 | The teacher shall be able to save generated questions to the question bank. | M |
+| FR-QUIZ-14 | The student shall see every question, the answered count and a progress bar before submitting. | M |
+| FR-QUIZ-15 | The system shall block manual submission until every question has been answered. | M |
+| FR-QUIZ-16 | If the timer expires, the system shall submit the attempt automatically; an attempt left incomplete may be retaken. | M |
+| FR-QUIZ-17 | The system shall record a violation when a student leaves the quiz screen, switches tabs/apps, turns off the screen, loses window focus, exits fullscreen or copies quiz content. | M |
+| FR-QUIZ-18 | The admin shall see the quiz violation log and the total violation count on the admin dashboard. | M |
 
 ### 3.7 Chat and Presence
 
@@ -437,6 +442,7 @@ Priority scale: **M** = mandatory, **S** = should have, **C** = could have.
 | Quiz question | id, quiz_id, question, options, correct, marks |
 | Question bank | id, teacher_id, course_title, question, options, correct, marks |
 | Quiz attempt | id, quiz_id, student_id, score, total, status, started_at, submitted_at |
+| Quiz violation | id, quiz_id, attempt_id, student_id, violation_type, details, ip, user_agent, occurred_at |
 | Attendance session | id, course_title, date, topic, created_by |
 | Attendance record | session_id, student_id, status |
 | Timetable | id, course_title, weekday, start_time, end_time, room, teacher_id |

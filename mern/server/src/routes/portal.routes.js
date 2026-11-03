@@ -1278,7 +1278,9 @@ router.get(
     if (req.user.role === "student") {
       const titles = await studentCourses(req.user.id);
       [rows] = await pool.query(
-        `SELECT q.*, qa.id AS attempt_id, qa.status AS attempt_status, qa.score, qa.total
+        `SELECT q.*, qa.id AS attempt_id, qa.status AS attempt_status, qa.score, qa.total,
+           (SELECT COUNT(*) FROM quiz_answers qans
+              WHERE qans.attempt_id = qa.id AND (qans.choice IS NULL OR qans.choice = '')) AS unanswered_count
          FROM quizzes q
          LEFT JOIN quiz_attempts qa ON qa.quiz_id = q.id AND qa.student_id = ?
          WHERE q.status = 'published' AND (q.audience = 'all' OR q.course_title ${inClause(titles)})
@@ -1478,14 +1480,47 @@ router.post(
     if (!quiz || quiz.status !== "published") throw new ApiError(404, "Quiz not available");
     if (quiz.audience === "course") await assertCourseAccess(req.user, quiz.course_title);
 
+    const [questions] = await pool.query(
+      `SELECT id, q_no, question, option_a, option_b, option_c, option_d, marks
+       FROM quiz_questions WHERE quiz_id = ? ORDER BY q_no, id`,
+      [quiz.id]
+    );
+    if (!questions.length) throw new ApiError(422, "This quiz has no questions yet");
+
     const [existing] = await pool.query(
       "SELECT * FROM quiz_attempts WHERE quiz_id = ? AND student_id = ? LIMIT 1",
       [quiz.id, req.user.id]
     );
 
     let attempt = existing[0];
+    let restarted = false;
     if (attempt?.status === "submitted") {
-      throw new ApiError(409, "You have already submitted this quiz");
+      const [[unanswered]] = await pool.query(
+        `SELECT COUNT(*) AS count FROM quiz_answers
+         WHERE attempt_id = ? AND (choice IS NULL OR choice = '')`,
+        [attempt.id]
+      );
+      if (Number(unanswered?.count || 0) > 0) {
+        const restartedAt = nowSql();
+        await pool.query("DELETE FROM quiz_answers WHERE attempt_id = ?", [attempt.id]);
+        await pool.query(
+          `UPDATE quiz_attempts
+           SET started_at = ?, submitted_at = NULL, score = NULL, total = NULL, status = 'in_progress'
+           WHERE id = ?`,
+          [restartedAt, attempt.id]
+        );
+        attempt = {
+          ...attempt,
+          started_at: restartedAt,
+          submitted_at: null,
+          score: null,
+          total: null,
+          status: "in_progress"
+        };
+        restarted = true;
+      } else {
+        throw new ApiError(409, "You have already submitted this quiz");
+      }
     }
     if (!attempt) {
       attempt = {
@@ -1502,13 +1537,28 @@ router.post(
       );
     }
 
-    const [questions] = await pool.query(
-      `SELECT id, q_no, question, option_a, option_b, option_c, option_d, marks
-       FROM quiz_questions WHERE quiz_id = ? ORDER BY q_no, id`,
-      [quiz.id]
+    const durationSeconds = Math.max(1, Number(quiz.duration_minutes || 15) * 60);
+    const [[timeRow]] = await pool.query(
+      `SELECT GREATEST(0, ? - TIMESTAMPDIFF(SECOND, started_at, UTC_TIMESTAMP())) AS remaining
+       FROM quiz_attempts WHERE id = ?`,
+      [durationSeconds, attempt.id]
+    );
+    const [[violations]] = await pool.query(
+      "SELECT COUNT(*) AS count FROM quiz_violations WHERE attempt_id = ?",
+      [attempt.id]
     );
 
-    res.json({ ok: true, data: { quiz, attempt, questions } });
+    res.json({
+      ok: true,
+      data: {
+        quiz,
+        attempt,
+        questions,
+        remaining_seconds: Number(timeRow?.remaining ?? durationSeconds),
+        violation_count: Number(violations?.count || 0),
+        restarted
+      }
+    });
   })
 );
 
@@ -1524,38 +1574,125 @@ router.post(
     if (!attempt) throw new ApiError(404, "Attempt not found");
     if (attempt.status === "submitted") throw new ApiError(409, "This attempt is already submitted");
 
+    const [quizRows] = await pool.query("SELECT * FROM quizzes WHERE id = ? LIMIT 1", [
+      req.params.id
+    ]);
+    const quiz = quizRows[0];
+    if (!quiz) throw new ApiError(404, "Quiz not found");
+
     const [questions] = await pool.query(
       "SELECT * FROM quiz_questions WHERE quiz_id = ? ORDER BY q_no, id",
       [req.params.id]
     );
-    const answers = req.body.answers || {};
+    if (!questions.length) throw new ApiError(422, "This quiz has no questions yet");
 
-    let score = 0;
-    let total = 0;
-    for (const question of questions) {
-      total += Number(question.marks);
-      const choice = String(answers[question.id] || "").toLowerCase().slice(0, 1);
-      const correct = choice && choice === String(question.correct).toLowerCase();
-      const marks = correct ? Number(question.marks) : 0;
-      score += marks;
-      await pool.query(
-        `INSERT INTO quiz_answers (id, attempt_id, question_id, choice, correct, marks)
-         VALUES (?, ?, ?, ?, ?, ?)`,
-        [newId("qa2"), attempt.id, question.id, choice, correct ? 1 : 0, marks]
+    const answers = req.body.answers || {};
+    const force = req.body.force === true;
+    const unanswered = questions.filter(
+      (question) => !String(answers[question.id] || "").trim()
+    );
+    if (unanswered.length && !force) {
+      throw new ApiError(
+        422,
+        `Please answer all questions before submitting. Unanswered: ${unanswered
+          .map((question) => `Q${question.q_no}`)
+          .join(", ")}`
       );
     }
 
-    await pool.query(
-      `UPDATE quiz_attempts SET submitted_at = ?, score = ?, total = ?, status = 'submitted'
-       WHERE id = ?`,
-      [nowSql(), score, total, attempt.id]
-    );
+    let score = 0;
+    let total = 0;
+    const connection = await pool.getConnection();
+    try {
+      await connection.beginTransaction();
+      await connection.query("DELETE FROM quiz_answers WHERE attempt_id = ?", [attempt.id]);
+
+      for (const question of questions) {
+        total += Number(question.marks);
+        const choice = String(answers[question.id] || "").toLowerCase().slice(0, 1);
+        const correct = choice && choice === String(question.correct).toLowerCase();
+        const marks = correct ? Number(question.marks) : 0;
+        score += marks;
+        await connection.query(
+          `INSERT INTO quiz_answers (id, attempt_id, question_id, choice, correct, marks)
+           VALUES (?, ?, ?, ?, ?, ?)`,
+          [newId("qa2"), attempt.id, question.id, choice, correct ? 1 : 0, marks]
+        );
+      }
+
+      await connection.query(
+        `UPDATE quiz_attempts SET submitted_at = ?, score = ?, total = ?, status = 'submitted'
+         WHERE id = ?`,
+        [nowSql(), score, total, attempt.id]
+      );
+      await connection.commit();
+    } catch (err) {
+      await connection.rollback();
+      throw err;
+    } finally {
+      connection.release();
+    }
 
     const percent = total ? Math.round((score / total) * 100) : 0;
+    const passPercent = Number(quiz.pass_percent ?? 50);
     res.json({
       ok: true,
-      data: { score, total, percent, passed: percent >= 50 }
+      data: {
+        score,
+        total,
+        percent,
+        passed: percent >= passPercent,
+        unanswered: unanswered.length
+      }
     });
+  })
+);
+
+router.post(
+  "/quizzes/:id/violations",
+  asyncHandler(async (req, res) => {
+    if (req.user.role !== "student") throw new ApiError(403, "Only students can report quiz violations");
+    const allowed = new Set([
+      "screen_hidden",
+      "window_blur",
+      "fullscreen_exit",
+      "page_leave",
+      "copy_attempt",
+      "other"
+    ]);
+    const violationType = clean(req.body.type, 60);
+    if (!allowed.has(violationType)) throw new ApiError(422, "Invalid violation type");
+
+    const [attempts] = await pool.query(
+      `SELECT * FROM quiz_attempts
+       WHERE id = ? AND quiz_id = ? AND student_id = ? AND status = 'in_progress' LIMIT 1`,
+      [req.body.attempt_id, req.params.id, req.user.id]
+    );
+    const attempt = attempts[0];
+    if (!attempt) throw new ApiError(404, "Active quiz attempt not found");
+
+    await pool.query(
+      `INSERT INTO quiz_violations
+        (id, quiz_id, attempt_id, student_id, violation_type, details, ip, user_agent, occurred_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      [
+        newId("qv"),
+        req.params.id,
+        attempt.id,
+        req.user.id,
+        violationType,
+        clean(req.body.details, 255),
+        String(req.ip || "").slice(0, 64),
+        String(req.headers["user-agent"] || "").slice(0, 255),
+        nowSql()
+      ]
+    );
+
+    const [[count]] = await pool.query(
+      "SELECT COUNT(*) AS count FROM quiz_violations WHERE attempt_id = ?",
+      [attempt.id]
+    );
+    res.status(201).json({ ok: true, data: { count: Number(count?.count || 0) } });
   })
 );
 

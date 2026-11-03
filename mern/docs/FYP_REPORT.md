@@ -406,6 +406,10 @@ The admin dashboard shows totals for students, teachers, enrollments, revenue, p
 
 A quiz contains a title, course/audience, duration, status and a list of questions. Each question has four options, a correct answer and marks. Published quizzes are visible to the intended students. The student's attempt is stored, scored automatically and displayed with a result summary.
 
+The student sees all questions, an answered counter and a progress bar. Manual submission is blocked until every question is answered, and the same rule is enforced on the server. If the timer expires first, the attempt is submitted automatically and the student can retake an attempt that was left incomplete. Answers are saved on the device while the attempt is in progress, so a refresh does not lose work.
+
+Quiz integrity is supported by a violation log. The browser reports leaving the quiz tab, switching apps, turning off the screen, losing window focus, exiting fullscreen and copying quiz content. Each event is stored with the student, quiz, attempt, IP address, user agent and UTC timestamp. Administrators review these events in **Portal -> Quiz Violations**, and the admin dashboard shows the total count.
+
 Teachers can add questions manually or use the AI question generator. The generator accepts a topic and a count between 1 and 10.
 
 ### AI generation fix
