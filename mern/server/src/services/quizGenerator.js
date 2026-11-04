@@ -689,6 +689,56 @@ function parseJsonContent(content) {
   }
 }
 
+async function requestGemini({ apiKey, model, topic, count }) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), 15_000);
+
+  try {
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`,
+      {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        signal: controller.signal,
+        body: JSON.stringify({
+          contents: [
+            {
+              parts: [
+                {
+                  text: `You write multiple-choice exam questions for an IT training institute. Return strict JSON: { "questions": [{ "question": string, "option_a": string, "option_b": string, "option_c": string, "option_d": string, "correct": "a"|"b"|"c"|"d", "marks": number }] }. Do not add markdown or commentary.\n\nCreate exactly ${count} accurate multiple-choice questions about "${topic}" for a professional IT course. Vary the position of the correct answer.`
+                }
+              ]
+            }
+          ],
+          generationConfig: {
+            temperature: 0.5,
+            maxOutputTokens: 2048
+          }
+        })
+      }
+    );
+
+    if (!response.ok) {
+      const text = await response.text();
+      throw new Error(`Gemini returned ${response.status}: ${text.slice(0, 180)}`);
+    }
+
+    const payload = await response.json();
+    const text = payload.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    const parsed = parseJsonContent(text);
+    const rawQuestions = Array.isArray(parsed) ? parsed : parsed?.questions;
+    if (!Array.isArray(rawQuestions)) throw new Error("Gemini response did not contain a questions array");
+
+    return rawQuestions
+      .map((question, index) => normalizeQuestion(question, topic, index))
+      .filter(Boolean);
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
 async function requestOpenAI({ apiKey, model, topic, count }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
@@ -737,9 +787,30 @@ async function requestOpenAI({ apiKey, model, topic, count }) {
   }
 }
 
-export async function generateQuizQuestions({ topic, count, apiKey, model }) {
+export async function generateQuizQuestions({ topic, count, apiKey, model, geminiApiKey, geminiModel }) {
   const safeTopic = clean(topic, 200);
   const safeCount = Math.max(1, Math.min(10, Number(count) || 5));
+
+  if (geminiApiKey) {
+    try {
+      const questions = await requestGemini({
+        apiKey: geminiApiKey,
+        model: geminiModel || "gemini-1.5-flash",
+        topic: safeTopic,
+        count: safeCount
+      });
+
+      if (questions.length) {
+        return {
+          questions: questions.slice(0, safeCount),
+          source: "gemini",
+          warning: ""
+        };
+      }
+    } catch (error) {
+      console.warn(`[quiz-generator] Gemini request failed, trying OpenAI: ${error.message}`);
+    }
+  }
 
   if (apiKey) {
     try {
@@ -765,8 +836,8 @@ export async function generateQuizQuestions({ topic, count, apiKey, model }) {
   return {
     questions: buildLocalQuestions(safeTopic, safeCount),
     source: "builtin",
-    warning: apiKey
+    warning: geminiApiKey || apiKey
       ? "Live AI was unavailable, so TechNexa used its built-in question generator."
-      : "Built-in question generator used. Add OPENAI_API_KEY to enable live AI generation."
+      : "Built-in question generator used. Add GEMINI_API_KEY or OPENAI_API_KEY to enable live AI generation."
   };
 }

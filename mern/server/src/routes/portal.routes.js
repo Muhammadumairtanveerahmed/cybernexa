@@ -1766,6 +1766,8 @@ router.post(
     const result = await generateQuizQuestions({
       topic,
       count: req.body.count,
+      geminiApiKey: clean(process.env.GEMINI_API_KEY, 400),
+      geminiModel: clean(process.env.GEMINI_MODEL, 100),
       apiKey: clean(process.env.OPENAI_API_KEY, 400),
       model: clean(process.env.OPENAI_MODEL, 100)
     });
