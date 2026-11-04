@@ -111,6 +111,7 @@ export default function PortalLayout() {
   const groups = navByRole[role] || navByRole.student;
   const photo = user.photo_url || user.photo || "";
   const isAdmin = role === "admin";
+  const isQuizFocus = /^\/portal\/quizzes\/[^/]+\/?$/.test(location.pathname);
 
   const signOut = async () => {
     try {
@@ -122,21 +123,25 @@ export default function PortalLayout() {
 
   return (
     <>
-      <button
-        className="portal-menu-btn"
-        type="button"
-        aria-label="Toggle menu"
-        onClick={() => setMenuOpen((open) => !open)}
-      >
-        <i className={`fa-solid ${menuOpen ? "fa-xmark" : "fa-bars"}`} aria-hidden="true" />
-      </button>
-      <div
-        className={`side-backdrop${menuOpen ? " open" : ""}`}
-        onClick={() => setMenuOpen(false)}
-        aria-hidden="true"
-      />
+      {!isQuizFocus ? (
+        <>
+          <button
+            className="portal-menu-btn"
+            type="button"
+            aria-label="Toggle menu"
+            onClick={() => setMenuOpen((open) => !open)}
+          >
+            <i className={`fa-solid ${menuOpen ? "fa-xmark" : "fa-bars"}`} aria-hidden="true" />
+          </button>
+          <div
+            className={`side-backdrop${menuOpen ? " open" : ""}`}
+            onClick={() => setMenuOpen(false)}
+            aria-hidden="true"
+          />
+        </>
+      ) : null}
 
-      <div className="shell">
+      <div className={`shell${isQuizFocus ? " quiz-focus" : ""}`}>
         <aside className={`side${menuOpen ? " open" : ""}`}>
           <div className="brand">
             Tech<b>Nexa</b> {isAdmin ? "Admin" : "Portal"}

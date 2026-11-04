@@ -39,6 +39,7 @@ export default function QuizTakePage() {
   const [seconds, setSeconds] = useState(0);
   const [violationCount, setViolationCount] = useState(0);
   const [violationNotice, setViolationNotice] = useState("");
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const answersRef = useRef({});
   const submitRef = useRef(null);
   const autoSubmittedRef = useRef(false);
@@ -70,7 +71,32 @@ export default function QuizTakePage() {
     };
   }, [id]);
 
+  useEffect(() => {
+    const sync = () => setIsFullscreen(Boolean(document.fullscreenElement));
+    sync();
+    document.addEventListener("fullscreenchange", sync);
+    return () => {
+      document.removeEventListener("fullscreenchange", sync);
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => {
+          /* ignore browsers that block programmatic exit */
+        });
+      }
+    };
+  }, []);
+
+  const enterFullscreen = () => {
+    if (document.fullscreenElement) return;
+    const root = document.documentElement;
+    if (root.requestFullscreen) {
+      root.requestFullscreen().catch(() => {
+        /* fullscreen is optional; the quiz still works without it */
+      });
+    }
+  };
+
   const start = async () => {
+    enterFullscreen();
     setStarting(true);
     setError("");
     setSubmitError("");
@@ -396,9 +422,16 @@ export default function QuizTakePage() {
                     : " · All questions answered"}
                 </p>
               </div>
-              <span className="quiz-timer">
-                <i className="fa-solid fa-clock" aria-hidden="true" /> {clock(seconds)}
-              </span>
+              <div className="inline" style={{ gap: 8 }}>
+                {!isFullscreen ? (
+                  <button className="btn ghost sm" type="button" onClick={enterFullscreen}>
+                    <i className="fa-solid fa-expand" aria-hidden="true" /> Fullscreen
+                  </button>
+                ) : null}
+                <span className="quiz-timer">
+                  <i className="fa-solid fa-clock" aria-hidden="true" /> {clock(seconds)}
+                </span>
+              </div>
             </div>
             <div className="progress" aria-hidden="true">
               <i style={{ width: `${progressPercent}%` }} />
@@ -422,40 +455,42 @@ export default function QuizTakePage() {
               </p>
             )}
 
-            {questions.map((question, index) => (
-              <div
-                className={`quiz-q ${answers[question.id] ? "answered" : ""}`}
-                id={`quiz-q-${question.id}`}
-                key={question.id}
-              >
-                <h3>
-                  {index + 1}. {question.question}
-                </h3>
-                {["a", "b", "c", "d"].map((option) => {
-                  const text = question[`option_${option}`];
-                  if (!text) return null;
-                  return (
-                    <label className="quiz-opt" key={option}>
-                      <input
-                        type="radio"
-                        name={question.id}
-                        value={option}
-                        checked={answers[question.id] === option}
-                        onChange={() =>
-                          setAnswers((current) => {
-                            const next = { ...current, [question.id]: option };
-                            answersRef.current = next;
-                            return next;
-                          })
-                        }
-                      />
-                      <span>{option.toUpperCase()}</span>
-                      {text}
-                    </label>
-                  );
-                })}
-              </div>
-            ))}
+            <div className="quiz-grid">
+              {questions.map((question, index) => (
+                <div
+                  className={`quiz-q ${answers[question.id] ? "answered" : ""}`}
+                  id={`quiz-q-${question.id}`}
+                  key={question.id}
+                >
+                  <h3>
+                    {index + 1}. {question.question}
+                  </h3>
+                  {["a", "b", "c", "d"].map((option) => {
+                    const text = question[`option_${option}`];
+                    if (!text) return null;
+                    return (
+                      <label className="quiz-opt" key={option}>
+                        <input
+                          type="radio"
+                          name={question.id}
+                          value={option}
+                          checked={answers[question.id] === option}
+                          onChange={() =>
+                            setAnswers((current) => {
+                              const next = { ...current, [question.id]: option };
+                              answersRef.current = next;
+                              return next;
+                            })
+                          }
+                        />
+                        <span>{option.toUpperCase()}</span>
+                        {text}
+                      </label>
+                    );
+                  })}
+                </div>
+              ))}
+            </div>
           </div>
           <div className="panel">
             {submitError ? <div className="err">{submitError}</div> : null}
