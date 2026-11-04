@@ -10,6 +10,7 @@ import {
   parsePrice
 } from "../utils/validation.js";
 import { makeUpload, fileUrl } from "../utils/upload.js";
+import { requireAuth } from "../middleware/auth.middleware.js";
 import { listCourses, findCourse } from "../services/course.service.js";
 
 const router = express.Router();
@@ -88,6 +89,7 @@ router.post(
 
 router.post(
   "/enroll",
+  requireAuth,
   enrollUpload,
   asyncHandler(async (req, res) => {
     const name = clean(req.body.name, 120);
@@ -126,7 +128,7 @@ router.post(
        VALUES (?, ?, ?, ?, ?, ?, 'pending', 'unpaid', ?, '', ?, ?, ?)`,
       [
         enrollmentId,
-        req.user?.id || null,
+        req.user.id,
         courseRows[0]?.id || "",
         courseTitle,
         price,
@@ -157,13 +159,13 @@ router.post(
           [
             newId("doc"),
             enrollmentId,
-            req.user?.id || "",
+            req.user.id,
             field,
             label,
             clean(file.originalname, 200),
             relpath,
             file.size || 0,
-            req.user?.id ? "user" : "public",
+            req.user.role || "student",
             at
           ]
         );

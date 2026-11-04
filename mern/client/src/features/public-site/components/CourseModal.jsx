@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import api from "../../../api/axios.js";
 import { useAuth } from "../../../context/AuthContext.jsx";
 import { brand } from "../data/siteData.js";
@@ -15,6 +15,7 @@ const requiredFiles = ["cnic", "photo", "payment"];
 
 export default function CourseModal({ course, open, onClose }) {
   const { user } = useAuth();
+  const location = useLocation();
   const [form, setForm] = useState(emptyForm);
   const [files, setFiles] = useState({});
   const [errors, setErrors] = useState({});
@@ -52,6 +53,10 @@ export default function CourseModal({ course, open, onClose }) {
   }, [open, onClose]);
 
   if (!open || !course) return null;
+
+  const nextParams = new URLSearchParams(location.search);
+  nextParams.set("enroll", course.id);
+  const nextPath = `${location.pathname}?${nextParams.toString()}`;
 
   const update = (field, value) => {
     setForm((current) => ({ ...current, [field]: value }));
@@ -138,7 +143,33 @@ export default function CourseModal({ course, open, onClose }) {
           <small>Installments available on request</small>
         </div>
 
-        {success ? (
+        {!user ? (
+          <div className="enroll-auth-gate">
+            <div className="enroll-auth-icon">
+              <i className="fa-solid fa-lock" aria-hidden="true" />
+            </div>
+            <h3>Sign in to enroll</h3>
+            <p>
+              Create a free student account or sign in before submitting your enrollment. This keeps
+              your personal information and documents secure.
+            </p>
+            <div className="enroll-auth-actions">
+              <Link className="btn btn-primary" to={`/login?next=${encodeURIComponent(nextPath)}`}>
+                Sign in
+              </Link>
+              <Link
+                className="btn btn-ghost"
+                to={`/register/student?next=${encodeURIComponent(nextPath)}`}
+              >
+                Create account
+              </Link>
+            </div>
+            <p className="enroll-auth-note">
+              <i className="fa-solid fa-shield-halved" aria-hidden="true" /> Document upload is only
+              available after login.
+            </p>
+          </div>
+        ) : success ? (
           <div className="enroll-success">
             <div className="enroll-success-head">
               <i className="fa-solid fa-circle-check" aria-hidden="true" />
@@ -150,11 +181,8 @@ export default function CourseModal({ course, open, onClose }) {
               phone and email available.
             </p>
             <div className="enroll-success-actions">
-              <Link
-                className="btn btn-primary"
-                to={user ? "/portal/enrollments" : `/register/student?email=${encodeURIComponent(form.email)}`}
-              >
-                {user ? "View my enrollments" : "Create my account"}
+              <Link className="btn btn-primary" to="/portal/enrollments">
+                View my enrollments
               </Link>
               <a
                 className="btn btn-ghost"

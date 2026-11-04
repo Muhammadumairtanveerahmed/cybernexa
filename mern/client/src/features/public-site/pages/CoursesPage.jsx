@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import Hero from "../components/Hero.jsx";
 import CourseCard from "../components/CourseCard.jsx";
 import CourseModal from "../components/CourseModal.jsx";
@@ -11,6 +12,17 @@ function slugify(value) {
 
 export default function CoursesPage() {
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const enrollId = searchParams.get("enroll");
+
+  useEffect(() => {
+    if (!enrollId) return;
+    const match = allCourses.find((course) => course.id === enrollId);
+    if (match) setSelectedCourse(match);
+    const next = new URLSearchParams(window.location.search);
+    next.delete("enroll");
+    setSearchParams(next, { replace: true });
+  }, [enrollId, setSearchParams]);
 
   const groups = useMemo(() => {
     const map = new Map();

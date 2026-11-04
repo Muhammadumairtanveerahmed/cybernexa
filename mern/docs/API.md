@@ -40,6 +40,7 @@ Standard error shape:
 | POST | `/public/contact` | Public | Contact form |
 | POST | `/public/subscribe` | Public | Newsletter |
 | GET | `/public/sitemap` | Public | Sitemap data |
+| POST | `/enroll` | Auth | Submit a course enrollment with documents |
 
 ## 3. Student
 

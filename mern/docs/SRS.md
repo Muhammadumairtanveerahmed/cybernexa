@@ -145,7 +145,7 @@ Priority scale: **M** = mandatory, **S** = should have, **C** = could have.
 | FR-PUB-05 | The system shall allow a visitor to search or filter the course catalogue. | S |
 | FR-PUB-06 | The system shall provide a contact form that stores the message for administrators. | M |
 | FR-PUB-07 | The system shall allow visitors to subscribe to updates with an email address. | S |
-| FR-PUB-08 | The system shall provide a public enrollment form for a selected course. | M |
+| FR-PUB-08 | The system shall require an authenticated student account before accepting a course enrollment, and shall not accept document uploads from guests. | M |
 | FR-PUB-09 | The public site shall show a readable navigation bar and Login button in both light and dark themes. | M |
 | FR-PUB-10 | The public site shall provide a responsive mobile navigation drawer. | M |
 

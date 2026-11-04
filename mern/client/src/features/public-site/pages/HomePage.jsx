@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useSearchParams } from "react-router-dom";
 import Hero from "../components/Hero.jsx";
 import SectionHead from "../components/SectionHead.jsx";
 import ServiceCard from "../components/ServiceCard.jsx";
@@ -22,6 +22,17 @@ import {
 
 export default function HomePage() {
   const [selectedCourse, setSelectedCourse] = useState(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const enrollId = searchParams.get("enroll");
+
+  useEffect(() => {
+    if (!enrollId) return;
+    const match = allCourses.find((course) => course.id === enrollId);
+    if (match) setSelectedCourse(match);
+    const next = new URLSearchParams(window.location.search);
+    next.delete("enroll");
+    setSearchParams(next, { replace: true });
+  }, [enrollId, setSearchParams]);
 
   const featured = useMemo(() => {
     const list = allCourses.filter((course) => course.featured);

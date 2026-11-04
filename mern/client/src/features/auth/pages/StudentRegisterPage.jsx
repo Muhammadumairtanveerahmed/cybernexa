@@ -7,6 +7,8 @@ export default function StudentRegisterPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
   const [params] = useSearchParams();
+  const next = params.get("next") || "";
+  const signInTo = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
   const [form, setForm] = useState({
     full_name: "",
     email: params.get("email") || "",
@@ -42,7 +44,9 @@ export default function StudentRegisterPage() {
         password2: form.password2
       });
       await login({ email: form.email.trim(), password: form.password });
-      navigate("/portal/profile?welcome=1", { replace: true });
+      const safeNext =
+        next.startsWith("/") && !next.startsWith("//") ? next : "/portal/profile?welcome=1";
+      navigate(safeNext, { replace: true });
     } catch (err) {
       setError(err.message || "Could not create your account.");
     } finally {
@@ -114,7 +118,7 @@ export default function StudentRegisterPage() {
       </form>
 
       <p className="muted" style={{ textAlign: "center", fontSize: ".85rem", marginTop: 16 }}>
-        Already registered? <Link to="/login" style={{ color: "var(--acc)" }}>Sign in</Link>
+        Already registered? <Link to={signInTo} style={{ color: "var(--acc)" }}>Sign in</Link>
       </p>
     </div>
   );

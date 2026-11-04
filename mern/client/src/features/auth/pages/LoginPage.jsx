@@ -11,7 +11,9 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
-  const next = params.get("next") || "/portal/dashboard";
+  const nextParam = params.get("next") || "";
+  const next = nextParam || "/portal/dashboard";
+  const authLink = (path) => (nextParam ? `${path}?next=${encodeURIComponent(nextParam)}` : path);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -79,10 +81,10 @@ export default function LoginPage() {
       </form>
 
       <div style={{ display: "flex", justifyContent: "space-between", gap: 12, marginTop: 16, fontSize: ".85rem" }}>
-        <Link to="/forgot-password" style={{ color: "var(--acc)" }}>
+        <Link to={authLink("/forgot-password")} style={{ color: "var(--acc)" }}>
           Forgot password?
         </Link>
-        <Link to="/register" style={{ color: "var(--acc)" }}>
+        <Link to={authLink("/register")} style={{ color: "var(--acc)" }}>
           Create account
         </Link>
       </div>

@@ -386,6 +386,8 @@ mern/
 
 The public site uses a shared layout with a responsive navbar, theme toggle, hero, service sections, course catalogue, industry sections, contact form and footer. Course cards use a flex layout so titles, metadata and **Enroll Now** buttons align consistently across rows. The light theme uses a solid white navbar and dark readable Login text; the dark theme uses a dark translucent navbar.
 
+Clicking **Enroll Now** while signed out opens an authentication gate inside the course modal. The visitor can sign in or create a student account, and the selected course is preserved in the return URL so the enrollment form reopens after authentication. Document uploads are available only after login, and the server also rejects unauthenticated enrollment requests before accepting any files.
+
 ## 5.4 Authentication and Roles
 
 Registration supports students and teachers. Teachers remain pending until approved by an administrator. Login issues a JWT cookie; the client loads the current user through `/api/auth/me`. Protected routes redirect guests to login. Portal pages and APIs check the role before returning data.

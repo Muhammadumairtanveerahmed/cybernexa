@@ -1107,6 +1107,46 @@ h1, h2, h3, h4 {
 }
 .modal-actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
+/* ---------- Enrollment login gate ---------- */
+.enroll-auth-gate {
+  display: grid;
+  gap: 10px;
+  padding: 20px 18px;
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 14px;
+  background: rgba(59, 130, 246, 0.08);
+  text-align: center;
+  margin-top: 8px;
+}
+.enroll-auth-icon {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 4px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  background: rgba(59, 130, 246, 0.18);
+  color: var(--accent);
+  font-size: 1.3rem;
+}
+.enroll-auth-gate h3 { margin: 0; font-size: 1.15rem; }
+.enroll-auth-gate p { color: var(--muted); font-size: 0.9rem; line-height: 1.6; }
+.enroll-auth-actions {
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 4px;
+}
+.enroll-auth-note {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-size: 0.8rem !important;
+}
+.enroll-auth-note i { color: var(--accent); }
+
 /* ---------- Enroll form (in modal) ---------- */
 .enroll-form { display: grid; gap: 10px; margin-top: 16px; }
 .enroll-input {
@@ -1754,6 +1794,14 @@ html[data-theme="light"] .field label {
 html[data-theme="light"] select.enroll-input option {
   background: #ffffff;
   color: var(--text);
+}
+html[data-theme="light"] .enroll-auth-gate {
+  background: #eff6ff;
+  border-color: rgba(37, 99, 235, 0.22);
+}
+html[data-theme="light"] .enroll-auth-icon {
+  background: rgba(37, 99, 235, 0.12);
+  color: #1d4ed8;
 }
 html[data-theme="light"] .enroll-docs {
   background: #f8fafc;

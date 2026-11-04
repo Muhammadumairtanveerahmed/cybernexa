@@ -1,9 +1,13 @@
 import { useEffect } from "react";
-import { Link, Outlet } from "react-router-dom";
+import { Link, Outlet, useLocation } from "react-router-dom";
 import ThemeToggle from "../../../components/common/ThemeToggle.jsx";
 import portalCssUrl from "../../../styles/portal.css?url";
 
 export default function AuthLayout() {
+  const location = useLocation();
+  const next = new URLSearchParams(location.search).get("next") || "";
+  const withNext = (path) => (next ? `${path}?next=${encodeURIComponent(next)}` : path);
+
   useEffect(() => {
     const link = document.createElement("link");
     link.rel = "stylesheet";
@@ -23,10 +27,10 @@ export default function AuthLayout() {
         <Link className="lnk" to="/">
           Website
         </Link>
-        <Link className="lnk" to="/login">
+        <Link className="lnk" to={withNext("/login")}>
           Sign in
         </Link>
-        <Link className="btn primary sm" to="/register">
+        <Link className="btn primary sm" to={withNext("/register")}>
           Register
         </Link>
         <ThemeToggle />

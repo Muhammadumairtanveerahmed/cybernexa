@@ -1,11 +1,14 @@
 import { useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { authApi } from "../../../api/auth.api.js";
 import { useAuth } from "../../../context/AuthContext.jsx";
 
 export default function TeacherRegisterPage() {
   const navigate = useNavigate();
   const { login } = useAuth();
+  const [params] = useSearchParams();
+  const next = params.get("next") || "";
+  const signInTo = next ? `/login?next=${encodeURIComponent(next)}` : "/login";
   const [form, setForm] = useState({
     full_name: "",
     email: "",
@@ -118,7 +121,7 @@ export default function TeacherRegisterPage() {
       </form>
 
       <p className="muted" style={{ textAlign: "center", fontSize: ".85rem", marginTop: 16 }}>
-        Already registered? <Link to="/login" style={{ color: "var(--acc)" }}>Sign in</Link>
+        Already registered? <Link to={signInTo} style={{ color: "var(--acc)" }}>Sign in</Link>
       </p>
     </div>
   );
