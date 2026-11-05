@@ -4,7 +4,7 @@ import { publicPhoto } from "../utils/upload.js";
 
 export const AUTH_COOKIE = "technexa_token";
 
-export function signToken(user, expiresIn = "7d") {
+export function signToken(user, expiresIn = "5m") {
   return jwt.sign(
     { sub: user.id, role: user.role, email: user.email },
     process.env.JWT_SECRET || "technexa-development-secret",
@@ -12,12 +12,12 @@ export function signToken(user, expiresIn = "7d") {
   );
 }
 
-export function setAuthCookie(res, token, rememberDays = 7) {
+export function setAuthCookie(res, token, rememberMinutes = 5) {
   res.cookie(AUTH_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
     secure: process.env.NODE_ENV === "production",
-    maxAge: rememberDays * 24 * 60 * 60 * 1000,
+    maxAge: rememberMinutes * 60 * 1000,
     path: "/"
   });
 }

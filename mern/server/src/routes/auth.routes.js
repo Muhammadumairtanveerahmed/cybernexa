@@ -175,9 +175,7 @@ router.post(
       status: "success"
     });
 
-    const rememberMe = req.body.rememberMe === true;
-    const token = signToken(user, rememberMe ? "30d" : "7d");
-    setAuthCookie(res, token, rememberMe ? 30 : 7);
+    setAuthCookie(res, signToken(user));
     res.json({ ok: true, data: publicUser({ ...user, last_login: at }) });
   })
 );
