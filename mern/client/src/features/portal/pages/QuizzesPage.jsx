@@ -143,11 +143,10 @@ function StaffQuizzes() {
 
   const generateQuizQuestions = async () => {
     if (!aiTopic.trim()) return setMessage("Please enter a topic for AI generation.");
-    if (!form.course_title) return setMessage("Please select a course first before generating AI questions.");
     setAiGenerating(true);
     setMessage("");
     try {
-      const response = await portalApi.generateQuestions({ topic: aiTopic.trim(), count: 5, courseTitle: form.course_title });
+      const response = await portalApi.generateQuestions({ topic: aiTopic.trim(), count: 5, courseTitle: form.course_title || "" });
       const generated = response.data?.data || [];
       if (!generated.length) throw new Error("No questions were generated.");
       setQuestions(
@@ -342,7 +341,7 @@ function StaffQuizzes() {
                 className="btn primary sm"
                 type="button"
                 onClick={generateQuizQuestions}
-                disabled={aiGenerating || !form.course_title}
+                disabled={aiGenerating}
               >
                 {aiGenerating ? "Generating..." : "Generate with AI"}
               </button>
@@ -352,8 +351,8 @@ function StaffQuizzes() {
                 <i className="fa-solid fa-check-circle" aria-hidden="true" /> Course selected: {form.course_title}
               </p>
             ) : (
-              <p className="err" style={{ marginTop: 6, fontSize: ".8rem" }}>
-                <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" /> Please select a course from the dropdown above.
+              <p className="muted-sm" style={{ marginTop: 6, fontSize: ".8rem" }}>
+                <i className="fa-solid fa-info-circle" aria-hidden="true" /> Course can be selected before saving the quiz.
               </p>
             )}
             <p className="muted-sm" style={{ marginTop: 6, fontSize: ".8rem" }}>
