@@ -109,6 +109,9 @@ function StaffQuizzes() {
   const [questions, setQuestions] = useState([emptyQuestion()]);
   const [busy, setBusy] = useState(false);
   const [message, setMessage] = useState("");
+  const [aiTopic, setAiTopic] = useState("");
+  const [aiGenerating, setAiGenerating] = useState(false);
+  const [aiSource, setAiSource] = useState("");
 
   const courseOptions = useMemo(
     () => (courses.data || []).map((course) => course.title || course.course_title).filter(Boolean),
@@ -126,6 +129,8 @@ function StaffQuizzes() {
       status: "published"
     });
     setQuestions([emptyQuestion()]);
+    setAiTopic("");
+    setAiSource("");
     setOpen(true);
   };
 
@@ -135,6 +140,34 @@ function StaffQuizzes() {
 
   const addQuestion = () => setQuestions((current) => [...current, emptyQuestion()]);
   const removeQuestion = (index) => setQuestions((current) => current.filter((_, i) => i !== index));
+
+  const generateQuizQuestions = async () => {
+    if (!aiTopic.trim()) return setMessage("Please enter a topic for AI generation.");
+    setAiGenerating(true);
+    setMessage("");
+    try {
+      const response = await portalApi.generateQuestions({ topic: aiTopic.trim(), count: 5 });
+      const generated = response.data?.data || [];
+      if (!generated.length) throw new Error("No questions were generated.");
+      setQuestions(
+        generated.map((q, index) => ({
+          question: q.question || "",
+          option_a: q.option_a || "",
+          option_b: q.option_b || "",
+          option_c: q.option_c || "",
+          option_d: q.option_d || "",
+          correct: q.correct || "a",
+          marks: q.marks || 1
+        }))
+      );
+      setAiSource(response.data?.meta?.source || "AI");
+      setMessage(`Questions generated via ${response.data?.meta?.source || "AI"}.`);
+    } catch (err) {
+      setMessage(err.message || "AI generation failed. You can still add questions manually.");
+    } finally {
+      setAiGenerating(false);
+    }
+  };
 
   const save = async (event) => {
     event.preventDefault();
@@ -286,6 +319,34 @@ function StaffQuizzes() {
               </div>
             </div>
           ))}
+          {aiSource ? (
+            <p className="ok" style={{ marginTop: 10, fontSize: ".85rem" }}>
+              <i className="fa-solid fa-robot" aria-hidden="true" /> {questions.length} question{questions.length === 1 ? "" : "s"} generated via {aiSource}. You can edit them below.
+            </p>
+          ) : null}
+          <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
+            <label htmlFor="ai-topic">Generate questions with AI</label>
+            <div className="inline" style={{ gap: 8, flexWrap: "wrap" }}>
+              <input
+                id="ai-topic"
+                value={aiTopic}
+                onChange={(event) => setAiTopic(event.target.value)}
+                placeholder="e.g. Cybersecurity basics, SQL joins, React hooks"
+                style={{ flex: 1, minWidth: 200 }}
+              />
+              <button
+                className="btn primary sm"
+                type="button"
+                onClick={generateQuizQuestions}
+                disabled={aiGenerating}
+              >
+                {aiGenerating ? "Generating..." : "Generate with AI"}
+              </button>
+            </div>
+            <p className="muted-sm" style={{ marginTop: 6, fontSize: ".8rem" }}>
+              Uses Gemini/OpenAI when configured; otherwise built-in topic-aware questions.
+            </p>
+          </div>
           <button className="btn ghost" type="button" onClick={addQuestion}>Add another question</button>
         </form>
       </Modal>
