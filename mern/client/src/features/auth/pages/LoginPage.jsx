@@ -8,6 +8,7 @@ export default function LoginPage() {
   const [params] = useSearchParams();
   const [form, setForm] = useState({ email: "", password: "" });
   const [showPassword, setShowPassword] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -20,7 +21,7 @@ export default function LoginPage() {
     setError("");
     setBusy(true);
     try {
-      await login({ email: form.email.trim(), password: form.password });
+      await login({ email: form.email.trim(), password: form.password, rememberMe });
       const safeNext = next.startsWith("/") && !next.startsWith("//") ? next : "/portal/dashboard";
       navigate(safeNext, { replace: true });
     } catch (err) {
@@ -71,6 +72,15 @@ export default function LoginPage() {
             onChange={(event) => setShowPassword(event.target.checked)}
           />
           Show password
+        </label>
+
+        <label style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 12 }}>
+          <input
+            type="checkbox"
+            checked={rememberMe}
+            onChange={(event) => setRememberMe(event.target.checked)}
+          />
+          Remember me
         </label>
 
         {error ? <p className="muted" style={{ color: "#f87171", marginTop: 12 }}>{error}</p> : null}

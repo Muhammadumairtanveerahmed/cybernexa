@@ -23,9 +23,7 @@ import { requireAuth } from "../middleware/auth.middleware.js";
 import { sendMail } from "../utils/mail.js";
 
 const router = express.Router();
-const cvUpload = makeUpload("documents", [".pdf", ".jpg", ".jpeg", ".png"], 1);
-
-function loginLog(req, { userId = null, email = "", role = "", fullName = "", status = "success" }) {
+const cvUpload = makeUpload("documents", [".pdf", ".jpg", ".jpeg", ".png"], 1);function loginLog(req, { userId = null, email = "", role = "", fullName = "", status = "success" }) {
   return pool
     .query(
       `INSERT INTO login_logs (user_id, email, role, full_name, status, ip, user_agent, created_at)
@@ -177,7 +175,9 @@ router.post(
       status: "success"
     });
 
-    setAuthCookie(res, signToken(user));
+    const rememberMe = req.body.rememberMe === true;
+    const token = signToken(user, rememberMe ? "30d" : "7d");
+    setAuthCookie(res, token, rememberMe ? 30 : 7);
     res.json({ ok: true, data: publicUser({ ...user, last_login: at }) });
   })
 );
