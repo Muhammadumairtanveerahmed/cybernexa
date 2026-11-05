@@ -1342,8 +1342,9 @@ router.post(
     const title = clean(req.body.title, 200);
     const courseTitle = clean(req.body.course_title, 190);
     if (title.length < 2) throw new ApiError(422, "Please enter a quiz title");
-    if (!courseTitle) throw new ApiError(422, "Please choose a course");
-    if (req.user.role === "teacher") await assertCourseAccess(req.user, courseTitle);
+    const audience = req.body.audience === "course" ? "course" : "all";
+    if (audience === "course" && !courseTitle) throw new ApiError(422, "Please choose a course");
+    if (req.user.role === "teacher" && audience === "course") await assertCourseAccess(req.user, courseTitle);
 
     const questions = asArray(req.body.questions);
     if (!questions.length) throw new ApiError(422, "Add at least one question");

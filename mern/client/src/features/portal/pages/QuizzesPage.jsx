@@ -252,8 +252,8 @@ function StaffQuizzes() {
             </div>
             <div>
               <label htmlFor="q-course">Course</label>
-              <select id="q-course" value={form.course_title} onChange={(event) => setForm((current) => ({ ...current, course_title: event.target.value }))} required>
-                <option value="">Select course</option>
+              <select id="q-course" value={form.course_title} onChange={(event) => setForm((current) => ({ ...current, course_title: event.target.value }))}>
+                <option value="">Select course (optional for all students)</option>
                 {courseOptions.map((title) => <option value={title} key={title}>{title}</option>)}
               </select>
             </div>
