@@ -143,10 +143,11 @@ function StaffQuizzes() {
 
   const generateQuizQuestions = async () => {
     if (!aiTopic.trim()) return setMessage("Please enter a topic for AI generation.");
+    if (!form.course_title) return setMessage("Please select a course first before generating AI questions.");
     setAiGenerating(true);
     setMessage("");
     try {
-      const response = await portalApi.generateQuestions({ topic: aiTopic.trim(), count: 5 });
+      const response = await portalApi.generateQuestions({ topic: aiTopic.trim(), count: 5, courseTitle: form.course_title });
       const generated = response.data?.data || [];
       if (!generated.length) throw new Error("No questions were generated.");
       setQuestions(
@@ -326,6 +327,9 @@ function StaffQuizzes() {
           ) : null}
           <div style={{ marginTop: 14, paddingTop: 14, borderTop: "1px solid var(--line)" }}>
             <label htmlFor="ai-topic">Generate questions with AI</label>
+            <p className="muted-sm" style={{ marginBottom: 8, fontSize: ".85rem" }}>
+              <i className="fa-solid fa-info-circle" aria-hidden="true" /> Select a course above, enter a topic, then generate AI questions.
+            </p>
             <div className="inline" style={{ gap: 8, flexWrap: "wrap" }}>
               <input
                 id="ai-topic"
@@ -338,11 +342,20 @@ function StaffQuizzes() {
                 className="btn primary sm"
                 type="button"
                 onClick={generateQuizQuestions}
-                disabled={aiGenerating}
+                disabled={aiGenerating || !form.course_title}
               >
                 {aiGenerating ? "Generating..." : "Generate with AI"}
               </button>
             </div>
+            {form.course_title ? (
+              <p className="ok" style={{ marginTop: 6, fontSize: ".8rem" }}>
+                <i className="fa-solid fa-check-circle" aria-hidden="true" /> Course selected: {form.course_title}
+              </p>
+            ) : (
+              <p className="err" style={{ marginTop: 6, fontSize: ".8rem" }}>
+                <i className="fa-solid fa-triangle-exclamation" aria-hidden="true" /> Please select a course from the dropdown above.
+              </p>
+            )}
             <p className="muted-sm" style={{ marginTop: 6, fontSize: ".8rem" }}>
               Uses Gemini/OpenAI when configured; otherwise built-in topic-aware questions.
             </p>

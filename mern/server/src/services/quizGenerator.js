@@ -689,7 +689,7 @@ function parseJsonContent(content) {
   }
 }
 
-async function requestGemini({ apiKey, model, topic, count }) {
+async function requestGemini({ apiKey, model, topic, count, courseTitle }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
 
@@ -707,7 +707,7 @@ async function requestGemini({ apiKey, model, topic, count }) {
             {
               parts: [
                 {
-                  text: `You write multiple-choice exam questions for an IT training institute. Return strict JSON: { "questions": [{ "question": string, "option_a": string, "option_b": string, "option_c": string, "option_d": string, "correct": "a"|"b"|"c"|"d", "marks": number }] }. Do not add markdown or commentary.\n\nCreate exactly ${count} accurate multiple-choice questions about "${topic}" for a professional IT course. Vary the position of the correct answer.`
+                  text: `You write multiple-choice exam questions for an IT training institute. Return strict JSON: { "questions": [{ "question": string, "option_a": string, "option_b": string, "option_c": string, "option_d": string, "correct": "a"|"b"|"c"|"d", "marks": number }] }. Do not add markdown or commentary.\n\nCreate exactly ${count} accurate multiple-choice questions about "${topic}" for a professional IT course${courseTitle ? ` in the course "${courseTitle}"` : ""}. Vary the position of the correct answer.`
                 }
               ]
             }
@@ -739,7 +739,7 @@ async function requestGemini({ apiKey, model, topic, count }) {
   }
 }
 
-async function requestOpenAI({ apiKey, model, topic, count }) {
+async function requestOpenAI({ apiKey, model, topic, count, courseTitle }) {
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), 15_000);
 
@@ -763,7 +763,7 @@ async function requestOpenAI({ apiKey, model, topic, count }) {
           },
           {
             role: "user",
-            content: `Create exactly ${count} accurate multiple-choice questions about "${topic}" for a professional IT course. Vary the position of the correct answer.`
+            content: `Create exactly ${count} accurate multiple-choice questions about "${topic}" for a professional IT course${courseTitle ? ` in the course "${courseTitle}"` : ""}. Vary the position of the correct answer.`
           }
         ]
       })
@@ -787,7 +787,7 @@ async function requestOpenAI({ apiKey, model, topic, count }) {
   }
 }
 
-export async function generateQuizQuestions({ topic, count, apiKey, model, geminiApiKey, geminiModel }) {
+export async function generateQuizQuestions({ topic, count, apiKey, model, geminiApiKey, geminiModel, courseTitle }) {
   const safeTopic = clean(topic, 200);
   const safeCount = Math.max(1, Math.min(10, Number(count) || 5));
 
@@ -797,7 +797,8 @@ export async function generateQuizQuestions({ topic, count, apiKey, model, gemin
         apiKey: geminiApiKey,
         model: geminiModel || "gemini-1.5-flash",
         topic: safeTopic,
-        count: safeCount
+        count: safeCount,
+        courseTitle
       });
 
       if (questions.length) {
@@ -818,7 +819,8 @@ export async function generateQuizQuestions({ topic, count, apiKey, model, gemin
         apiKey,
         model: model || "gpt-4o-mini",
         topic: safeTopic,
-        count: safeCount
+        count: safeCount,
+        courseTitle
       });
 
       if (questions.length) {

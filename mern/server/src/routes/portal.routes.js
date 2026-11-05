@@ -1761,6 +1761,7 @@ router.post(
   requireRole("teacher", "admin"),
   asyncHandler(async (req, res) => {
     const topic = clean(req.body.topic, 200);
+    const courseTitle = clean(req.body.courseTitle, 190);
     if (!topic) throw new ApiError(422, "Please enter a topic");
 
     const result = await generateQuizQuestions({
@@ -1769,7 +1770,8 @@ router.post(
       geminiApiKey: clean(process.env.GEMINI_API_KEY, 400),
       geminiModel: clean(process.env.GEMINI_MODEL, 100),
       apiKey: clean(process.env.OPENAI_API_KEY, 400),
-      model: clean(process.env.OPENAI_MODEL, 100)
+      model: clean(process.env.OPENAI_MODEL, 100),
+      courseTitle
     });
 
     res.json({
