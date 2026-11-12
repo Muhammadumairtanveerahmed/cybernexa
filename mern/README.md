@@ -67,6 +67,15 @@ The frontend is **React**, the backend is **Node.js + Express**, and the databas
 - The selected theme is stored in `localStorage` and follows the operating system preference on first visit.
 - Both the public website and the student/teacher/admin portal use the same theme state, so the choice follows the user across the app.
 
+### Monitoring (Prometheus + Grafana)
+
+- The API exposes Prometheus metrics at `GET /metrics` (`prom-client`).
+- HTTP traffic, latency, error rate, Node.js runtime, MySQL pool, Socket.IO users and
+  business data (users, enrollments, quiz attempts, quiz violations, logins, calls) are all exported.
+- `START-MONITORING.bat` starts Prometheus (http://localhost:9090) and Grafana
+  (http://localhost:3001, `admin` / `technexa`) with a provisioned dashboard.
+- Full metric catalogue and setup notes: `docs/MONITORING.md`.
+
 ---
 
 ## 2. Planned folder structure

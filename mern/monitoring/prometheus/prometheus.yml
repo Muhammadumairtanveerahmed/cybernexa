@@ -1,0 +1,26 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: technexa
+    environment: development
+
+scrape_configs:
+  # TechNexa Express API (Prometheus runs inside docker-compose)
+  - job_name: technexa-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["server:5000"]
+        labels:
+          service: technexa-api
+          component: backend
+    # If METRICS_TOKEN is set in server/.env, uncomment and use the same value.
+    # authorization:
+    #   type: Bearer
+    #   credentials: change-me-metrics-token
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: prometheus

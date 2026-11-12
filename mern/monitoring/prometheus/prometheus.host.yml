@@ -1,0 +1,23 @@
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: technexa
+    environment: local-docker
+
+scrape_configs:
+  # The API runs on the Windows host (not in Docker), so scrape it through
+  # Docker's host gateway.
+  - job_name: technexa-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["host.docker.internal:5000"]
+        labels:
+          service: technexa-api
+          component: backend
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["localhost:9090"]
+        labels:
+          service: prometheus

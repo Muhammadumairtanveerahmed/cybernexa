@@ -11,6 +11,7 @@ import {
 } from "../utils/validation.js";
 import { makeUpload, fileUrl } from "../utils/upload.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
+import { enrollmentsSubmittedTotal } from "../config/metrics.js";
 import { listCourses, findCourse } from "../services/course.service.js";
 
 const router = express.Router();
@@ -172,6 +173,7 @@ router.post(
       }
     }
 
+    enrollmentsSubmittedTotal.inc();
     res.status(201).json({
       ok: true,
       msg: "Your enrollment request has been received. Our team will review it within 24 hours.",

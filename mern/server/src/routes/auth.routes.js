@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import express from "express";
 import bcrypt from "bcryptjs";
 import { pool } from "../config/db.js";
+import { loginAttemptsTotal } from "../config/metrics.js";
 import { asyncHandler } from "../utils/asyncHandler.js";
 import { ApiError } from "../utils/ApiError.js";
 import { newId, nowSql } from "../utils/ids.js";
@@ -145,11 +146,13 @@ router.post(
     const user = rows[0];
 
     if (!user || !(await bcrypt.compare(password, user.password_hash))) {
+      loginAttemptsTotal.inc({ role: "unknown", result: "invalid_credentials" });
       await loginLog(req, { email, status: "failed" });
       throw new ApiError(401, "Invalid email or password");
     }
 
     if (user.status === "suspended" || user.status === "rejected") {
+      loginAttemptsTotal.inc({ role: user.role, result: "blocked" });
       await loginLog(req, {
         userId: user.id,
         email,
@@ -176,6 +179,7 @@ router.post(
     });
 
     setAuthCookie(res, signToken(user));
+    loginAttemptsTotal.inc({ role: user.role, result: "success" });
     res.json({ ok: true, data: publicUser({ ...user, last_login: at }) });
   })
 );

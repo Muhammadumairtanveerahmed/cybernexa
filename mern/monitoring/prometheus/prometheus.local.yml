@@ -1,0 +1,23 @@
+# Use this file when Prometheus runs directly on Windows (not in Docker).
+#   prometheus.exe --config.file=monitoring/prometheus/prometheus.local.yml
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: technexa
+    environment: local
+
+scrape_configs:
+  - job_name: technexa-api
+    metrics_path: /metrics
+    static_configs:
+      - targets: ["127.0.0.1:5000"]
+        labels:
+          service: technexa-api
+          component: backend
+
+  - job_name: prometheus
+    static_configs:
+      - targets: ["127.0.0.1:9090"]
+        labels:
+          service: prometheus

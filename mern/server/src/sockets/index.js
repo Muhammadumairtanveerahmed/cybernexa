@@ -1,6 +1,7 @@
 import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
 import { pool } from "../config/db.js";
+import { setOnlineUsers, socketConnections } from "../config/metrics.js";
 import { AUTH_COOKIE } from "../middleware/attachUser.js";
 import { newId, nowSql } from "../utils/ids.js";
 
@@ -53,6 +54,8 @@ export function initSockets(server) {
   io.on("connection", (socket) => {
     const user = socket.user;
     online.set(user.id, socket.id);
+    socketConnections.inc();
+    setOnlineUsers(online.size);
     socket.join(`user:${user.id}`);
     io.emit("presence:update", { userId: user.id, online: true });
 
@@ -213,6 +216,8 @@ export function initSockets(server) {
         online.delete(user.id);
         io.emit("presence:update", { userId: user.id, online: false });
       }
+      socketConnections.dec();
+      setOnlineUsers(online.size);
       if (io.sockets.adapter.rooms.has(`user:${user.id}`)) return;
 
       try {

@@ -1,4 +1,5 @@
 import { clean } from "../utils/validation.js";
+import { aiQuizGenerationTotal } from "../config/metrics.js";
 
 const OPTION_KEYS = ["option_a", "option_b", "option_c", "option_d"];
 const LETTERS = ["a", "b", "c", "d"];
@@ -802,6 +803,7 @@ export async function generateQuizQuestions({ topic, count, apiKey, model, gemin
       });
 
       if (questions.length) {
+        aiQuizGenerationTotal.inc({ provider: "gemini", result: "success" });
         return {
           questions: questions.slice(0, safeCount),
           source: "gemini",
@@ -809,6 +811,7 @@ export async function generateQuizQuestions({ topic, count, apiKey, model, gemin
         };
       }
     } catch (error) {
+      aiQuizGenerationTotal.inc({ provider: "gemini", result: "error" });
       console.warn(`[quiz-generator] Gemini request failed, trying OpenAI: ${error.message}`);
     }
   }
@@ -824,6 +827,7 @@ export async function generateQuizQuestions({ topic, count, apiKey, model, gemin
       });
 
       if (questions.length) {
+        aiQuizGenerationTotal.inc({ provider: "openai", result: "success" });
         return {
           questions: questions.slice(0, safeCount),
           source: "openai",
@@ -831,10 +835,12 @@ export async function generateQuizQuestions({ topic, count, apiKey, model, gemin
         };
       }
     } catch (error) {
+      aiQuizGenerationTotal.inc({ provider: "openai", result: "error" });
       console.warn(`[quiz-generator] OpenAI request failed, using built-in generator: ${error.message}`);
     }
   }
 
+  aiQuizGenerationTotal.inc({ provider: "builtin", result: "success" });
   return {
     questions: buildLocalQuestions(safeTopic, safeCount),
     source: "builtin",

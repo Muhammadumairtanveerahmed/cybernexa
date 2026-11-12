@@ -5,6 +5,7 @@ import helmet from "helmet";
 import morgan from "morgan";
 import apiRouter from "./routes/index.js";
 import { attachUser } from "./middleware/attachUser.js";
+import { metricsHandler, metricsMiddleware } from "./config/metrics.js";
 import { uploadRoot } from "./utils/upload.js";
 
 const app = express();
@@ -25,6 +26,7 @@ app.use(express.json({ limit: "2mb" }));
 app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 app.use(morgan("dev"));
+app.use(metricsMiddleware);
 app.use(attachUser);
 
 // Profile photos are public. Documents and chat attachments are served through
@@ -40,6 +42,9 @@ app.use(
 app.get("/api/health", (req, res) => {
   res.json({ ok: true, service: "TechNexa API", time: new Date().toISOString() });
 });
+
+// Prometheus scrapes this endpoint. Set METRICS_TOKEN to require a bearer token.
+app.get("/metrics", metricsHandler);
 
 app.use("/api", apiRouter);
 
