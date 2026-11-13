@@ -103,16 +103,17 @@ export default function QuizTakePage() {
   }, []);
 
   const enterFullscreen = () => {
-    if (document.fullscreenElement) return;
+    if (document.fullscreenElement) return Promise.resolve();
     const root = document.documentElement;
     const request =
       root.requestFullscreen || root.webkitRequestFullscreen || root.msRequestFullscreen;
+    let pending = null;
     if (request) {
       try {
-        const pending = request.call(root, { navigationUI: "hide" });
+        pending = request.call(root, { navigationUI: "hide" });
         if (pending?.catch) pending.catch(() => {});
       } catch {
-        /* fullscreen is optional; the quiz still works without it */
+        pending = null;
       }
     }
     try {
@@ -120,6 +121,7 @@ export default function QuizTakePage() {
     } catch {
       /* keyboard lock is only available in some browsers */
     }
+    return pending;
   };
 
   const returnToQuiz = () => {
@@ -128,7 +130,7 @@ export default function QuizTakePage() {
   };
 
   const start = async () => {
-    enterFullscreen();
+    const pendingFullscreen = enterFullscreen();
     setGuardActive(false);
     setGuardReason("");
     finishedRef.current = false;
@@ -171,8 +173,24 @@ export default function QuizTakePage() {
           )
         )
       );
+      if (pendingFullscreen?.then) {
+        pendingFullscreen.then(
+          () => setGuardActive(false),
+          () => {
+            setGuardReason(
+              "Fullscreen is required for this quiz. Tap the button below to enter fullscreen."
+            );
+            setGuardActive(true);
+          }
+        );
+      }
     } catch (err) {
       setError(err.message || "Could not start the quiz.");
+      if (document.fullscreenElement) {
+        document.exitFullscreen?.().catch(() => {
+          /* ignore browsers that block programmatic exit */
+        });
+      }
     } finally {
       setStarting(false);
     }
