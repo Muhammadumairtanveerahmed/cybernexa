@@ -1,8 +1,16 @@
 name: technexa-monitoring
 
 # All services use host networking so they can reach the k3s MySQL ClusterIP
-# and the nginx site on 127.0.0.1. Only Grafana (3001) listens publicly;
-# Prometheus and the exporters bind to 127.0.0.1.
+# and the k3s app through Traefik.
+#
+# Public access is served by Traefik (k3s) on port 80 through the
+# cybernexa-web / cybernexa-websecure IngressRoutes:
+#   Grafana    : http://54.161.79.42/grafana/
+#   Prometheus : http://54.161.79.42/prometheus/   (basic auth: admin)
+#
+# Ports 9090 / 9100 / 9104 / 9115 remain bound to localhost only.
+# Prometheus itself listens on 0.0.0.0:9090 so the Traefik pod can reach it
+# through the node IP; the AWS Security Group keeps 9090 closed publicly.
 
 services:
   node-exporter:
@@ -49,8 +57,10 @@ services:
       - "--config.file=/etc/prometheus/prometheus.yml"
       - "--storage.tsdb.path=/prometheus"
       - "--storage.tsdb.retention.time=15d"
-      - "--web.listen-address=127.0.0.1:9090"
+      - "--web.listen-address=0.0.0.0:9090"
       - "--web.enable-lifecycle"
+      - "--web.external-url=http://54.161.79.42/prometheus/"
+      - "--web.route-prefix=/prometheus/"
     volumes:
       - ./prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -63,6 +73,8 @@ services:
     environment:
       GF_SERVER_HTTP_ADDR: 0.0.0.0
       GF_SERVER_HTTP_PORT: 3001
+      GF_SERVER_ROOT_URL: http://54.161.79.42/grafana/
+      GF_SERVER_SERVE_FROM_SUB_PATH: "true"
       GF_SECURITY_ADMIN_USER: admin
       GF_SECURITY_ADMIN_PASSWORD: ${GF_ADMIN_PASSWORD}
       GF_USERS_ALLOW_SIGN_UP: "false"

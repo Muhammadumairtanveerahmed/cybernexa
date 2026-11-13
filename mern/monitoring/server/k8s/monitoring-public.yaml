@@ -1,0 +1,73 @@
+# Public access for TechNexa monitoring through k3s Traefik.
+#
+# Port 80/443 on the EC2 host are owned by Traefik (k3s svclb), not nginx.
+# These resources let Traefik forward:
+#   http://54.161.79.42/grafana/     -> Grafana   (127.0.0.1:3001)
+#   http://54.161.79.42/prometheus/  -> Prometheus (127.0.0.1:9090, basic auth)
+#
+# Usage:
+#   1) kubectl apply -f monitoring-public.yaml
+#   2) create the basic-auth secret (user: admin, password: TechNexa@2026):
+#        HASH=$(openssl passwd -apr1 'TechNexa@2026')
+#        kubectl create secret generic prometheus-auth -n default \
+#          --from-literal=users="admin:$HASH" --dry-run=client -o yaml | kubectl apply -f -
+#   3) add the two routes below to the existing cybernexa-web and
+#      cybernexa-websecure IngressRoutes (see docs/MONITORING-SERVER.md).
+#
+# Note: Grafana serves from the /grafana sub path and Prometheus from the
+# /prometheus sub path, configured in docker-compose.yml.
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: grafana-ext
+  namespace: default
+spec:
+  ports:
+    - name: http
+      port: 3001
+      targetPort: 3001
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: grafana-ext
+  namespace: default
+subsets:
+  - addresses:
+      - ip: 172.31.36.154
+    ports:
+      - name: http
+        port: 3001
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus-ext
+  namespace: default
+spec:
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: prometheus-ext
+  namespace: default
+subsets:
+  - addresses:
+      - ip: 172.31.36.154
+    ports:
+      - name: http
+        port: 9090
+---
+apiVersion: traefik.io/v1alpha1
+kind: Middleware
+metadata:
+  name: prometheus-auth
+  namespace: default
+spec:
+  basicAuth:
+    secret: prometheus-auth

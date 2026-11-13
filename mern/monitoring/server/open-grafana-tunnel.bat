@@ -11,10 +11,14 @@ if not exist "%KEY%" (
 )
 
 echo ============================================================
-echo   TechNexa Monitoring - SSH Tunnel
-echo   Grafana    : http://localhost:3001/d/technexa-server
-echo   Prometheus : http://localhost:9090/targets
+echo   TechNexa Monitoring - SSH Tunnel (fallback)
+echo   Grafana    : http://localhost:3001/grafana/
+echo   Prometheus : http://localhost:9090/prometheus/targets
 echo ============================================================
+echo.
+echo Public links (no tunnel needed):
+echo   http://54.161.79.42/grafana/
+echo   http://54.161.79.42/prometheus/   (user: admin)
 echo.
 echo Ye window khol rakhein. Band karne ke liye window close karein.
 echo.

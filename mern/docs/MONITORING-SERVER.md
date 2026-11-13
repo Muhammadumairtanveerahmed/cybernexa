@@ -12,46 +12,69 @@ Monitoring stack jo **production EC2 server** par chal rahi hai:
 
 | Container | Image | Listens on | Purpose |
 | --- | --- | --- | --- |
-| `technexa-prometheus` | prom/prometheus:v2.55.1 | `127.0.0.1:9090` | Scrapes and stores all metrics |
-| `technexa-grafana` | grafana/grafana:11.3.0 | `0.0.0.0:3001` | Dashboards (public) |
+| `technexa-prometheus` | prom/prometheus:v2.55.1 | `0.0.0.0:9090` (public only via Traefik) | Scrapes and stores all metrics |
+| `technexa-grafana` | grafana/grafana:11.3.0 | `0.0.0.0:3001` (public only via Traefik) | Dashboards |
 | `technexa-node-exporter` | prom/node-exporter:v1.8.2 | `127.0.0.1:9100` | CPU, RAM, disk, network, load |
 | `technexa-mysqld-exporter` | prom/mysqld-exporter:v0.14.0 | `127.0.0.1:9104` | MySQL connections, queries, buffer pool |
 | `technexa-blackbox-exporter` | prom/blackbox-exporter:v0.25.0 | `127.0.0.1:9115` | Website uptime + response time probes |
 
-Only Grafana (`3001`) is exposed outside the host. Prometheus and every
-exporter are bound to `127.0.0.1`, so they cannot be reached from the internet.
+Ports `80` / `443` on the EC2 host are owned by **Traefik (k3s)**, not nginx.
+Traefik forwards the two monitoring sub-paths to the local containers, so
+**no AWS Security Group change is needed**:
+
+| Public URL | Goes to | Protection |
+| --- | --- | --- |
+| `http://54.161.79.42/grafana/` | Grafana `127.0.0.1:3001` | Grafana login |
+| `http://54.161.79.42/prometheus/` | Prometheus `127.0.0.1:9090` | Basic auth (Traefik middleware) |
+
+Ports `9090`, `9100`, `9104`, `9115` are **not** reachable from the internet
+(the AWS Security Group keeps them closed). Prometheus listens on `0.0.0.0:9090`
+only so the Traefik pod can reach it through the node IP.
 
 ## 2. Access
 
-### Grafana (public)
+### Grafana (server-hosted, public)
 
 ```
-http://54.161.79.42:3001/d/technexa-server
+http://54.161.79.42/grafana/
+http://54.161.79.42/grafana/d/technexa-server
 ```
 
-Login: `admin` / password stored in `/opt/technexa-monitoring/.env`
-(`GF_ADMIN_PASSWORD`).
+Login: `admin` / `TechNexa@2026`
+(password is stored in `/opt/technexa-monitoring/.env` as `GF_ADMIN_PASSWORD`).
 
-**Port 3001 must be allowed in the AWS Security Group.**
-Add an inbound rule: `Type = Custom TCP`, `Port = 3001`, `Source = 0.0.0.0/0`
-(or your own IP for more security).
+No port, no Security Group rule and no SSH tunnel needed.
 
-### Prometheus (localhost only)
+### Prometheus (server-hosted, public with basic auth)
 
-Prometheus is intentionally not exposed. Use an SSH tunnel from your PC:
-
-```powershell
-ssh -i "$env:USERPROFILE\Downloads\cybernexa.pem" -N `
-  -L 9090:127.0.0.1:9090 ubuntu@54.161.79.42
+```
+http://54.161.79.42/prometheus/
+http://54.161.79.42/prometheus/targets
+http://54.161.79.42/prometheus/graph
 ```
 
-Then open `http://localhost:9090/targets`.
+Browser login dialog: user `admin`, password `TechNexa@2026`.
 
-### Both services through one tunnel
+### How the routes are wired
 
-`monitoring/server/open-grafana-tunnel.bat` opens both tunnels
-(`3001` and `9090`) in one window. Keep the window open and browse
-`http://localhost:3001/d/technexa-server`.
+The routes are added to the existing `cybernexa-web` and `cybernexa-websecure`
+IngressRoutes (higher priority than `PathPrefix(/)`). Supporting resources live
+in `monitoring/server/k8s/monitoring-public.yaml`:
+
+- `grafana-ext` / `prometheus-ext` — Service + Endpoints pointing at `172.31.36.154`
+- `prometheus-auth` — Traefik basic-auth middleware (secret `prometheus-auth`)
+
+Grafana runs with `GF_SERVER_SERVE_FROM_SUB_PATH=true` and
+`GF_SERVER_ROOT_URL=http://54.161.79.42/grafana/`; Prometheus runs with
+`--web.external-url=http://54.161.79.42/prometheus/ --web.route-prefix=/prometheus/`.
+
+### SSH tunnel (fallback)
+
+If Traefik is ever unavailable, `monitoring/server/open-grafana-tunnel.bat`
+opens local tunnels for both services (`3001` and `9090`). Keep the window open
+and browse `http://localhost:3001/d/technexa-server` and
+`http://localhost:9090/prometheus/targets`.
+
 
 ## 3. What is monitored
 
