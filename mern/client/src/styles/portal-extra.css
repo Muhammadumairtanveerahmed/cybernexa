@@ -53,6 +53,21 @@
 @media(max-width:700px){.quiz-grid{grid-template-columns:1fr}}
 .quiz-violation{display:flex;gap:10px;align-items:flex-start;margin-top:12px;padding:11px 14px;border:1px solid rgba(239,68,68,.4);border-radius:10px;background:rgba(239,68,68,.1);color:#fca5a5;font-size:.84rem;line-height:1.5}
 .quiz-violation i{margin-top:3px;color:#ef4444}
+/* Fullscreen focus lock: hides the quiz and blocks the screen when the student leaves. */
+body.quiz-locked{user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
+.quiz-focus-badge{display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border-radius:999px;border:1px solid rgba(59,130,246,.4);background:rgba(59,130,246,.12);color:var(--acc);font-size:.74rem;font-weight:600;white-space:nowrap}
+.quiz-guard{position:fixed;inset:0;z-index:9999;display:flex;align-items:center;justify-content:center;padding:24px;background:rgba(4,8,20,.93);backdrop-filter:blur(6px)}
+.quiz-guard-box{width:100%;max-width:440px;text-align:center;background:var(--bg2);border:1px solid rgba(239,68,68,.35);border-radius:16px;padding:28px 24px;box-shadow:0 24px 60px rgba(0,0,0,.55)}
+.quiz-guard-icon{width:58px;height:58px;margin:0 auto 14px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:rgba(239,68,68,.14);color:#ef4444;font-size:1.5rem}
+.quiz-guard-box h2{font-size:1.25rem;margin-bottom:8px}
+.quiz-guard-box p{color:var(--mut);font-size:.86rem;line-height:1.6;margin-top:6px}
+.quiz-guard-timer{margin:14px auto;font-family:"Sora",sans-serif;font-size:1.5rem;font-weight:700;color:var(--acc)}
+.quiz-guard-box .quiz-guard-count{color:#fca5a5;font-size:.8rem}
+.quiz-guard-box .btn{margin-top:16px;width:100%;justify-content:center}
+.quiz-guard-box .quiz-guard-note{margin-top:12px;font-size:.72rem;opacity:.75}
+html[data-theme="light"] .quiz-guard{background:rgba(240,244,255,.95)}
+html[data-theme="light"] .quiz-guard-box{background:#fff;box-shadow:0 24px 60px rgba(15,23,42,.18)}
+html[data-theme="light"] .quiz-guard-box .quiz-guard-count{color:#b91c1c}
 .chat-layout{display:grid;grid-template-columns:280px 1fr;gap:14px;min-height:520px;height:calc(100vh - 215px)}
 .chat-side,.chat-main{background:var(--bg2);border:1px solid var(--line);border-radius:10px;display:flex;flex-direction:column;min-height:0}
 .chat-main{position:relative}
