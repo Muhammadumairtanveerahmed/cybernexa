@@ -2,21 +2,25 @@ FROM node:20-alpine AS build
 
 WORKDIR /app
 
-COPY client/package*.json ./
-RUN npm install
+# Install from the workspace lockfile so CI gets the same dependency versions
+# that are built and tested locally (deterministic, reproducible images).
+COPY package.json package-lock.json ./
+COPY client/package.json ./client/package.json
+RUN npm ci --workspace=client
 
-COPY client/ ./
+COPY client/ ./client/
 
 ARG VITE_API_URL=/api
 ARG VITE_SOCKET_URL=/
 ENV VITE_API_URL=$VITE_API_URL
 ENV VITE_SOCKET_URL=$VITE_SOCKET_URL
 
+WORKDIR /app/client
 RUN npm run build
 
 FROM nginx:alpine
 
-COPY --from=build /app/dist /usr/share/nginx/html
+COPY --from=build /app/client/dist /usr/share/nginx/html
 COPY deploy/nginx/default.conf /etc/nginx/conf.d/default.conf
 
 EXPOSE 80
