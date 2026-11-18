@@ -65,7 +65,7 @@ pipeline {
           set -e
           sudo docker save "$SERVER_REPO:$TAG" | sudo k3s ctr images import -
           sudo docker save "$CLIENT_REPO:$TAG" | sudo k3s ctr images import -
-          sudo k3s ctr images ls | grep -E "^$SERVER_REPO:$TAG|^$CLIENT_REPO:$TAG"
+          sudo k3s ctr images ls | grep -E "${SERVER_REPO}:${TAG}|${CLIENT_REPO}:${TAG}"
         '''
       }
     }
