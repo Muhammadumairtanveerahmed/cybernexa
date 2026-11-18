@@ -88,7 +88,7 @@ pipeline {
           sudo k3s kubectl exec deploy/mysql -- sh -lc \
             'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS technexa CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"'
           sudo k3s kubectl exec deploy/mysql -- sh -lc \
-            'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "GRANT ALL PRIVILEGES ON technexa.* TO '\''cybernexa'\''@'\''%'\''; FLUSH PRIVILEGES;"'
+            'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "GRANT ALL PRIVILEGES ON technexa.* TO '"'"'cybernexa'"'"'@'"'"'%'"'"'; FLUSH PRIVILEGES;"'
           echo "Database technexa ready"
         '''
       }
