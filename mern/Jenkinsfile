@@ -54,7 +54,7 @@ pipeline {
           sudo docker build \
             -f mern/deploy/docker/Dockerfile.client \
             -t "$CLIENT_REPO:$TAG" mern
-          sudo docker image ls "$SERVER_REPO:$TAG" "$CLIENT_REPO:$TAG"
+          sudo docker image ls --format '{{.Repository}}:{{.Tag}}' | grep -E "^${SERVER_REPO}:${TAG}$|^${CLIENT_REPO}:${TAG}$"
         '''
       }
     }
