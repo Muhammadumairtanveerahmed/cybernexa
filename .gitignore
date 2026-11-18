@@ -8,3 +8,7 @@ uploads/
 *.log
 .DS_Store
 Thumbs.db
+
+# Local handover bundle (contains credentials - never publish)
+handover/
+cybernexa-handover.zip

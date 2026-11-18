@@ -1,31 +1,35 @@
+import { lazy } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "../context/AuthContext.jsx";
 import PortalLayout from "../features/portal/components/PortalLayout.jsx";
-import DashboardPage from "../features/portal/pages/DashboardPage.jsx";
-import ProfilePage from "../features/portal/pages/ProfilePage.jsx";
-import EnrollmentsPage from "../features/portal/pages/EnrollmentsPage.jsx";
-import FeesPage from "../features/portal/pages/FeesPage.jsx";
-import DocumentsPage from "../features/portal/pages/DocumentsPage.jsx";
-import NoticesPage from "../features/portal/pages/NoticesPage.jsx";
-import AssignmentsPage from "../features/portal/pages/AssignmentsPage.jsx";
-import MarksPage from "../features/portal/pages/MarksPage.jsx";
-import AttendancePage from "../features/portal/pages/AttendancePage.jsx";
-import TimetablePage from "../features/portal/pages/TimetablePage.jsx";
-import MaterialsPage from "../features/portal/pages/MaterialsPage.jsx";
-import AnnouncementsPage from "../features/portal/pages/AnnouncementsPage.jsx";
-import QuizzesPage from "../features/portal/pages/QuizzesPage.jsx";
-import QuizTakePage from "../features/portal/pages/QuizTakePage.jsx";
-import MessagesPage from "../features/portal/pages/MessagesPage.jsx";
-import CoursesPortalPage from "../features/portal/pages/CoursesPortalPage.jsx";
-import StudentsPage from "../features/portal/pages/StudentsPage.jsx";
-import TeachersPage from "../features/portal/pages/TeachersPage.jsx";
-import QuestionBankPage from "../features/portal/pages/QuestionBankPage.jsx";
-import LogsPage from "../features/portal/pages/LogsPage.jsx";
-import CallsPage from "../features/portal/pages/CallsPage.jsx";
-import QuizViolationsPage from "../features/portal/pages/QuizViolationsPage.jsx";
-import ResetsPage from "../features/portal/pages/ResetsPage.jsx";
-import ContactMessagesPage from "../features/portal/pages/ContactMessagesPage.jsx";
-import SubscribersPage from "../features/portal/pages/SubscribersPage.jsx";
+
+// Each portal screen is its own chunk: the dashboard does not pay for the
+// quiz, chat or admin screens unless the user opens them.
+const DashboardPage = lazy(() => import("../features/portal/pages/DashboardPage.jsx"));
+const ProfilePage = lazy(() => import("../features/portal/pages/ProfilePage.jsx"));
+const EnrollmentsPage = lazy(() => import("../features/portal/pages/EnrollmentsPage.jsx"));
+const FeesPage = lazy(() => import("../features/portal/pages/FeesPage.jsx"));
+const DocumentsPage = lazy(() => import("../features/portal/pages/DocumentsPage.jsx"));
+const NoticesPage = lazy(() => import("../features/portal/pages/NoticesPage.jsx"));
+const AssignmentsPage = lazy(() => import("../features/portal/pages/AssignmentsPage.jsx"));
+const MarksPage = lazy(() => import("../features/portal/pages/MarksPage.jsx"));
+const AttendancePage = lazy(() => import("../features/portal/pages/AttendancePage.jsx"));
+const TimetablePage = lazy(() => import("../features/portal/pages/TimetablePage.jsx"));
+const MaterialsPage = lazy(() => import("../features/portal/pages/MaterialsPage.jsx"));
+const AnnouncementsPage = lazy(() => import("../features/portal/pages/AnnouncementsPage.jsx"));
+const QuizzesPage = lazy(() => import("../features/portal/pages/QuizzesPage.jsx"));
+const QuizTakePage = lazy(() => import("../features/portal/pages/QuizTakePage.jsx"));
+const MessagesPage = lazy(() => import("../features/portal/pages/MessagesPage.jsx"));
+const CoursesPortalPage = lazy(() => import("../features/portal/pages/CoursesPortalPage.jsx"));
+const StudentsPage = lazy(() => import("../features/portal/pages/StudentsPage.jsx"));
+const TeachersPage = lazy(() => import("../features/portal/pages/TeachersPage.jsx"));
+const QuestionBankPage = lazy(() => import("../features/portal/pages/QuestionBankPage.jsx"));
+const LogsPage = lazy(() => import("../features/portal/pages/LogsPage.jsx"));
+const CallsPage = lazy(() => import("../features/portal/pages/CallsPage.jsx"));
+const QuizViolationsPage = lazy(() => import("../features/portal/pages/QuizViolationsPage.jsx"));
+const ResetsPage = lazy(() => import("../features/portal/pages/ResetsPage.jsx"));
+const ContactMessagesPage = lazy(() => import("../features/portal/pages/ContactMessagesPage.jsx"));
+const SubscribersPage = lazy(() => import("../features/portal/pages/SubscribersPage.jsx"));
 
 function RoleGuard({ roles, children }) {
   const { user } = useAuth();

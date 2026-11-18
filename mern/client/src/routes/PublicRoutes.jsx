@@ -1,12 +1,14 @@
+import { lazy } from "react";
 import { Route, Routes } from "react-router-dom";
 import PublicLayout from "../features/public-site/components/PublicLayout.jsx";
-import HomePage from "../features/public-site/pages/HomePage.jsx";
-import AboutPage from "../features/public-site/pages/AboutPage.jsx";
-import CoursesPage from "../features/public-site/pages/CoursesPage.jsx";
-import IndustriesPage from "../features/public-site/pages/IndustriesPage.jsx";
-import LegalPage from "../features/public-site/pages/LegalPage.jsx";
-import ServicePage from "../features/public-site/pages/ServicePage.jsx";
-import NotFoundPage from "../features/public-site/pages/NotFoundPage.jsx";
+
+const HomePage = lazy(() => import("../features/public-site/pages/HomePage.jsx"));
+const AboutPage = lazy(() => import("../features/public-site/pages/AboutPage.jsx"));
+const CoursesPage = lazy(() => import("../features/public-site/pages/CoursesPage.jsx"));
+const IndustriesPage = lazy(() => import("../features/public-site/pages/IndustriesPage.jsx"));
+const LegalPage = lazy(() => import("../features/public-site/pages/LegalPage.jsx"));
+const ServicePage = lazy(() => import("../features/public-site/pages/ServicePage.jsx"));
+const NotFoundPage = lazy(() => import("../features/public-site/pages/NotFoundPage.jsx"));
 
 export default function PublicRoutes() {
   return (

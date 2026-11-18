@@ -1,4 +1,7 @@
+import { useAuth } from "../../../context/AuthContext.jsx";
+
 export default function CourseCard({ course, onEnroll }) {
+  const { user } = useAuth();
   const meta = (course.meta || "").split("|").map((item) => item.trim()).filter(Boolean);
 
   return (
@@ -18,7 +21,7 @@ export default function CourseCard({ course, onEnroll }) {
           onClick={() => onEnroll(course)}
           data-course-title={course.title}
         >
-          Enroll Now
+          {user ? "Enroll Now" : "Login to Enroll"}
         </button>
       </div>
     </article>

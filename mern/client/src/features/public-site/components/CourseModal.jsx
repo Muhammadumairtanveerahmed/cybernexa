@@ -82,6 +82,11 @@ export default function CourseModal({ course, open, onClose }) {
   const submit = async (event) => {
     event.preventDefault();
     setStatus("");
+    // Defense in depth: never submit an enrollment without an authenticated user.
+    if (!user) {
+      setStatus("Please register or log in first to enroll in this course.");
+      return;
+    }
     if (!validate()) {
       setStatus("Please fix the highlighted fields.");
       return;
@@ -103,6 +108,10 @@ export default function CourseModal({ course, open, onClose }) {
       const response = await api.post("/enroll", data);
       setSuccess(response.data?.msg || "Your enrollment request has been received.");
     } catch (error) {
+      if (error.status === 401 || error.response?.status === 401) {
+        setStatus("Your session expired. Please log in again to enroll.");
+        return;
+      }
       const serverErrors = error.response?.data?.errors;
       if (serverErrors) setErrors(serverErrors);
       setStatus(error.response?.data?.msg || error.message || "Could not submit the form.");
@@ -148,25 +157,25 @@ export default function CourseModal({ course, open, onClose }) {
             <div className="enroll-auth-icon">
               <i className="fa-solid fa-lock" aria-hidden="true" />
             </div>
-            <h3>Sign in to enroll</h3>
+            <h3>Please register or log in first</h3>
             <p>
-              Create a free student account or sign in before submitting your enrollment. This keeps
-              your personal information and documents secure.
+              You need to register or log in before enrolling in this course. This keeps your
+              personal information and documents secure.
             </p>
             <div className="enroll-auth-actions">
               <Link className="btn btn-primary" to={`/login?next=${encodeURIComponent(nextPath)}`}>
-                Sign in
+                Log in
               </Link>
               <Link
                 className="btn btn-ghost"
                 to={`/register/student?next=${encodeURIComponent(nextPath)}`}
               >
-                Create account
+                Register
               </Link>
             </div>
             <p className="enroll-auth-note">
-              <i className="fa-solid fa-shield-halved" aria-hidden="true" /> Document upload is only
-              available after login.
+              <i className="fa-solid fa-shield-halved" aria-hidden="true" /> Enrollment and document
+              upload are only available after you log in.
             </p>
           </div>
         ) : success ? (

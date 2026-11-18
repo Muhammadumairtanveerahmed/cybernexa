@@ -14,6 +14,7 @@ export default function LoginPage() {
   const nextParam = params.get("next") || "";
   const next = nextParam || "/portal/dashboard";
   const authLink = (path) => (nextParam ? `${path}?next=${encodeURIComponent(nextParam)}` : path);
+  const mustLogin = Boolean(nextParam);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -37,6 +38,11 @@ export default function LoginPage() {
         Access your student, teacher or admin portal.
       </p>
 
+      {mustLogin ? (
+        <p className="badge b-pending" style={{ display: "block", marginBottom: 14 }}>
+          Please register or log in first to continue.
+        </p>
+      ) : null}
       {params.get("reset") ? (
         <p className="badge b-approved" style={{ display: "block", marginBottom: 14 }}>
           Password updated. Sign in with your new password.

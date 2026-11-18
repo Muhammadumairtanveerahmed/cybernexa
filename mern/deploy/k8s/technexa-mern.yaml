@@ -1,0 +1,218 @@
+# ===========================================================================
+#  TechNexa MERN stack (React client + Express API) on k3s.
+#
+#  Rendered by the Jenkins pipeline with envsubst. Placeholders:
+#    ${IMAGE_SERVER}  e.g. technexa-mern-server:b42-1a2b3c4
+#    ${IMAGE_CLIENT}  e.g. technexa-mern-client:b42-1a2b3c4
+#    ${PUBLIC_HOST}   e.g. mern.54.161.79.42.nip.io
+#
+#  The API Service is deliberately named "server" because the bundled nginx
+#  config (mern/deploy/nginx/default.conf) proxies /api and /socket.io to
+#  http://server:5000, the same name docker-compose uses locally.
+#
+#  The JWT signing key lives in the "technexa-mern-env" Secret, which the
+#  pipeline creates once and never rewrites. Nothing secret is stored here.
+# ===========================================================================
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: technexa-uploads
+  namespace: default
+  labels:
+    app.kubernetes.io/part-of: technexa-mern
+spec:
+  accessModes:
+    - ReadWriteOnce
+  storageClassName: local-path
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: technexa-server
+  namespace: default
+  labels:
+    app: technexa-server
+    app.kubernetes.io/part-of: technexa-mern
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: technexa-server
+  template:
+    metadata:
+      labels:
+        app: technexa-server
+        app.kubernetes.io/part-of: technexa-mern
+    spec:
+      containers:
+        - name: server
+          image: ${IMAGE_SERVER}
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 5000
+          env:
+            - name: NODE_ENV
+              value: production
+            - name: PORT
+              value: "5000"
+            - name: CLIENT_URL
+              value: http://${PUBLIC_HOST}
+            - name: PUBLIC_ORIGIN
+              value: http://${PUBLIC_HOST}
+            # Deployment is served over plain HTTP, so the auth cookie must not
+            # be marked Secure or the browser will drop it.
+            - name: COOKIE_SECURE
+              value: "false"
+            - name: DB_HOST
+              value: mysql
+            - name: DB_PORT
+              value: "3306"
+            - name: DB_NAME
+              value: technexa
+            - name: DB_USER
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_USER
+            - name: DB_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: mysql-secret
+                  key: MYSQL_PASSWORD
+            - name: JWT_SECRET
+              valueFrom:
+                secretKeyRef:
+                  name: technexa-mern-env
+                  key: JWT_SECRET
+            - name: JWT_EXPIRES_IN
+              value: 5m
+          volumeMounts:
+            - name: uploads
+              mountPath: /app/uploads
+          readinessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 12
+          livenessProbe:
+            httpGet:
+              path: /api/health
+              port: 5000
+            initialDelaySeconds: 30
+            periodSeconds: 20
+          resources:
+            requests:
+              cpu: 50m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: technexa-uploads
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: server
+  namespace: default
+  labels:
+    app: technexa-server
+    app.kubernetes.io/part-of: technexa-mern
+spec:
+  selector:
+    app: technexa-server
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: technexa-client
+  namespace: default
+  labels:
+    app: technexa-client
+    app.kubernetes.io/part-of: technexa-mern
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: technexa-client
+  template:
+    metadata:
+      labels:
+        app: technexa-client
+        app.kubernetes.io/part-of: technexa-mern
+    spec:
+      containers:
+        - name: client
+          image: ${IMAGE_CLIENT}
+          imagePullPolicy: Never
+          ports:
+            - name: http
+              containerPort: 80
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 3
+            periodSeconds: 10
+          livenessProbe:
+            httpGet:
+              path: /
+              port: 80
+            initialDelaySeconds: 15
+            periodSeconds: 30
+          resources:
+            requests:
+              cpu: 20m
+              memory: 32Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: technexa-client
+  namespace: default
+  labels:
+    app: technexa-client
+    app.kubernetes.io/part-of: technexa-mern
+spec:
+  selector:
+    app: technexa-client
+  ports:
+    - name: http
+      port: 80
+      targetPort: 80
+---
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: technexa-mern
+  namespace: default
+  labels:
+    app.kubernetes.io/part-of: technexa-mern
+spec:
+  entryPoints:
+    - web
+  routes:
+    - kind: Rule
+      match: Host(`${PUBLIC_HOST}`)
+      services:
+        - name: technexa-client
+          port: 80

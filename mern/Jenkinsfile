@@ -1,0 +1,162 @@
+// ===========================================================================
+//  TechNexa MERN - build & deploy pipeline
+//
+//  Builds the React client and the Express API images from mern/, imports
+//  them into the k3s containerd store, applies mern/deploy/k8s/technexa-mern
+//  and waits until the rollout is healthy before smoke-testing the public URL.
+//
+//  The legacy static site keeps its own job (root Jenkinsfile) and its own
+//  image "cybernexa". Nothing in this pipeline touches that deployment.
+// ===========================================================================
+pipeline {
+  agent any
+
+  options {
+    timestamps()
+    disableConcurrentBuilds()
+    buildDiscarder(logRotator(numToKeepStr: '10', artifactNumToKeepStr: '5'))
+    skipDefaultCheckout(true)
+    timeout(time: 40, unit: 'MINUTES')
+  }
+
+  triggers {
+    pollSCM('H/3 * * * *')
+  }
+
+  environment {
+    PUBLIC_HOST = 'mern.54.161.79.42.nip.io'
+    SERVER_REPO = 'technexa-mern-server'
+    CLIENT_REPO = 'technexa-mern-client'
+    SERVER_DEPLOY = 'technexa-server'
+    CLIENT_DEPLOY = 'technexa-client'
+  }
+
+  stages {
+    stage('Checkout') {
+      steps {
+        checkout scm
+        sh 'git log --oneline -1'
+      }
+    }
+
+    stage('Build images') {
+      steps {
+        script {
+          def revision = sh(returnStdout: true, script: 'git rev-parse --short HEAD').trim()
+          env.TAG = "b${env.BUILD_NUMBER}-${revision}"
+          echo "Image tag: ${env.TAG}"
+        }
+        sh '''
+          set -e
+          sudo docker build \
+            -f mern/deploy/docker/Dockerfile.server \
+            -t "$SERVER_REPO:$TAG" mern
+          sudo docker build \
+            -f mern/deploy/docker/Dockerfile.client \
+            -t "$CLIENT_REPO:$TAG" mern
+          sudo docker image ls "$SERVER_REPO:$TAG" "$CLIENT_REPO:$TAG"
+        '''
+      }
+    }
+
+    stage('Import images into k3s') {
+      steps {
+        sh '''
+          set -e
+          sudo docker save "$SERVER_REPO:$TAG" | sudo k3s ctr images import -
+          sudo docker save "$CLIENT_REPO:$TAG" | sudo k3s ctr images import -
+          sudo k3s ctr images ls | grep -E "^$SERVER_REPO:$TAG|^$CLIENT_REPO:$TAG"
+        '''
+      }
+    }
+
+    stage('Ensure secret and database') {
+      steps {
+        sh '''
+          set -e
+          # JWT signing key: generated once, never overwritten by later builds.
+          if ! sudo k3s kubectl get secret technexa-mern-env >/dev/null 2>&1; then
+            JWT=$(openssl rand -hex 48)
+            sudo k3s kubectl create secret generic technexa-mern-env \
+              --from-literal=JWT_SECRET="$JWT"
+            echo "Created technexa-mern-env secret"
+          else
+            echo "technexa-mern-env already present"
+          fi
+
+          # The MERN schema lives in its own database on the shared MySQL pod.
+          sudo k3s kubectl exec deploy/mysql -- sh -lc \
+            'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -e "CREATE DATABASE IF NOT EXISTS technexa CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;"'
+          echo "Database technexa ready"
+        '''
+      }
+    }
+
+    stage('Deploy to k3s') {
+      steps {
+        sh '''
+          set -e
+          cd mern/deploy/k8s
+          export IMAGE_SERVER="$SERVER_REPO:$TAG"
+          export IMAGE_CLIENT="$CLIENT_REPO:$TAG"
+          envsubst '$IMAGE_SERVER $IMAGE_CLIENT $PUBLIC_HOST' \
+            < technexa-mern.yaml | sudo k3s kubectl apply -f -
+          sudo k3s kubectl rollout status "deployment/$SERVER_DEPLOY" --timeout=300s
+          sudo k3s kubectl rollout status "deployment/$CLIENT_DEPLOY" --timeout=180s
+        '''
+      }
+    }
+
+    stage('Migrate and seed') {
+      steps {
+        sh '''
+          set -e
+          sudo k3s kubectl exec "deploy/$SERVER_DEPLOY" -- node database/migrate.js
+
+          USERS=$(sudo k3s kubectl exec deploy/mysql -- sh -lc \
+            'mysql -uroot -p"$MYSQL_ROOT_PASSWORD" -N -B -e "SELECT COUNT(*) FROM technexa.users;"' \
+            2>/dev/null | tr -d '[:space:]' || true)
+          if [ "$USERS" = "0" ] || [ -z "$USERS" ]; then
+            echo "Empty database - running demo seed"
+            sudo k3s kubectl exec "deploy/$SERVER_DEPLOY" -- node database/seed.js
+          else
+            echo "Users already present ($USERS) - skipping seed"
+          fi
+        '''
+      }
+    }
+
+    stage('Smoke test') {
+      steps {
+        sh '''
+          set -e
+          for attempt in $(seq 1 20); do
+            if curl -fsS -H "Host: $PUBLIC_HOST" http://127.0.0.1/api/health >/dev/null 2>&1; then
+              break
+            fi
+            sleep 3
+          done
+          echo "--- API health ---"
+          curl -fsS -H "Host: $PUBLIC_HOST" http://127.0.0.1/api/health
+          echo ""
+          echo "--- SPA index status ---"
+          curl -sS -o /dev/null -w "%{http_code}\\n" -H "Host: $PUBLIC_HOST" http://127.0.0.1/
+          echo "--- public URL ---"
+          echo "http://$PUBLIC_HOST/"
+        '''
+      }
+    }
+  }
+
+  post {
+    success {
+      echo "TechNexa MERN ${env.TAG} deployed to http://${env.PUBLIC_HOST}/"
+    }
+    failure {
+      sh '''
+        sudo k3s kubectl get pods -l app.kubernetes.io/part-of=technexa-mern -o wide || true
+        sudo k3s kubectl get events --sort-by=.lastTimestamp | tail -20 || true
+      '''
+    }
+  }
+}

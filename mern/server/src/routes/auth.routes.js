@@ -12,7 +12,8 @@ import {
   isValidPKPhone,
   passwordIssue
 } from "../utils/validation.js";
-import { makeUpload, fileUrl } from "../utils/upload.js";
+import { makeUpload, fileUrl, verifyMagic, dropFile } from "../utils/upload.js";
+import { authRateLimiter } from "../middleware/rateLimit.middleware.js";
 import {
   AUTH_COOKIE,
   clearAuthCookie,
@@ -45,6 +46,7 @@ const cvUpload = makeUpload("documents", [".pdf", ".jpg", ".jpeg", ".png"], 1);f
 
 router.post(
   "/register/student",
+  authRateLimiter,
   asyncHandler(async (req, res) => {
     const fullName = clean(req.body.full_name, 120);
     const email = clean(req.body.email, 190).toLowerCase();
@@ -85,6 +87,7 @@ router.post(
 
 router.post(
   "/register/teacher",
+  authRateLimiter,
   cvUpload.single("cv"),
   asyncHandler(async (req, res) => {
     const fullName = clean(req.body.full_name, 120);
@@ -108,6 +111,13 @@ router.post(
     const [existing] = await pool.query("SELECT id FROM users WHERE email = ? LIMIT 1", [email]);
     if (existing[0]) throw new ApiError(409, "An account with this email already exists");
 
+    if (req.file) {
+      const check = verifyMagic(req.file);
+      if (!check.ok) {
+        dropFile(req.file);
+        throw new ApiError(415, `CV rejected: ${check.reason}`);
+      }
+    }
     const id = newId("usr");
     const hash = await bcrypt.hash(password, 12);
     const at = nowSql();
@@ -134,6 +144,7 @@ router.post(
 
 router.post(
   "/login",
+  authRateLimiter,
   asyncHandler(async (req, res) => {
     const email = clean(req.body.email, 190).toLowerCase();
     const password = String(req.body.password || "");
@@ -196,6 +207,7 @@ router.get("/me", (req, res) => {
 
 router.post(
   "/forgot-password",
+  authRateLimiter,
   asyncHandler(async (req, res) => {
     const email = clean(req.body.email, 190).toLowerCase();
     if (!isValidEmail(email)) throw new ApiError(422, "Please enter a valid email address");
@@ -209,12 +221,13 @@ router.post(
     let resetUrl = "";
     if (user) {
       const token = crypto.randomBytes(24).toString("hex");
+      const tokenHash = crypto.createHash("sha256").update(token).digest("hex");
       const at = new Date();
       const expires = new Date(at.getTime() + 60 * 60 * 1000);
       await pool.query(
         `INSERT INTO password_resets (id, token, user_id, requested_at, expires_at, used)
          VALUES (?, ?, ?, ?, ?, 0)`,
-        [newId("pr"), token, user.id, nowSql(), expires.toISOString().slice(0, 19).replace("T", " ")]
+        [newId("pr"), tokenHash, user.id, nowSql(), expires.toISOString().slice(0, 19).replace("T", " ")]
       );
 
       const base = process.env.CLIENT_URL || "http://localhost:5173";
@@ -237,6 +250,7 @@ router.post(
 
 router.post(
   "/reset-password",
+  authRateLimiter,
   asyncHandler(async (req, res) => {
     const token = clean(req.body.token, 80);
     const password = String(req.body.password || "");
@@ -250,7 +264,7 @@ router.post(
     const [rows] = await pool.query(
       `SELECT * FROM password_resets
        WHERE token = ? AND used = 0 AND expires_at > NOW() LIMIT 1`,
-      [token]
+      [crypto.createHash("sha256").update(String(token)).digest("hex")]
     );
     const reset = rows[0];
     if (!reset) throw new ApiError(400, "This reset link is invalid or has expired");

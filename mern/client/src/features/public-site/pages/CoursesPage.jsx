@@ -5,24 +5,28 @@ import CourseCard from "../components/CourseCard.jsx";
 import CourseModal from "../components/CourseModal.jsx";
 import CtaBand from "../components/CtaBand.jsx";
 import { allCourses, categoryMeta } from "../data/siteData.js";
+import { useAuth } from "../../../context/AuthContext.jsx";
 
 function slugify(value) {
   return value.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 }
 
 export default function CoursesPage() {
+  const { loading } = useAuth();
   const [selectedCourse, setSelectedCourse] = useState(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const enrollId = searchParams.get("enroll");
 
   useEffect(() => {
-    if (!enrollId) return;
+    if (!enrollId || loading) return;
     const match = allCourses.find((course) => course.id === enrollId);
-    if (match) setSelectedCourse(match);
+    if (match) {
+      setSelectedCourse(match);
+    }
     const next = new URLSearchParams(window.location.search);
     next.delete("enroll");
     setSearchParams(next, { replace: true });
-  }, [enrollId, setSearchParams]);
+  }, [enrollId, setSearchParams, loading]);
 
   const groups = useMemo(() => {
     const map = new Map();
@@ -90,7 +94,9 @@ export default function CoursesPage() {
                   <CourseCard
                     key={course.id}
                     course={course}
-                    onEnroll={setSelectedCourse}
+                    onEnroll={(courseToEnroll) => {
+                      setSelectedCourse(courseToEnroll);
+                    }}
                   />
                 ))}
               </div>

@@ -5,3 +5,7 @@ deploy
 *.bat
 uploads
 data/messages.json
+
+# The modern React/Express app is built and deployed by its own pipeline
+mern
+handover

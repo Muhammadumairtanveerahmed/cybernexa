@@ -7,8 +7,8 @@
 #
 # Usage:
 #   1) kubectl apply -f monitoring-public.yaml
-#   2) create the basic-auth secret (user: admin, password: TechNexa@2026):
-#        HASH=$(openssl passwd -apr1 'TechNexa@2026')
+#   2) create the basic-auth secret (user: admin, password: <GRAFANA_PASSWORD>):
+#        HASH=$(openssl passwd -apr1 '<GRAFANA_PASSWORD>')
 #        kubectl create secret generic prometheus-auth -n default \
 #          --from-literal=users="admin:$HASH" --dry-run=client -o yaml | kubectl apply -f -
 #   3) add the two routes below to the existing cybernexa-web and

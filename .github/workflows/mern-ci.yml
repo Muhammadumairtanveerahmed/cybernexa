@@ -1,0 +1,55 @@
+name: MERN CI
+
+# GitHub Actions only discovers workflows in the repository-root
+# .github/workflows directory, so this workflow wraps the monorepo app that
+# lives in mern/ by setting working-directory on every step.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mern/**"
+      - ".github/workflows/mern-ci.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - "mern/**"
+      - ".github/workflows/mern-ci.yml"
+
+defaults:
+  run:
+    working-directory: mern
+
+jobs:
+  build:
+    name: Build and test TechNexa MERN app
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: mern/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build React client
+        run: npm run build -w client
+
+      - name: Security regression tests
+        run: npm test -w server
+
+      - name: Check server syntax
+        run: node --check server/src/server.js
+
+      - name: Check app syntax
+        run: node --check server/src/app.js
+
+      - name: Check migration runner syntax
+        run: node --check server/database/migrate.js

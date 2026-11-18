@@ -40,7 +40,7 @@ http://54.161.79.42/grafana/
 http://54.161.79.42/grafana/d/technexa-server
 ```
 
-Login: `admin` / `TechNexa@2026`
+Login: `admin` / `<GRAFANA_PASSWORD>`
 (password is stored in `/opt/technexa-monitoring/.env` as `GF_ADMIN_PASSWORD`).
 
 No port, no Security Group rule and no SSH tunnel needed.
@@ -53,7 +53,7 @@ http://54.161.79.42/prometheus/targets
 http://54.161.79.42/prometheus/graph
 ```
 
-Browser login dialog: user `admin`, password `TechNexa@2026`.
+Browser login dialog: user `admin`, password `<GRAFANA_PASSWORD>`.
 
 ### How the routes are wired
 

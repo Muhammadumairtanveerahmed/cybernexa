@@ -2,21 +2,42 @@ import jwt from "jsonwebtoken";
 import { pool } from "../config/db.js";
 import { publicPhoto } from "../utils/upload.js";
 
+// In production we require a strong, explicitly configured secret so tokens
+// can never be forged. In development a clearly-labelled default is fine.
+const RAW_SECRET = process.env.JWT_SECRET;
+if (
+  process.env.NODE_ENV === "production" &&
+  (!RAW_SECRET || RAW_SECRET.length < 32 || /replace|change|example|secret$/i.test(RAW_SECRET))
+) {
+  throw new Error(
+    "FATAL: JWT_SECRET must be set to a strong random string (32+ chars) in production."
+  );
+}
+export const JWT_SECRET = RAW_SECRET || "technexa-development-secret";
+
 export const AUTH_COOKIE = "technexa_token";
 
 export function signToken(user, expiresIn = "5m") {
   return jwt.sign(
     { sub: user.id, role: user.role, email: user.email },
-    process.env.JWT_SECRET || "technexa-development-secret",
+    JWT_SECRET,
     { expiresIn }
   );
 }
 
 export function setAuthCookie(res, token, rememberMinutes = 5) {
+  // COOKIE_SECURE overrides the NODE_ENV default so the app can be hosted over
+  // plain HTTP (e.g. an internal/plain-HTTP ingress) while still running with
+  // NODE_ENV=production. Leave it unset in normal HTTPS deployments.
+  const secureCookie =
+    process.env.COOKIE_SECURE === undefined
+      ? process.env.NODE_ENV === "production"
+      : process.env.COOKIE_SECURE === "true";
+
   res.cookie(AUTH_COOKIE, token, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production",
+    secure: secureCookie,
     maxAge: rememberMinutes * 60 * 1000,
     path: "/"
   });
@@ -50,10 +71,7 @@ export async function attachUser(req, res, next) {
     }
     if (!token) return next();
 
-    const payload = jwt.verify(
-      token,
-      process.env.JWT_SECRET || "technexa-development-secret"
-    );
+    const payload = jwt.verify(token, JWT_SECRET);
 
     const [rows] = await pool.query(
       `SELECT id, role, email, full_name, phone, status, photo, created_at, last_login

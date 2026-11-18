@@ -1,0 +1,266 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="UTF-8"><title>TechNexa — Complete SRS with Implementation &amp; Screenshots</title>
+<style>
+body{font-family:"Segoe UI",Arial,sans-serif;max-width:1050px;margin:28px auto;padding:0 26px;color:#1f2937;line-height:1.55;font-size:14px}
+h1{color:#1d4ed8;border-bottom:3px solid #1d4ed8;padding-bottom:8px;font-size:26px}
+h2{color:#1e40af;margin-top:30px;border-bottom:2px solid #dbeafe;padding-bottom:5px;font-size:20px}
+h3{color:#374151;margin-top:22px;font-size:16px}
+h4{color:#1e40af;margin:16px 0 6px;font-size:14px}
+table{border-collapse:collapse;width:100%;margin:10px 0;font-size:12.5px}th,td{border:1px solid #d1d5db;padding:6px 9px;text-align:left;vertical-align:top}th{background:#eff6ff;color:#1e3a8a}
+.badge{display:inline-block;padding:1px 8px;border-radius:10px;font-size:11px;font-weight:600}
+.M{background:#fee2e2;color:#991b1b}.S{background:#fef3c7;color:#92400e}.C{background:#dcfce7;color:#166534}
+.tag{display:inline-block;background:#dbeafe;color:#1e40af;padding:1px 7px;border-radius:5px;font-size:11px;font-family:Consolas,monospace}
+code{font-family:Consolas,monospace;background:#f3f4f6;padding:1px 4px;border-radius:4px;font-size:12px}
+pre{background:#1f2937;color:#e5e7eb;padding:12px;border-radius:8px;overflow-x:auto;font-size:11px;line-height:1.4}
+blockquote{border-left:4px solid #3b82f6;margin:12px 0;padding:8px 14px;background:#f8fafc;color:#475569}
+img{max-width:100%;border:1px solid #cbd5e1;border-radius:6px;margin:6px 0;display:block}
+.fig{page-break-inside:avoid;margin:14px 0;text-align:center}
+.fig .cap{font-size:12px;color:#475569;font-weight:600;margin:4px 0}
+.page-break{page-break-before:always}
+.tagline{color:#1e40af;font-weight:600}
+ul{margin:6px 0;padding-left:20px}li{margin:3px 0}
+.kv{font-size:13px}
+@media print{body{margin:0}}
+</style></head><body>
+
+<!-- ============ COVER ============ -->
+<h1>Software Requirements Specification (SRS)</h1>
+<p style="font-size:18px;color:#374151;font-weight:600">TechNexa Solutions — IT Services, Learning &amp; Management Platform</p>
+<table class="kv">
+<tr><th>Document</th><td>Software Requirements Specification — Detailed with Implementation Mapping &amp; Interface Screenshots</td></tr>
+<tr><th>Version</th><td>2.0 (Expanded)</td></tr>
+<tr><th>Date</th><td>17 November 2026</td></tr>
+<tr><th>Stack</th><td>React 18 + Node.js 20 + Express 4 + MySQL / MariaDB (+ Socket.IO, WebRTC)</td></tr>
+<tr><th>Prepared for</th><td>Final Year Project (FYP) review, supervisor and viva examination</td></tr>
+<tr><th>Repository</th><td><code>mern/</code></td></tr>
+</table>
+<blockquote>This document defines every functional and non-functional requirement of the TechNexa platform, describes <strong>how each requirement was implemented</strong> (files, modules and behaviour), and shows a <strong>screenshot of every implemented interface</strong>. It follows an IEEE 830-style structure adapted for a web platform.</blockquote>
+
+<!-- ============ 1 INTRODUCTION ============ -->
+<h2>1. Introduction</h2>
+<h3>1.1 Purpose</h3>
+<p>This SRS defines what the TechNexa system must do, who uses it, how the modules interact, what data is stored, and which quality attributes the implementation satisfies. It is written for the project supervisor, examination committee, developers, testers and future maintainers. Every requirement is paired with its implementation detail and, where applicable, a screenshot of the interface that realises it.</p>
+<h3>1.2 Scope</h3>
+<p>TechNexa is a browser-based platform that combines:</p>
+<ul>
+<li>A public IT-services and training website with service, course, industry and legal pages.</li>
+<li>A course catalogue and secured enrollment flow (login required).</li>
+<li>A role-based learning portal for students, teachers and administrators.</li>
+<li>Academic features: assignments, quizzes, attendance, marks, timetable, materials, fees and documents.</li>
+<li>Real-time private chat, presence, audio/video calls and mixed-audio call recording.</li>
+<li>Administrative reporting, audit logs, payment tracking and communication tools.</li>
+<li>Light and dark themes across the public site and portal.</li>
+</ul>
+<p><strong>Out of scope:</strong> payment gateway integration, native mobile app, full conferencing recorder, external LMS migration, and third-party SSO. These are listed as future work.</p>
+<h3>1.3 User Classes</h3>
+<table>
+<tr><th>Class</th><th>Description</th><th>Main needs</th></tr>
+<tr><td>Visitor</td><td>Unauthenticated user on the public website</td><td>Service information, courses, contact, newsletter; must log in to enroll</td></tr>
+<tr><td>Student</td><td>Registered learner</td><td>Course access, assignments, quizzes, marks, fees, materials, chat, calls</td></tr>
+<tr><td>Teacher</td><td>Administrator-approved instructor</td><td>Student lists, grading, attendance, timetable, materials, quizzes, question bank, chat, calls</td></tr>
+<tr><td>Administrator</td><td>Platform owner / academic admin</td><td>User approval, enrollment/payment control, course management, audit logs, call logs, reports</td></tr>
+<tr><td>System</td><td>Scheduled jobs, DB and Socket.IO services</td><td>Data integrity, real-time delivery, cleanup, email, backups</td></tr>
+</table>
+<h3>1.4 Definitions</h3>
+<p><span class="tag">SRS</span> Software Requirements Specification &nbsp; <span class="tag">SPA</span> Single Page Application &nbsp; <span class="tag">JWT</span> JSON Web Token &nbsp; <span class="tag">RBAC</span> Role-Based Access Control &nbsp; <span class="tag">WebRTC</span> Web Real-Time Communication &nbsp; <span class="tag">MCQ</span> Multiple-Choice Question &nbsp; <span class="tag">UTC</span> Coordinated Universal Time.</p>
+
+<!-- ============ 2 OVERALL DESCRIPTION ============ -->
+<h2>2. Overall Description</h2>
+<h3>2.1 Product Perspective</h3>
+<p>TechNexa is a feature-based monorepo. The React SPA communicates with an Express REST API. MySQL stores relational data. Socket.IO handles real-time chat, presence and call signalling; WebRTC handles peer-to-peer audio/video. The platform replaces disconnected static pages and manual academic records with one authenticated system whose navigation and API permissions depend on the user's role.</p>
+<h3>2.2 Design Constraints</h3>
+<ol>
+<li>The accurate stack name is <strong>React + Node.js + Express + MySQL</strong> (not MERN) because the database is relational.</li>
+<li>Authentication uses a JWT in an <code>httpOnly</code> cookie; tokens are never exposed to JavaScript.</li>
+<li>All protected API routes verify authentication and role on the server.</li>
+<li>Uploaded files are stored outside the web root and served only through authenticated routes.</li>
+<li>All timestamps are stored and compared in UTC.</li>
+<li>The UI is responsive across desktop, tablet and mobile.</li>
+<li>Core academic features do not depend on a paid external service; AI quiz generation is optional with a built-in fallback.</li>
+</ol>
+
+<!-- ============ 3 REQUIREMENTS + IMPLEMENTATION ============ -->
+<h2>3. User Requirements &amp; Their Implementation</h2>
+<p>Each table below lists a requirement, its priority (<span class="badge M">M</span> mandatory, <span class="badge S">S</span> should-have, <span class="badge C">C</span> could-have) and the concrete implementation (client file, server file/route, behaviour). Screenshots for each module follow its table.</p>
+
+<h3>3.1 Public Website &amp; Course Catalogue <span class="tag">FR-PUB</span></h3>
+<table>
+<tr><th>ID</th><th>Requirement</th><th>Pri</th><th>Implementation</th></tr>
+<tr><td>PUB-01</td><td>Branded home page with services, programmes, statistics and calls to action.</td><td><span class="badge M">M</span></td><td><code>features/public-site/pages/HomePage.jsx</code> + <code>Hero.jsx</code>, <code>ServiceCard</code>; hero, animated counters, service pillars.</td></tr>
+<tr><td>PUB-02</td><td>About, Courses, Industries and Legal pages.</td><td><span class="badge M">M</span></td><td><code>pages/AboutPage.jsx</code>, <code>CoursesPage.jsx</code>, <code>IndustriesPage.jsx</code>, <code>LegalPage.jsx</code>, routed in <code>routes/PublicRoutes.jsx</code>.</td></tr>
+<tr><td>PUB-03</td><td>Service detail pages from a data-driven route.</td><td><span class="badge M">M</span></td><td><code>pages/ServicePage.jsx</code> with <code>/services/:slug</code> and <code>data/siteData.js</code>.</td></tr>
+<tr><td>PUB-04</td><td>List active courses with category, tag, description, duration and price.</td><td><span class="badge M">M</span></td><td><code>components/CourseCard.jsx</code>, data from <code>GET /api/courses</code> (<code>public.routes.js</code>) and <code>data/courses.json</code>.</td></tr>
+<tr><td>PUB-05</td><td>Search / filter the course catalogue.</td><td><span class="badge S">S</span></td><td>Category chips and grouping in <code>CoursesPage.jsx</code> (<code>useMemo</code> groups by category).</td></tr>
+<tr><td>PUB-06</td><td>Contact form stored for administrators.</td><td><span class="badge M">M</span></td><td><code>POST /api/contact</code> in <code>public.routes.js</code> inserts <code>contact_messages</code>; admin views at <code>admin.routes.js /contact-messages</code>.</td></tr>
+<tr><td>PUB-07</td><td>Newsletter subscription by email.</td><td><span class="badge S">S</span></td><td><code>POST /api/subscribe</code> inserts <code>subscribers</code>; admin list page.</td></tr>
+<tr><td>PUB-08</td><td>Login required before enrollment; no guest document uploads.</td><td><span class="badge M">M</span></td><td><code>POST /api/enroll</code> guarded by <code>requireAuth</code> (401); <code>CourseModal.jsx</code> shows auth gate and <code>CourseCard.jsx</code> shows "Login to Enroll" for guests.</td></tr>
+<tr><td>PUB-09/10</td><td>Readable nav in light/dark; responsive mobile drawer.</td><td><span class="badge M">M</span></td><td><code>PublicLayout.jsx</code>, <code>ThemeToggle.jsx</code>, <code>styles/site.css</code> media queries and hamburger menu.</td></tr>
+</table>
+<div class="fig"><div class="cap">Fig 3.1 — Public website interfaces</div>
+<img src="screenshots/public-home.png" /><img src="screenshots/public-courses.png" /><img src="screenshots/public-about.png" /><img src="screenshots/public-industries.png" /><img src="screenshots/public-legal.png" />
+</div>
+
+<h3>3.2 Authentication &amp; Account Management <span class="tag">FR-AUTH</span></h3>
+<table>
+<tr><th>ID</th><th>Requirement</th><th>Pri</th><th>Implementation</th></tr>
+<tr><td>AUTH-01/02</td><td>Student &amp; teacher registration with validated details; reject duplicates/weak passwords.</td><td><span class="badge M">M</span></td><td><code>auth.routes.js</code> <code>/register/student</code>, <code>/register/teacher</code>; <code>utils/validation.js</code> (<code>isValidEmail</code>, <code>passwordIssue</code>); UNIQUE email in DB.</td></tr>
+<tr><td>AUTH-03</td><td>Passwords hashed before storage.</td><td><span class="badge M">M</span></td><td><code>bcryptjs.hash(password, 12)</code> in <code>auth.routes.js</code>; never returned by <code>publicUser()</code>.</td></tr>
+<tr><td>AUTH-04/05</td><td>Email+password login issues httpOnly JWT cookie; logout clears it.</td><td><span class="badge M">M</span></td><td><code>signToken()</code>/<code>setAuthCookie()</code> in <code>middleware/attachUser.js</code>; 5-minute JWT; <code>/auth/logout</code>.</td></tr>
+<tr><td>AUTH-06/07</td><td>Unauthenticated users blocked from portal; RBAC by role.</td><td><span class="badge M">M</span></td><td><code>requireAuth</code> + <code>requireRole(...)</code> in <code>middleware/auth.middleware.js</code>; every portal route has <code>router.use(requireAuth)</code>; admin routes <code>requireRole('admin')</code>.</td></tr>
+<tr><td>AUTH-08</td><td>Forgot password with one-hour reset token.</td><td><span class="badge M">M</span></td><td><code>/auth/forgot-password</code> and <code>/auth/reset-password</code>; SHA-256-hashed token in <code>password_resets</code>; expiry check.</td></tr>
+<tr><td>AUTH-09</td><td>Log successful and failed logins.</td><td><span class="badge S">S</span></td><td><code>loginLog()</code> insert into <code>login_logs</code> on login; admin logs page.</td></tr>
+<tr><td>AUTH-10</td><td>Teachers pending until admin approval.</td><td><span class="badge M">M</span></td><td>Teacher registration inserts <code>status='pending'</code>; admin approves via <code>/admin/teachers</code>.</td></tr>
+</table>
+<div class="fig"><div class="cap">Fig 3.2 — Authentication interfaces</div>
+<img src="screenshots/public-login.png" /><img src="screenshots/public-register.png" /><img src="screenshots/public-register-student.png" /><img src="screenshots/public-register-teacher.png" /><img src="screenshots/public-forgot-password.png" />
+</div>
+<h3>3.3 Student Portal <span class="tag">FR-STU</span></h3>
+<table>
+<tr><th>ID</th><th>Requirement</th><th>Pri</th><th>Implementation</th></tr>
+<tr><td>STU-01</td><td>Dashboard summarises enrollments, assignments, quizzes, attendance, fees.</td><td><span class="badge M">M</span></td><td><code>pages/DashboardPage.jsx</code> + <code>GET /api/portal/dashboard</code> aggregates counts.</td></tr>
+<tr><td>STU-02/03</td><td>View courses, enroll, track status and payment.</td><td><span class="badge M">M</span></td><td><code>EnrollmentsPage.jsx</code>, <code>CoursesPortalPage.jsx</code>, <code>portal.routes.js /enrollments</code>.</td></tr>
+<tr><td>STU-04</td><td>View and submit assignments with file upload.</td><td><span class="badge M">M</span></td><td><code>AssignmentsPage.jsx</code>, <code>POST /portal/assignments/:id/submit</code> with <code>submissionUpload</code>.</td></tr>
+<tr><td>STU-05</td><td>Attend published quizzes and view results.</td><td><span class="badge M">M</span></td><td><code>QuizzesPage.jsx</code>, <code>QuizTakePage.jsx</code>; <code>/portal/quizzes/:id/start</code> &amp; <code>/submit</code>.</td></tr>
+<tr><td>STU-06/07</td><td>View marks/results, attendance history and percentage.</td><td><span class="badge M">M</span></td><td><code>MarksPage.jsx</code>, <code>AttendancePage.jsx</code>; scoped queries by <code>req.user.id</code>.</td></tr>
+<tr><td>STU-08/09</td><td>View timetable; download shared materials.</td><td><span class="badge M">M</span></td><td><code>TimetablePage.jsx</code>, <code>MaterialsPage.jsx</code>, <code>/portal/materials</code>.</td></tr>
+<tr><td>STU-10/11</td><td>View fees/payments; view and download personal documents.</td><td><span class="badge M">M</span></td><td><code>FeesPage.jsx</code>, <code>DocumentsPage.jsx</code>, <code>/portal/documents/:id/download</code> with ownership check.</td></tr>
+<tr><td>STU-12/13</td><td>View notices &amp; announcements; update profile and avatar.</td><td><span class="badge M/S">M/S</span></td><td><code>NoticesPage.jsx</code>, <code>AnnouncementsPage.jsx</code>, <code>ProfilePage.jsx</code>, <code>/portal/profile</code> PUT, <code>/profile/avatar</code>.</td></tr>
+<tr><td>STU-14</td><td>Private chat with teachers and audio/video calls.</td><td><span class="badge M">M</span></td><td><code>MessagesPage.jsx</code> + Socket.IO (see §3.7/3.8).</td></tr>
+</table>
+<div class="fig"><div class="cap">Fig 3.3 — Student portal interfaces</div>
+<img src="screenshots/student-dashboard.png" /><img src="screenshots/student-enrollments.png" /><img src="screenshots/student-courses.png" /><img src="screenshots/student-assignments.png" /><img src="screenshots/student-quizzes.png" /><img src="screenshots/student-marks.png" /><img src="screenshots/student-attendance.png" /><img src="screenshots/student-timetable.png" />
+</div>
+<div class="fig"><div class="cap">Fig 3.3 (cont.) — Student records &amp; communication</div>
+<img src="screenshots/student-materials.png" /><img src="screenshots/student-fees.png" /><img src="screenshots/student-documents.png" /><img src="screenshots/student-notices.png" /><img src="screenshots/student-announcements.png" /><img src="screenshots/student-messages.png" /><img src="screenshots/student-profile.png" />
+</div>
+
+<h3>3.4 Teacher Portal <span class="tag">FR-TEA</span></h3>
+<table>
+<tr><th>ID</th><th>Requirement</th><th>Pri</th><th>Implementation</th></tr>
+<tr><td>TEA-01/02</td><td>Dashboard summary; view assigned courses and student rosters.</td><td><span class="badge M">M</span></td><td><code>DashboardPage.jsx</code>, <code>CoursesPortalPage.jsx</code> (TeacherCourses), <code>StudentsPage.jsx</code>; roster query joins enrollments by course title.</td></tr>
+<tr><td>TEA-03</td><td>Create assignments and grade submissions.</td><td><span class="badge M">M</span></td><td><code>AssignmentsPage.jsx</code>, <code>POST /portal/assignments</code>, <code>PUT /portal/submissions/:id/grade</code>.</td></tr>
+<tr><td>TEA-04/05</td><td>Create/edit/publish quizzes; manual or AI-generated questions.</td><td><span class="badge M">M</span></td><td><code>QuizzesPage.jsx</code> + <code>services/quizGenerator.js</code> (Gemini→OpenAI→built-in fallback, 15s timeout, validation).</td></tr>
+<tr><td>TEA-06</td><td>Save generated questions to reusable question bank.</td><td><span class="badge M">M</span></td><td><code>QuestionBankPage.jsx</code>, <code>/portal/qbank</code> and <code>/portal/qbank/ai</code>.</td></tr>
+<tr><td>TEA-07/08</td><td>Create attendance sessions; manage timetable.</td><td><span class="badge M">M</span></td><td><code>AttendancePage.jsx</code>, <code>/portal/attendance/sessions</code>, <code>TimetablePage.jsx</code>.</td></tr>
+<tr><td>TEA-09/10</td><td>Upload materials; publish announcements.</td><td><span class="badge M">M</span></td><td><code>MaterialsPage.jsx</code>, <code>AnnouncementsPage.jsx</code>, <code>materialUpload</code> in <code>portal.routes.js</code>.</td></tr>
+<tr><td>TEA-11/12</td><td>View relevant student profiles; chat and calls.</td><td><span class="badge S/M">S/M</span></td><td><code>StudentsPage.jsx</code> scoped to own courses; <code>MessagesPage.jsx</code>.</td></tr>
+</table>
+<div class="fig"><div class="cap">Fig 3.4 — Teacher portal interfaces</div>
+<img src="screenshots/teacher-dashboard.png" /><img src="screenshots/teacher-courses.png" /><img src="screenshots/teacher-students.png" /><img src="screenshots/teacher-assignments.png" /><img src="screenshots/teacher-quizzes.png" /><img src="screenshots/teacher-question-bank.png" /><img src="screenshots/teacher-attendance.png" /><img src="screenshots/teacher-timetable.png" /><img src="screenshots/teacher-materials.png" /><img src="screenshots/teacher-announcements.png" /><img src="screenshots/teacher-messages.png" /><img src="screenshots/teacher-profile.png" />
+</div>
+
+<h3>3.5 Administrator Portal <span class="tag">FR-ADM</span></h3>
+<table>
+<tr><th>ID</th><th>Requirement</th><th>Pri</th><th>Implementation</th></tr>
+<tr><td>ADM-01</td><td>Dashboard totals: students, teachers, enrollments, revenue, pending teachers, failed logins.</td><td><span class="badge M">M</span></td><td><code>admin.routes.js /stats</code> with parallel COUNT/SUM queries; <code>admin-dashboard.png</code>.</td></tr>
+<tr><td>ADM-02/03</td><td>List/manage students; approve/reject/suspend teachers.</td><td><span class="badge M">M</span></td><td><code>/admin/students</code>, <code>/admin/teachers</code>, <code>PUT /admin/teachers/:id</code>.</td></tr>
+<tr><td>ADM-04/05</td><td>Manage enrollments and status; record/review payments.</td><td><span class="badge M">M</span></td><td><code>/admin/enrollments</code>, <code>PUT /admin/enrollments/:id</code>, <code>POST /admin/payments</code>.</td></tr>
+<tr><td>ADM-06</td><td>Create, update and deactivate courses.</td><td><span class="badge M">M</span></td><td><code>services/course.service.js</code> + <code>/admin/courses</code> CRUD.</td></tr>
+<tr><td>ADM-07/08</td><td>View academic records; view login/audit logs.</td><td><span class="badge S/M">S/M</span></td><td><code>/admin/logs</code> from <code>login_logs</code>.</td></tr>
+<tr><td>ADM-09</td><td>View call logs and play authorised recordings.</td><td><span class="badge M">M</span></td><td><code>/admin/calls</code>, <code>GET /portal/calls/:key/recording</code> with participant/admin check (<code>calls/</code> private storage).</td></tr>
+<tr><td>ADM-10/11</td><td>Manage password resets; review contact messages &amp; subscribers.</td><td><span class="badge S/M">S/M</span></td><td><code>/admin/resets</code>, <code>/admin/contact-messages</code>, <code>/admin/subscribers</code>.</td></tr>
+</table>
+<div class="fig"><div class="cap">Fig 3.5 — Administrator portal interfaces</div>
+<img src="screenshots/admin-dashboard.png" /><img src="screenshots/admin-students.png" /><img src="screenshots/admin-teachers.png" /><img src="screenshots/admin-enrollments.png" /><img src="screenshots/admin-courses.png" /><img src="screenshots/admin-fees.png" /><img src="screenshots/admin-assignments.png" /><img src="screenshots/admin-quizzes.png" /><img src="screenshots/admin-logs.png" /><img src="screenshots/admin-call-logs.png" /><img src="screenshots/admin-resets.png" /><img src="screenshots/admin-contact-messages.png" /><img src="screenshots/admin-subscribers.png" />
+</div>
+<h2>4. Feature Deep-Dives — Requirement to Implementation</h2>
+
+<h3>4.1 Quiz System &amp; Integrity <span class="tag">FR-QUIZ</span></h3>
+<table>
+<tr><th>Requirement</th><th>Implementation detail</th></tr>
+<tr><td>Reusable questions with four options, correct answer and marks (QUIZ-01).</td><td><code>quiz_questions</code> and <code>question_bank</code> tables; <code>/portal/qbank</code> CRUD validates option letters A–D.</td></tr>
+<tr><td>Teacher creates a quiz with title, course/audience, duration and questions (QUIZ-02/03/04).</td><td><code>QuizzesPage.jsx</code> form posts <code>/portal/quizzes</code>; publish requires at least one valid question.</td></tr>
+<tr><td>Student starts/resumes an attempt (QUIZ-05/06).</td><td><code>POST /portal/quizzes/:id/start</code> inserts a <code>quiz_attempts</code> row scoped to <code>req.user.id</code>.</td></tr>
+<tr><td>Automatic scoring &amp; result review (QUIZ-07/08/09).</td><td><code>POST /portal/quizzes/:id/submit</code> compares answers, stores score, returns total/percentage; teacher sees attempts.</td></tr>
+<tr><td>AI question generation with fallback (QUIZ-10/11/12).</td><td><code>services/quizGenerator.js</code>: tries Gemini → OpenAI → built-in generator; validates and normalises options/answers; never blocks quiz creation.</td></tr>
+<tr><td>All questions visible, answered count + progress (QUIZ-14).</td><td><code>QuizTakePage.jsx</code> renders every question with <code>answeredCount / total</code> and a progress bar.</td></tr>
+<tr><td>Submit blocked until all answered; timer auto-submit; retake allowed (QUIZ-15/16).</td><td>Submit button disabled until <code>answered === total</code>; timer callback calls submit; status stored so incomplete attempts can be retaken.</td></tr>
+<tr><td>Violations recorded: tab switch, blur, screen hidden, fullscreen exit, copy (QUIZ-17).</td><td><code>QuizTakePage.jsx</code> listeners call <code>POST /portal/quizzes/:id/violations</code> storing type + IP + user-agent; <code>styles/portal-extra.css</code> <code>.quiz-guard</code>.</td></tr>
+<tr><td>Admin sees violation log + dashboard count (QUIZ-18).</td><td><code>/admin/quiz-violations</code> and COUNT in <code>/admin/stats</code>.</td></tr>
+</table>
+<blockquote>Screenshot of the full quiz-taking interface is shown in Fig 3.3 (<code>student-quizzes.png</code> / <code>teacher-quizzes.png</code>); the quiz screen enforces fullscreen, blocks tab switching and records violations as described above.</blockquote>
+
+<h3>4.2 Chat, Presence &amp; Calls <span class="tag">FR-CHAT / FR-CALL</span></h3>
+<table>
+<tr><th>Requirement</th><th>Implementation detail</th></tr>
+<tr><td>Contact list and private real-time messaging (CHAT-01/02/08).</td><td><code>sockets/index.js</code> authenticates the socket via the <code>technexa_token</code> cookie; <code>chat:send</code> stores in <code>chat_messages</code> and emits to sender/recipient only.</td></tr>
+<tr><td>Presence, attachments, edit/delete, unread (CHAT-03/04/05/06/07).</td><td><code>online</code> Map + <code>setOnlineUsers</code> metric; <code>chatUpload</code> to private <code>uploads/chat</code>; <code>GET /portal/messages/attachments/:id</code> checks sender/recipient; edit/delete routes.</td></tr>
+<tr><td>Audio/video call offer/answer/ICE via Socket.IO (CALL-01/02/03).</td><td><code>call:invite</code>, <code>call:signal</code>, <code>call:accept</code>, <code>call:end</code> handlers in <code>sockets/index.js</code>; WebRTC peer connection in <code>MessagesPage.jsx</code>.</td></tr>
+<tr><td>Mute/video/end controls; call log (CALL-04/05).</td><td>Call overlay UI; <code>call_logs</code> row with caller/callee/type/status/start/end.</td></tr>
+<tr><td>Recording both voices + indicator + private storage + admin playback (CALL-06..11).</td><td><code>MediaRecorder</code> + Web Audio mixer captures local mic and remote audio; visible recording badge; <code>POST /portal/calls/:key/recording</code> validates caller/callee and saves to private <code>uploads/calls</code>; admin playback at <code>/admin/calls</code>.</td></tr>
+</table>
+
+<h3>4.3 Theme, Accessibility &amp; Responsiveness <span class="tag">FR-UI</span></h3>
+<ul>
+<li><strong>Light/dark theme (UI-01..04):</strong> <code>ThemeContext.jsx</code> stores <code>technexa_theme</code> in <code>localStorage</code>; <code>theme-init.js</code> applies saved/OS theme before paint; <code>ThemeToggle.jsx</code> on public, auth and portal layouts; theme CSS in <code>global.css</code>, <code>site.css</code>, <code>portal.css</code>.</li>
+<li><strong>Consistent course cards (UI-06):</strong> equal-height cards with bottom-aligned buttons in <code>site.css</code>.</li>
+<li><strong>Responsive (UI-07):</strong> media queries across stylesheets; mobile nav drawer in <code>PublicLayout.jsx</code>.</li>
+<li><strong>Icons (UI-08):</strong> Font Awesome only; no chevrons/arrows/rocket icons.</li>
+<li><strong>Call button on touch only:</strong> <code>.call-btn-mobile</code> hidden on non-touch devices via <code>(pointer: coarse)</code> check in <code>script.js</code> (legacy) — see Screenshot 1 of the security report.</li>
+</ul>
+
+<h3>4.4 Security Implementation <span class="tag">NFR-SEC</span></h3>
+<ul>
+<li><strong>SEC-01/02:</strong> bcrypt (cost 12) hashing; JWT in httpOnly, SameSite=Lax cookie; 5-minute expiry.</li>
+<li><strong>SEC-03/04:</strong> parameterised SQL everywhere; <code>requireAuth</code>/<code>requireRole</code> on every protected route.</li>
+<li><strong>SEC-05/06:</strong> extension allow-list + size caps + magic-byte check (<code>verifyMagic</code>); private upload dirs; recordings limited to participants/admin.</li>
+<li><strong>SEC-07/08:</strong> SHA-256-hashed, one-hour reset tokens; login throttle 6 fails/15min; fail2ban on host.</li>
+<li><strong>SEC-09/10:</strong> secrets in environment/k8s secret; CSP, Referrer-Policy, Permissions-Policy, COOP, Origin guard; HTTPS-ready (Secure cookie when <code>NODE_ENV=production</code>).</li>
+<li><strong>Enrollment auth gate (added):</strong> <code>POST /api/enroll</code> returns 401 for guests; UI shows register/login gate — documented with screenshots in <code>SECURITY-HARDENING-FULL.pdf</code>.</li>
+</ul>
+
+<h3>4.5 Deployment &amp; Operations <span class="tag">FR-OPS</span></h3>
+<ul>
+<li><strong>OPS-01:</strong> <code>START-TECHNEXA.bat</code>, <code>start-all.ps1</code>, <code>start-dev.bat</code> one-command launchers.</li>
+<li><strong>OPS-02/03:</strong> numbered migrations in <code>server/database/</code>; <code>db:seed</code> creates demo accounts and sample data.</li>
+<li><strong>OPS-04:</strong> <code>GET /api/health</code> health check.</li>
+<li><strong>OPS-05:</strong> <code>Dockerfile.server</code>, <code>Dockerfile.client</code>, <code>deploy/nginx/default.conf</code>, <code>.github/workflows/ci.yml</code>.</li>
+<li><strong>OPS-06:</strong> <code>.gitignore</code> excludes <code>.env</code>, uploads, secrets; only <code>.env.example</code> tracked.</li>
+</ul>
+
+<h2>5. Non-Functional Requirements Summary</h2>
+<table>
+<tr><th>Category</th><th>Key requirements (all implemented)</th></tr>
+<tr><td>Security</td><td>bcrypt hashing, httpOnly cookies, parameterised SQL, RBAC, validated uploads, private recordings, expiring tokens, rate limiting, env secrets, HTTPS-ready.</td></tr>
+<tr><td>Performance</td><td>Indexed/bounded queries, connection pool, route-level code splitting (entry bundle 277 kB), size-limited uploads, WebSocket delivery.</td></tr>
+<tr><td>Reliability</td><td>Pool error handling, consistent JSON errors, AI failure fallback, upload cleanup on DB failure, clean restart recovery.</td></tr>
+<tr><td>Usability</td><td>Clear validation messages, explanatory empty states, confirmation on destructive actions, readable in both themes.</td></tr>
+<tr><td>Maintainability</td><td>Feature-based folders, <code>docs/API.md</code>/<code>DATABASE.md</code>/<code>ARCHITECTURE.md</code>, shared helpers, numbered migrations, <code>npm run build</code> passes.</td></tr>
+<tr><td>Portability</td><td>Runs on Windows/Linux/Docker; evergreen browsers; environment-driven configuration.</td></tr>
+<tr><td>Privacy</td><td>Students see only own records; teachers only assigned courses; chat private; recordings non-public.</td></tr>
+</table>
+
+<h2>6. Architecture &amp; Data</h2>
+<p><strong>Layers:</strong> React SPA (presentation) → Express REST API (routing, validation, auth) → business logic (enrollment, grading, quiz scoring, AI fallback, call metadata) → <code>mysql2</code> pool (parameterised SQL) → MySQL tables + private upload directories. Socket.IO adds real-time chat/presence/call signalling; WebRTC carries media; SMTP sends reset email; OpenAI/Gemini is optional for question generation.</p>
+<p><strong>Main entities:</strong> User, Student profile, Teacher profile, Course, Enrollment, Payment, Assignment, Submission, Quiz, Quiz question, Question bank, Quiz attempt, Quiz violation, Attendance session/record, Timetable, Material, Document, Notice, Announcement, Chat message, Chat attachment, Call log, Login log, Password reset, Contact message, Subscriber. All timestamps are UTC. Full schema is in <code>DATABASE.md</code>.</p>
+
+<h2>7. Acceptance Criteria &amp; Traceability</h2>
+<table>
+<tr><th>Area</th><th>Acceptance criterion</th><th>Status</th></tr>
+<tr><td>Public site</td><td>Home, courses, about, industries and legal open; nav readable in both themes; enrollment requires login.</td><td>✅</td></tr>
+<tr><td>Auth</td><td>Seeded student, teacher and admin log in to correct dashboards; guests redirected.</td><td>✅</td></tr>
+<tr><td>Student</td><td>Sees enrollments, assignments, quizzes, marks, attendance, timetable, materials, fees, documents, notices, messages.</td><td>✅</td></tr>
+<tr><td>Teacher</td><td>Sees assigned courses/students; creates assignments &amp; quizzes; generates questions without API key; marks attendance.</td><td>✅</td></tr>
+<tr><td>Admin</td><td>Views totals, manages users/enrollments/courses, views logs, plays call recordings.</td><td>✅</td></tr>
+<tr><td>Quiz</td><td>AI fallback works; all questions visible; submit blocked until complete; violations logged; timer auto-submits.</td><td>✅</td></tr>
+<tr><td>Chat/Calls</td><td>Real-time private messages, attachments, audio/video call with recording indicator and private storage.</td><td>✅</td></tr>
+<tr><td>Theme</td><td>Toggle works on public/auth/portal and persists after refresh.</td><td>✅</td></tr>
+<tr><td>Build</td><td><code>npm run build</code> completes; <code>node --test</code> 7/7 security tests pass.</td><td>✅</td></tr>
+<tr><td>Security</td><td>Guest/wrong-role requests return 401/403; no private file exposure; forged admin cookie rejected.</td><td>✅</td></tr>
+</table>
+
+<h2>8. Demo Accounts</h2>
+<table>
+<tr><th>Role</th><th>Email</th><th>Password</th></tr>
+<tr><td>Admin</td><td>admin@technexa.pk</td><td>Admin@12345</td></tr>
+<tr><td>Teacher</td><td>teacher@technexa.pk</td><td>Teacher@12345</td></tr>
+<tr><td>Student</td><td>student@technexa.pk</td><td>Student@12345</td></tr>
+<tr><td>Student</td><td>ayesha@technexa.pk</td><td>Student@12345</td></tr>
+<tr><td>Pending teacher</td><td>pending.teacher@technexa.pk</td><td>Teacher@12345</td></tr>
+</table>
+
+<h2>9. Related Documents</h2>
+<p><code>SRS.md</code> (base SRS) · <code>FYP_REPORT.md</code> (full report) · <code>API.md</code> · <code>DATABASE.md</code> · <code>ARCHITECTURE.md</code> · <code>DEPLOYMENT.md</code> · <code>SECURITY-HARDENING-FULL.pdf</code> (security fixes with screenshots) · <code>ONE-PAGE-SUMMARY.md</code>.</p>
+
+<p style="margin-top:36px;color:#6b7280;font-size:12px;border-top:1px solid #e5e7eb;padding-top:10px">Generated: 17 November 2026 · TechNexa Solutions · Detailed SRS with Implementation Mapping &amp; Interface Screenshots</p>
+</body></html>

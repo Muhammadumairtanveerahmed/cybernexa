@@ -13,6 +13,11 @@ export default function RegisterChooserPage() {
           Choose the option that matches you. Teachers are reviewed by an administrator before
           their courses go live.
         </p>
+        {next ? (
+          <p className="badge b-pending" style={{ display: "block", marginTop: 12 }}>
+            Please register or log in first to continue.
+          </p>
+        ) : null}
       </div>
 
       <div style={{ display: "grid", gap: 18, gridTemplateColumns: "repeat(auto-fit, minmax(260px, 1fr))" }}>

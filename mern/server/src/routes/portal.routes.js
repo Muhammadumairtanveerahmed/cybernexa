@@ -11,7 +11,9 @@ import {
   makeUpload,
   publicPhoto,
   removeUpload,
-  uploadRoot
+  uploadRoot,
+  verifyMagic,
+  dropFile
 } from "../utils/upload.js";
 import { requireAuth, requireRole } from "../middleware/auth.middleware.js";
 import { listCourses } from "../services/course.service.js";
@@ -460,6 +462,11 @@ router.post(
   avatarUpload.single("avatar"),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ApiError(422, "Please choose an image");
+    const check = verifyMagic(req.file);
+    if (!check.ok) {
+      dropFile(req.file);
+      throw new ApiError(415, `Image rejected: ${check.reason}`);
+    }
     const relpath = fileUrl(req.file, "avatars");
     await pool.query("UPDATE users SET photo = ?, updated_at = ? WHERE id = ?", [
       relpath,
@@ -582,6 +589,11 @@ router.post(
   docUpload.single("file"),
   asyncHandler(async (req, res) => {
     if (!req.file) throw new ApiError(422, "Please choose a file");
+    const check = verifyMagic(req.file);
+    if (!check.ok) {
+      dropFile(req.file);
+      throw new ApiError(415, `File rejected: ${check.reason}`);
+    }
     const id = await saveDocument({
       scope: clean(req.body.scope, 20) || "student",
       refId: clean(req.body.ref_id, 40),

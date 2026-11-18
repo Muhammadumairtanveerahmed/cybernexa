@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Enrollment Without Login — Security Fix Guide</title>
+  <style>
+    body { font-family: "Segoe UI", Arial, sans-serif; max-width: 900px; margin: 40px auto; padding: 0 24px; color: #1f2937; line-height: 1.6; }
+    h1 { color: #1d4ed8; border-bottom: 3px solid #1d4ed8; padding-bottom: 8px; }
+    h2 { color: #1e40af; margin-top: 28px; }
+    h3 { color: #374151; }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 4px; font-size: 0.9em; }
+    pre { background: #1f2937; color: #e5e7eb; padding: 16px; border-radius: 8px; overflow-x: auto; font-size: 0.85em; line-height: 1.5; }
+    .badge { display: inline-block; padding: 2px 10px; border-radius: 12px; font-size: 0.8em; font-weight: 600; }
+    .badge-green { background: #dcfce7; color: #166534; }
+    .badge-red { background: #fee2e2; color: #991b1b; }
+    .badge-blue { background: #dbeafe; color: #1e40af; }
+    table { border-collapse: collapse; width: 100%; margin: 12px 0; }
+    th, td { border: 1px solid #d1d5db; padding: 8px 12px; text-align: left; }
+    th { background: #eff6ff; }
+    .step { background: #f9fafb; border-left: 4px solid #1d4ed8; padding: 12px 16px; margin: 12px 0; border-radius: 0 8px 8px 0; }
+    .step-num { font-weight: 700; color: #1d4ed8; }
+    @media print { body { margin: 20px; } }
+  </style>
+</head>
+<body>
+
+<h1>Enrollment Without Login — Security Fix Guide</h1>
+<p><strong>Project:</strong> TechNexa (Legacy live app + MERN app) &nbsp;|&nbsp; <strong>Date:</strong> 16 November 2026 &nbsp;|&nbsp; <strong>Status:</strong> <span class="badge badge-green">Fixed &amp; Deployed</span></p>
+
+<h2>1. Problem</h2>
+<p>On the live site (<code>http://54.161.79.42/</code>), a visitor who is <strong>not logged in</strong> could click <strong>"Enroll Now"</strong> on any course card. This opened the full enrollment form (name, email, phone, CNIC, photo, payment receipt, etc.) and the form submitted successfully to <code>/api/enroll</code> — creating an enrollment record in the database without any authentication.</p>
+<p><strong>Security impact:</strong> Unauthenticated users could submit enrollment requests with arbitrary data and file uploads. This is a High-severity issue.</p>
+
+<h2>2. Root Cause</h2>
+<table>
+  <tr><th>Layer</th><th>Issue</th></tr>
+  <tr><td><strong>Backend</strong> (<code>server.js</code>)</td><td><code>/api/enroll</code> endpoint had <strong>no authentication check</strong>. Anyone could POST enrollment data + files.</td></tr>
+  <tr><td><strong>Frontend</strong> (<code>js/script.js</code>)</td><td>The "Enroll Now" click handler opened the enrollment modal (<code>#courseModal</code>) with the full form regardless of login state. No check for <code>window.__cnxUser</code>.</td></tr>
+</table>
+
+<h2>3. Fix Applied (Legacy Live App)</h2>
+
+<h3>3.1 Backend — <code>server.js</code> (line ~646)</h3>
+<p>Added an authentication guard at the start of the <code>/api/enroll</code> handler. If the user is not logged in (<code>req.user</code> is falsy), return <strong>401 Unauthorized</strong> immediately — before any file processing or database writes.</p>
+<pre>app.post("/api/enroll", (req, res, next) => {
+  upload.any()(req, res, (err) => { ... });
+}, async (req, res) => {
+  // NEW: Require authentication
+  if (!req.user) return res.status(401).json({
+    ok: false,
+    msg: "Please register or log in first to enroll."
+  });
+  // ... rest of enrollment logic
+});</pre>
+
+<h3>3.2 Frontend — <code>js/script.js</code> (openModal function)</h3>
+<p>Modified <code>openModal()</code> to check <code>window.__cnxUser</code>. If the user is not logged in:</p>
+<ul>
+  <li>Hide the enrollment form (<code>form.style.display = "none"</code>)</li>
+  <li>Show a "Please register or log in first" card with <strong>Log in</strong> and <strong>Register</strong> buttons (in the modal's success panel area)</li>
+  <li>The enrollment form is never shown to unauthenticated users</li>
+</ul>
+<pre>function openModal() {
+  // ... reset fields ...
+  var me = window.__cnxUser;
+  if (!me) {
+    // Not logged in — show login/register gate instead of the form
+    form.style.display = "none";
+    if (successEl) {
+      successEl.innerHTML =
+        '<div class="enroll-success-head"><i class="fa-solid fa-lock"></i> Please register or log in first</div>' +
+        '<p class="enroll-success-text">You need to register or log in before enrolling...</p>' +
+        '<div class="enroll-success-actions">' +
+        '<a class="btn btn-small" href="/portal/login?next=/courses">Log in</a>' +
+        '<a class="btn btn-ghost btn-small" href="/portal/register/student?next=/courses">Register</a>' +
+        '</div>';
+      successEl.hidden = false;
+    }
+  } else {
+    prefillFromSession();
+    form.style.display = "";
+  }
+  modal.classList.add("open");
+  // ...
+}</pre>
+
+<h3>3.3 Cache Busting — <code>*.html</code></h3>
+<p>Updated the cache-busting query string from <code>?v=20261025</code> to <code>?v=20261116f</code> in all HTML files so browsers fetch the new <code>script.js</code> instead of using the cached old version.</p>
+<pre>sed -i 's/script.js?v=20261025/script.js?v=20261116f/g' *.html</pre>
+
+<h3>3.4 Docker Image Rebuild + k3s Deploy</h3>
+<div class="step"><span class="step-num">Step 1:</span> <code>docker build -t cybernexa:secure-enroll-final .</code></div>
+<div class="step"><span class="step-num">Step 2:</span> <code>docker save cybernexa:secure-enroll-final -o /tmp/cybernexa-final.tar</code></div>
+<div class="step"><span class="step-num">Step 3:</span> <code>sudo k3s ctr images import /tmp/cybernexa-final.tar</code></div>
+<div class="step"><span class="step-num">Step 4:</span> <code>sudo kubectl set image deploy/cybernexa cybernexa=cybernexa:secure-enroll-final</code></div>
+<div class="step"><span class="step-num">Step 5:</span> <code>sudo kubectl rollout status deploy/cybernexa --timeout=120s</code></div>
+
+<h2>4. MERN App (Local) — Already Protected</h2>
+<p>The MERN app (<code>mern/</code>) was already protected:</p>
+<table>
+  <tr><th>Layer</th><th>Protection</th></tr>
+  <tr><td>Backend</td><td><code>POST /api/enroll</code> guarded by <code>requireAuth</code> middleware → returns <code>401</code> if not logged in</td></tr>
+  <tr><td>Frontend</td><td><code>CourseModal.jsx</code> shows auth gate ("Please register or log in first") when <code>!user</code>. Enrollment form only renders for authenticated users.</td></tr>
+  <tr><td>Button</td><td>Course card shows "Login to Enroll" (instead of "Enroll Now") for logged-out users</td></tr>
+  <tr><td>Tests</td><td>7/7 security tests pass (incl. enrollment-auth 401 test)</td></tr>
+</table>
+
+<h2>5. Verification (Live Site)</h2>
+<table>
+  <tr><th>Test</th><th>Result</th></tr>
+  <tr><td>Click "Enroll Now" (logged out)</td><td><span class="badge badge-green">PASS</span> Modal opens showing "Please register or log in first" with Log in / Register buttons. Enrollment form is hidden.</td></tr>
+  <tr><td><code>POST /api/enroll</code> (no auth)</td><td><span class="badge badge-green">PASS</span> Returns <code>{"ok":false,"msg":"Please register or log in first to enroll."}</code> (401)</td></tr>
+  <tr><td>Live site health</td><td><span class="badge badge-green">PASS</span> <code>http://54.161.79.42/</code> → 200, <code>/healthz</code> → <code>{"ok":true}</code></td></tr>
+</table>
+
+<h2>6. Files Changed (Live Legacy App)</h2>
+<table>
+  <tr><th>File</th><th>Change</th></tr>
+  <tr><td><code>server.js</code></td><td>Added auth check to <code>/api/enroll</code> handler (line ~647)</td></tr>
+  <tr><td><code>js/script.js</code></td><td>Modified <code>openModal()</code> to show login/register gate when <code>!window.__cnxUser</code></td></tr>
+  <tr><td><code>*.html</code></td><td>Cache-busting version bumped to <code>?v=20261116f</code></td></tr>
+  <tr><td>Docker image</td><td>Rebuilt as <code>cybernexa:secure-enroll-final</code>, imported into k3s, deployed</td></tr>
+</table>
+
+<h2>7. Rollback</h2>
+<p>If anything breaks, roll back to the previous image:</p>
+<pre>sudo kubectl set image deploy/cybernexa cybernexa=cybernexa:secure-20261114
+sudo kubectl rollout status deploy/cybernexa --timeout=120s</pre>
+<p>Or restore from backup:</p>
+<pre>cp /home/ubuntu/backups/server.js.pre-enroll-20261116 /home/ubuntu/cybernexa/server.js
+cp /home/ubuntu/backups/script.js.pre-enroll-20261116 /home/ubuntu/cybernexa/js/script.js</pre>
+
+<p style="margin-top: 40px; color: #6b7280; font-size: 0.85em; border-top: 1px solid #e5e7eb; padding-top: 12px;">
+  Generated: 16 November 2026 &nbsp;|&nbsp; TechNexa Security Hardening
+</p>
+
+</body>
+</html>

@@ -9,8 +9,9 @@ import {
   isValidPKPhone,
   parsePrice
 } from "../utils/validation.js";
-import { makeUpload, fileUrl } from "../utils/upload.js";
+import { makeUpload, fileUrl, verifyMagic, dropFile } from "../utils/upload.js";
 import { requireAuth } from "../middleware/auth.middleware.js";
+import { publicFormRateLimiter } from "../middleware/rateLimit.middleware.js";
 import { enrollmentsSubmittedTotal } from "../config/metrics.js";
 import { listCourses, findCourse } from "../services/course.service.js";
 
@@ -47,6 +48,7 @@ router.get(
 
 router.post(
   "/contact",
+  publicFormRateLimiter,
   asyncHandler(async (req, res) => {
     const name = clean(req.body.name, 120);
     const email = clean(req.body.email, 190).toLowerCase();
@@ -74,6 +76,7 @@ router.post(
 
 router.post(
   "/subscribe",
+  publicFormRateLimiter,
   asyncHandler(async (req, res) => {
     const email = clean(req.body.email, 190).toLowerCase();
     if (!isValidEmail(email)) throw new ApiError(422, "Please enter a valid email address");
@@ -91,6 +94,7 @@ router.post(
 router.post(
   "/enroll",
   requireAuth,
+  publicFormRateLimiter,
   enrollUpload,
   asyncHandler(async (req, res) => {
     const name = clean(req.body.name, 120);
@@ -112,6 +116,15 @@ router.post(
 
     if (Object.keys(errors).length) {
       return res.status(422).json({ ok: false, errors, message: "Please complete the required fields" });
+    }
+
+    // Reject files whose content doesn't match their claimed type (e.g. a
+    // script renamed to .jpg). All files already on disk are removed on failure.
+    const flatFiles = Object.values(files).flat();
+    const bad = flatFiles.map(verifyMagic).find((result) => !result.ok);
+    if (bad) {
+      for (const file of flatFiles) dropFile(file);
+      throw new ApiError(415, `Upload rejected: ${bad.reason}`);
     }
 
     const [courseRows] = await pool.query(

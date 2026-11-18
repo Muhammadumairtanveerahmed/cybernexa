@@ -2,7 +2,7 @@ import jwt from "jsonwebtoken";
 import { Server } from "socket.io";
 import { pool } from "../config/db.js";
 import { setOnlineUsers, socketConnections } from "../config/metrics.js";
-import { AUTH_COOKIE } from "../middleware/attachUser.js";
+import { AUTH_COOKIE, JWT_SECRET } from "../middleware/attachUser.js";
 import { newId, nowSql } from "../utils/ids.js";
 
 const online = new Map();
@@ -33,10 +33,7 @@ export function initSockets(server) {
       const token = cookies[AUTH_COOKIE];
       if (!token) return next(new Error("Authentication required"));
 
-      const payload = jwt.verify(
-        token,
-        process.env.JWT_SECRET || "technexa-development-secret"
-      );
+      const payload = jwt.verify(token, JWT_SECRET);
       const [rows] = await pool.query(
         "SELECT id, full_name, email, role, status FROM users WHERE id = ? LIMIT 1",
         [payload.sub]

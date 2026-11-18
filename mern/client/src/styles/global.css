@@ -215,3 +215,20 @@ html[data-theme="light"] .theme-toggle:hover {
     padding: 48px 18px 72px;
   }
 }
+
+/* Route-level code-splitting fallback (see components/common/RouteFallback.jsx). */
+.route-fallback {
+  min-height: 60vh;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted, #94a3b8);
+  font-size: 0.95rem;
+}
+
+.route-fallback i {
+  font-size: 1.6rem;
+  color: var(--primary, #3b82f6);
+}

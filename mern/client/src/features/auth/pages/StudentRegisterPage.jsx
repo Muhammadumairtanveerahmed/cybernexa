@@ -60,6 +60,11 @@ export default function StudentRegisterPage() {
       <p className="muted" style={{ fontSize: ".88rem", marginBottom: 16 }}>
         Create your account to enroll, track progress and access course material.
       </p>
+      {next ? (
+        <p className="badge b-pending" style={{ display: "block", marginBottom: 14 }}>
+          Please register or log in first to continue.
+        </p>
+      ) : null}
 
       <form onSubmit={submit}>
         <label htmlFor="full_name">Full name</label>
