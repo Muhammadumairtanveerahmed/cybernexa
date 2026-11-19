@@ -19,6 +19,7 @@ export default function DashboardPage() {
   const role = user?.role || "student";
   const loader = role === "admin" ? portalApi.admin.stats : portalApi.dashboard;
   const { data, loading, error } = useFetch(loader, [role]);
+  const lectures = useFetch(() => (role === "teacher" ? portalApi.lectures() : Promise.resolve([])), [role]);
 
   if (loading) {
     return (
@@ -172,14 +173,22 @@ export default function DashboardPage() {
 
   if (role === "teacher") {
     const stats = data?.stats || {};
+    const lectureRows = lectures.data || [];
+    const publishedLectures = lectureRows.filter((item) => item.status === "published").length;
+    const processingLectures = lectureRows.filter((item) => ["pending", "processing"].includes(item.processing_status)).length;
     return (
       <PortalPage
         title={`Welcome, ${(user.full_name || "").split(" ")[0] || "Teacher"}`}
         sub="Your teaching overview."
         actions={
-          <Link className="btn primary sm" to="/portal/assignments">
-            Create assignment
-          </Link>
+          <>
+            <Link className="btn primary sm" to="/portal/assignments">
+              Create assignment
+            </Link>
+            <Link className="btn ghost sm" to="/portal/lectures">
+              Video lectures
+            </Link>
+          </>
         }
       >
         <div className="cards">
@@ -188,6 +197,43 @@ export default function DashboardPage() {
           <StatCard icon="fa-pen-to-square" value={stats.assignments || 0} label="Assignments" />
           <StatCard icon="fa-flask" value={stats.quizzes || 0} label="Quizzes" tone="green" />
           <StatCard icon="fa-hourglass-half" value={stats.pendingSubmissions || 0} label="Pending submissions" tone="amber" />
+          <StatCard
+            icon="fa-circle-play"
+            value={lectures.loading ? "..." : lectureRows.length}
+            label="Video lectures"
+            tone="green"
+            hint={lectures.loading ? "" : `${publishedLectures} published${processingLectures ? ` · ${processingLectures} processing` : ""}`}
+          />
+        </div>
+
+        <div className="panel">
+          <h2>Video lectures</h2>
+          {lectures.error ? <div className="err">{lectures.error}</div> : null}
+          <MiniList
+            items={lectureRows.slice(0, 5)}
+            empty={lectures.loading ? "Loading lectures..." : "No lectures yet. Create your first video or YouTube lecture."}
+            render={(lecture) => (
+              <div className="mini-item" key={lecture.id}>
+                <i className="fa-solid fa-circle-play mi-icon" aria-hidden="true" />
+                <div className="mi-body">
+                  <b>{lecture.title}</b>
+                  <span>
+                    {lecture.course_title} · {lecture.lecture_type === "youtube" ? "YouTube" : "Video upload"} · {lecture.status}
+                    {lecture.processing_status && lecture.processing_status !== "not_required"
+                      ? ` · ${lecture.processing_status}`
+                      : ""}
+                  </span>
+                </div>
+                <span className="mi-meta">
+                  <Link className="btn ghost sm" to={`/portal/lectures/${lecture.id}`}>Open</Link>
+                  <span style={{ marginLeft: 8 }}>{formatDate(lecture.created_at)}</span>
+                </span>
+              </div>
+            )}
+          />
+          <div style={{ marginTop: 10 }}>
+            <Link className="btn ghost sm" to="/portal/lectures">Manage all lectures</Link>
+          </div>
         </div>
 
         <div className="panel">

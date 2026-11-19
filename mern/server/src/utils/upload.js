@@ -6,7 +6,16 @@ import multer from "multer";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 export const uploadRoot = path.resolve(__dirname, "../../uploads");
 
-for (const folder of ["avatars", "documents", "enrollments", "chat", "calls"]) {
+for (const folder of [
+  "avatars",
+  "documents",
+  "enrollments",
+  "chat",
+  "calls",
+  "lectures",
+  "lecture_thumbs",
+  "lecture_hls"
+]) {
   fs.mkdirSync(path.join(uploadRoot, folder), { recursive: true });
 }
 
@@ -46,8 +55,14 @@ const SIGNATURE_TESTS = [
     exts: [".png"],
     test: (b) =>
       b.length >= 8 &&
-      b[0] === 0x89 && b[1] === 0x50 && b[2] === 0x4e && b[3] === 0x47 &&
-      b[4] === 0x0d && b[5] === 0x0a && b[6] === 0x1a && b[7] === 0x0a
+      b[0] === 0x89 &&
+      b[1] === 0x50 &&
+      b[2] === 0x4e &&
+      b[3] === 0x47 &&
+      b[4] === 0x0d &&
+      b[5] === 0x0a &&
+      b[6] === 0x1a &&
+      b[7] === 0x0a
   },
   {
     exts: [".webp"],
@@ -60,12 +75,16 @@ const SIGNATURE_TESTS = [
     exts: [".doc", ".ppt"],
     test: (b) => b.length >= 8 && b[0] === 0xd0 && b[1] === 0xcf && b[2] === 0x11 && b[3] === 0xe0
   },
-  { exts: [".heic", ".heif"], test: (b) => b.length >= 8 && b.toString("ascii", 4, 8) === "ftyp" },
+  {
+    exts: [".heic", ".heif", ".mp4", ".m4v", ".mov"],
+    test: (b) => b.length >= 8 && b.toString("ascii", 4, 8) === "ftyp"
+  },
   {
     exts: [".mp3"],
     test: (b) =>
       b.length >= 3 && (b.toString("ascii", 0, 3) === "ID3" || (b[0] === 0xff && (b[1] & 0xe0) === 0xe0))
-  }
+  },
+  { exts: [".webm", ".mkv"], test: (b) => b.length >= 4 && b[0] === 0x1a && b[1] === 0x45 && b[2] === 0xdf && b[3] === 0xa3 }
 ];
 
 // Verifies the first bytes of an uploaded file against its extension's

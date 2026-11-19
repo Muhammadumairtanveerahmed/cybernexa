@@ -9,8 +9,13 @@ const api = axios.create({
 api.interceptors.response.use(
   (response) => response,
   (error) => {
-    const message =
-      error.response?.data?.message || error.response?.data?.msg || error.message || "Request failed";
+    const fallback =
+      error.code === "ERR_NETWORK"
+        ? "Network error. Please check your connection. If you were uploading a file, it may be too large for the server."
+        : error.code === "ECONNABORTED" || error.code === "ETIMEDOUT"
+          ? "The request timed out. Please try again."
+          : error.message || "Request failed";
+    const message = error.response?.data?.message || error.response?.data?.msg || fallback;
     const wrapped = new Error(message);
     wrapped.response = error.response;
     wrapped.status = error.response?.status;

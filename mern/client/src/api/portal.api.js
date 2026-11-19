@@ -34,8 +34,15 @@ export const portalApi = {
   deleteTimetable: (id) => api.delete(`/portal/timetable/${id}`),
 
   materials: () => api.get("/portal/materials"),
-  addMaterial: (data) => api.post("/portal/materials", data),
+  addMaterial: (data, config) => api.post("/portal/materials", data, config),
   deleteMaterial: (id) => api.delete(`/portal/materials/${id}`),
+
+  lectures: () => api.get("/portal/lectures"),
+  lecture: (id) => api.get(`/portal/lectures/${id}`),
+  createLecture: (data) => api.post("/portal/lectures", data),
+  updateLecture: (id, data) => api.put(`/portal/lectures/${id}`, data),
+  deleteLecture: (id) => api.delete(`/portal/lectures/${id}`),
+  saveLectureProgress: (id, data) => api.post(`/portal/lectures/${id}/progress`, data),
 
   announcements: () => api.get("/portal/announcements"),
   createAnnouncement: (data) => api.post("/portal/announcements", data),
@@ -89,6 +96,7 @@ export const portalApi = {
     resets: () => api.get("/admin/resets"),
     createReset: (data) => api.post("/admin/resets", data),
     contactMessages: () => api.get("/admin/contact-messages"),
-    subscribers: () => api.get("/admin/subscribers")
+    subscribers: () => api.get("/admin/subscribers"),
+    lectures: () => api.get("/admin/lectures")
   }
 };

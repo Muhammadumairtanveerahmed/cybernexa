@@ -18,6 +18,16 @@ import {
 import { requireAuth, requireRole } from "../middleware/auth.middleware.js";
 import { listCourses } from "../services/course.service.js";
 import { generateQuizQuestions } from "../services/quizGenerator.js";
+import {
+  lectureHlsMasterRel,
+  lectureThumbRel,
+  lectureUploadRel,
+  queueLectureProcessing,
+  removeLectureFiles,
+  resolveUploadRel,
+  safeLectureAssetPath
+} from "../services/lecture.service.js";
+import multer from "multer";
 
 const router = express.Router();
 router.use(requireAuth);
@@ -38,7 +48,7 @@ const materialUpload = makeUpload(
   "documents",
   [".jpg", ".jpeg", ".png", ".pdf", ".webp", ".doc", ".docx", ".txt", ".zip", ".ppt", ".pptx"],
   1,
-  25
+  500
 );
 const chatUpload = makeUpload(
   "chat",
@@ -52,6 +62,110 @@ const callRecordingUpload = makeUpload(
   1,
   50
 );
+
+const lectureMediaUpload = multer({
+  storage: multer.diskStorage({
+    destination: (req, file, cb) => {
+      const folder = file.fieldname === "thumbnail" ? "lecture_thumbs" : "lectures";
+      const destination = path.join(uploadRoot, folder);
+      fs.mkdirSync(destination, { recursive: true });
+      cb(null, destination);
+    },
+    filename: (req, file, cb) => {
+      const ext = path.extname(file.originalname).toLowerCase();
+      const base = `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      cb(null, `${base}${ext}`);
+    }
+  }),
+  limits: { fileSize: 500 * 1024 * 1024, files: 2 },
+  fileFilter: (req, file, cb) => {
+    const ext = path.extname(file.originalname).toLowerCase();
+    if (file.fieldname === "thumbnail") {
+      if (![".jpg", ".jpeg", ".png", ".webp"].includes(ext)) {
+        return cb(new Error(`Thumbnail type ${ext || "unknown"} is not allowed`));
+      }
+      return cb(null, true);
+    }
+    if (file.fieldname === "video") {
+      if (![".mp4", ".m4v", ".mov", ".webm", ".mkv"].includes(ext)) {
+        return cb(new Error(`Video type ${ext || "unknown"} is not allowed`));
+      }
+      return cb(null, true);
+    }
+    return cb(new Error("Unsupported upload field"));
+  }
+});
+
+function parseYouTubeUrl(value) {
+  const raw = clean(value, 500);
+  if (!raw) return "";
+  try {
+    const url = new URL(raw);
+    const host = url.hostname.replace(/^www\./, "").toLowerCase();
+    let id = "";
+    if (host === "youtu.be") id = url.pathname.split("/").filter(Boolean)[0] || "";
+    else if (host === "youtube.com" || host === "m.youtube.com" || host === "music.youtube.com") {
+      if (url.pathname === "/watch") id = url.searchParams.get("v") || "";
+      else if (url.pathname.startsWith("/embed/")) id = url.pathname.split("/")[2] || "";
+      else if (url.pathname.startsWith("/shorts/")) id = url.pathname.split("/")[2] || "";
+    }
+    if (!/^[A-Za-z0-9_-]{6,20}$/.test(id)) return "";
+    return `https://www.youtube.com/watch?v=${id}`;
+  } catch {
+    return "";
+  }
+}
+
+function publicLecture(row, progress) {
+  if (!row) return null;
+  const lecture = { ...row };
+  if (progress) {
+    lecture.progress = {
+      position_seconds: Number(progress.position_seconds || 0),
+      duration_seconds: Number(progress.duration_seconds || 0),
+      completed: Boolean(progress.completed),
+      updated_at: progress.updated_at || null
+    };
+  }
+  if (lecture.qualities_json) {
+    try {
+      lecture.qualities = JSON.parse(lecture.qualities_json);
+    } catch {
+      lecture.qualities = [];
+    }
+  } else {
+    lecture.qualities = [];
+  }
+  delete lecture.qualities_json;
+  return lecture;
+}
+
+async function loadLectureForUser(req, lectureId, { allowDraft = false } = {}) {
+  const [rows] = await pool.query("SELECT * FROM lectures WHERE id = ? LIMIT 1", [lectureId]);
+  const lecture = rows[0];
+  if (!lecture) throw new ApiError(404, "Lecture not found");
+
+  if (req.user.role === "admin") return lecture;
+
+  if (req.user.role === "teacher") {
+    if (lecture.teacher_id !== req.user.id) throw new ApiError(403, "You cannot access this lecture");
+    return lecture;
+  }
+
+  if (!(await canAccessCourse(req.user, lecture.course_title))) {
+    throw new ApiError(403, "You do not have access to this course");
+  }
+  if (lecture.status !== "published") throw new ApiError(403, "This lecture is not available");
+  if (lecture.lecture_type === "upload" && lecture.processing_status !== "ready") {
+    if (allowDraft) return lecture;
+    throw new ApiError(409, "This lecture is still processing");
+  }
+  return lecture;
+}
+
+function canManageLecture(user, lecture) {
+  return user.role === "admin" || (user.role === "teacher" && lecture.teacher_id === user.id);
+}
 
 function inClause(values) {
   if (!values.length) return "IN (NULL)";
@@ -2249,6 +2363,457 @@ router.get(
       [req.user.id]
     );
     res.json({ ok: true, data: rows });
+  })
+);
+
+// ---------------------------------------------------------------------------
+// Video lectures
+// ---------------------------------------------------------------------------
+router.get(
+  "/lectures",
+  asyncHandler(async (req, res) => {
+    let rows = [];
+    if (req.user.role === "student") {
+      const titles = await studentCourses(req.user.id);
+      if (titles.length) {
+        [rows] = await pool.query(
+          `SELECT l.*, u.full_name AS teacher_name,
+                  lp.position_seconds, lp.duration_seconds AS progress_duration_seconds,
+                  lp.completed, lp.updated_at AS progress_updated_at
+             FROM lectures l
+             LEFT JOIN users u ON u.id = l.teacher_id
+             LEFT JOIN lecture_progress lp ON lp.lecture_id = l.id AND lp.student_id = ?
+            WHERE l.course_title ${inClause(titles)}
+              AND l.status = 'published'
+              AND (l.lecture_type = 'youtube' OR l.processing_status = 'ready')
+            ORDER BY l.course_title ASC, l.created_at DESC`,
+          [req.user.id, ...titles]
+        );
+      }
+    } else if (req.user.role === "teacher") {
+      [rows] = await pool.query(
+        `SELECT l.*, u.full_name AS teacher_name
+           FROM lectures l
+           LEFT JOIN users u ON u.id = l.teacher_id
+          WHERE l.teacher_id = ?
+          ORDER BY l.created_at DESC`,
+        [req.user.id]
+      );
+    } else {
+      [rows] = await pool.query(
+        `SELECT l.*, u.full_name AS teacher_name
+           FROM lectures l
+           LEFT JOIN users u ON u.id = l.teacher_id
+          ORDER BY l.created_at DESC`
+      );
+    }
+
+    const data = rows.map((row) =>
+      publicLecture(row, {
+        position_seconds: row.position_seconds,
+        duration_seconds: row.progress_duration_seconds,
+        completed: row.completed,
+        updated_at: row.progress_updated_at
+      })
+    );
+    res.json({ ok: true, data });
+  })
+);
+
+router.get(
+  "/lectures/:id",
+  asyncHandler(async (req, res) => {
+    const lecture = await loadLectureForUser(req, req.params.id);
+    let progress = null;
+    if (req.user.role === "student") {
+      const [rows] = await pool.query(
+        "SELECT position_seconds, duration_seconds, completed, updated_at FROM lecture_progress WHERE lecture_id = ? AND student_id = ? LIMIT 1",
+        [lecture.id, req.user.id]
+      );
+      progress = rows[0] || null;
+    }
+    res.json({ ok: true, data: publicLecture(lecture, progress) });
+  })
+);
+
+router.post(
+  "/lectures",
+  requireRole("teacher", "admin"),
+  lectureMediaUpload.fields([
+    { name: "video", maxCount: 1 },
+    { name: "thumbnail", maxCount: 1 }
+  ]),
+  asyncHandler(async (req, res) => {
+    const title = clean(req.body.title, 200);
+    const courseTitle = clean(req.body.course_title, 190);
+    const lectureType = req.body.lecture_type === "youtube" ? "youtube" : "upload";
+    const description = clean(req.body.description, 4000);
+    const requestedStatus = req.body.status === "published" ? "published" : "draft";
+    const video = req.files?.video?.[0] || null;
+    const thumbnail = req.files?.thumbnail?.[0] || null;
+
+    if (title.length < 2) throw new ApiError(422, "Please enter a lecture title");
+    if (!courseTitle) throw new ApiError(422, "Please choose a course");
+    if (req.user.role === "teacher") await assertCourseAccess(req.user, courseTitle);
+
+    let youtubeUrl = "";
+    let sourcePath = "";
+    let processingStatus = "not_required";
+    let durationSeconds = null;
+    let fileSize = null;
+    let mimeType = "";
+    let originalName = "";
+
+    if (lectureType === "youtube") {
+      youtubeUrl = parseYouTubeUrl(req.body.youtube_url);
+      if (!youtubeUrl) throw new ApiError(422, "Please enter a valid YouTube URL");
+      if (video) dropFile(video);
+    } else {
+      if (!video) throw new ApiError(422, "Please upload an MP4 video file");
+      const check = verifyMagic(video);
+      if (!check.ok) {
+        dropFile(video);
+        if (thumbnail) dropFile(thumbnail);
+        throw new ApiError(415, `Video rejected: ${check.reason}`);
+      }
+      sourcePath = lectureUploadRel(video.filename);
+      processingStatus = "pending";
+      fileSize = video.size || 0;
+      mimeType = video.mimetype || "";
+      originalName = clean(video.originalname, 255);
+    }
+
+    let thumbnailPath = "";
+    if (thumbnail) {
+      const check = verifyMagic(thumbnail);
+      if (!check.ok) {
+        dropFile(thumbnail);
+        if (video) dropFile(video);
+        throw new ApiError(415, `Thumbnail rejected: ${check.reason}`);
+      }
+      thumbnailPath = lectureThumbRel(thumbnail.filename);
+    }
+
+    const id = newId("lec");
+    const at = nowSql();
+    await pool.query(
+      `INSERT INTO lectures
+        (id, course_title, teacher_id, title, description, lecture_type, source_path, youtube_url,
+         hls_path, thumbnail_path, status, processing_status, processing_error, duration_seconds,
+         file_size, mime_type, original_name, qualities_json, created_by, created_at, updated_at, published_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, '', ?, ?, ?, ?, NULL, ?, ?, ?, ?)`,
+      [
+        id,
+        courseTitle,
+        req.user.id,
+        title,
+        description,
+        lectureType,
+        sourcePath,
+        youtubeUrl,
+        "",
+        thumbnailPath,
+        requestedStatus,
+        processingStatus,
+        durationSeconds,
+        fileSize,
+        mimeType,
+        originalName,
+        req.user.id,
+        at,
+        at,
+        requestedStatus === "published" ? at : null
+      ]
+    );
+
+    if (lectureType === "upload") queueLectureProcessing(id);
+
+    res.status(201).json({ ok: true, msg: "Lecture created", data: { id } });
+  })
+);
+
+router.put(
+  "/lectures/:id",
+  requireRole("teacher", "admin"),
+  lectureMediaUpload.fields([
+    { name: "video", maxCount: 1 },
+    { name: "thumbnail", maxCount: 1 }
+  ]),
+  asyncHandler(async (req, res) => {
+    const [rows] = await pool.query("SELECT * FROM lectures WHERE id = ? LIMIT 1", [req.params.id]);
+    const lecture = rows[0];
+    if (!lecture) throw new ApiError(404, "Lecture not found");
+    if (!canManageLecture(req.user, lecture)) throw new ApiError(403, "You cannot edit this lecture");
+
+    const title = clean(req.body.title, 200) || lecture.title;
+    const courseTitle = clean(req.body.course_title, 190) || lecture.course_title;
+    if (req.user.role === "teacher") await assertCourseAccess(req.user, courseTitle);
+
+    const lectureType = req.body.lecture_type === "youtube" ? "youtube" : req.body.lecture_type === "upload" ? "upload" : lecture.lecture_type;
+    const description = req.body.description === undefined ? lecture.description : clean(req.body.description, 4000);
+    const requestedStatus = ["draft", "published"].includes(req.body.status) ? req.body.status : lecture.status;
+
+    const video = req.files?.video?.[0] || null;
+    const thumbnail = req.files?.thumbnail?.[0] || null;
+
+    let youtubeUrl = lecture.youtube_url || "";
+    let sourcePath = lecture.source_path || "";
+    let hlsPath = lecture.hls_path || "";
+    let processingStatus = lecture.processing_status;
+    let processingError = lecture.processing_error || "";
+    let durationSeconds = lecture.duration_seconds;
+    let fileSize = lecture.file_size;
+    let mimeType = lecture.mime_type || "";
+    let originalName = lecture.original_name || "";
+    let qualitiesJson = lecture.qualities_json || null;
+    let shouldQueue = false;
+
+    if (lectureType === "youtube") {
+      const parsed = parseYouTubeUrl(req.body.youtube_url ?? lecture.youtube_url);
+      if (!parsed) {
+        if (video) dropFile(video);
+        if (thumbnail) dropFile(thumbnail);
+        throw new ApiError(422, "Please enter a valid YouTube URL");
+      }
+      youtubeUrl = parsed;
+      // Switching to YouTube removes uploaded/HLS assets.
+      if (lecture.lecture_type === "upload" || video) {
+        removeUpload(lecture.source_path);
+        if (lecture.hls_path) {
+          const hlsDir = path.join(uploadRoot, "lecture_hls", String(lecture.id));
+          try { fs.rmSync(hlsDir, { recursive: true, force: true }); } catch { /* ignore */ }
+        }
+      }
+      if (video) dropFile(video);
+      sourcePath = "";
+      hlsPath = "";
+      processingStatus = "not_required";
+      processingError = "";
+      durationSeconds = null;
+      fileSize = null;
+      mimeType = "";
+      originalName = "";
+      qualitiesJson = null;
+    } else {
+      youtubeUrl = "";
+      if (video) {
+        const check = verifyMagic(video);
+        if (!check.ok) {
+          dropFile(video);
+          if (thumbnail) dropFile(thumbnail);
+          throw new ApiError(415, `Video rejected: ${check.reason}`);
+        }
+        if (lecture.source_path) removeUpload(lecture.source_path);
+        if (lecture.hls_path) {
+          const hlsDir = path.join(uploadRoot, "lecture_hls", String(lecture.id));
+          try { fs.rmSync(hlsDir, { recursive: true, force: true }); } catch { /* ignore */ }
+        }
+        sourcePath = lectureUploadRel(video.filename);
+        hlsPath = "";
+        processingStatus = "pending";
+        processingError = "";
+        fileSize = video.size || 0;
+        mimeType = video.mimetype || "";
+        originalName = clean(video.originalname, 255);
+        durationSeconds = null;
+        qualitiesJson = null;
+        shouldQueue = true;
+      } else if (!sourcePath) {
+        if (thumbnail) dropFile(thumbnail);
+        throw new ApiError(422, "Please upload an MP4 video file");
+      } else if (lecture.processing_status === "not_required") {
+        processingStatus = lecture.hls_path ? "ready" : "pending";
+        if (!lecture.hls_path) shouldQueue = true;
+      }
+    }
+
+    let thumbnailPath = lecture.thumbnail_path || "";
+    if (thumbnail) {
+      const check = verifyMagic(thumbnail);
+      if (!check.ok) {
+        dropFile(thumbnail);
+        if (shouldQueue && video) {
+          // keep uploaded video; it was already accepted/moved into place
+        }
+        throw new ApiError(415, `Thumbnail rejected: ${check.reason}`);
+      }
+      if (thumbnailPath) removeUpload(thumbnailPath);
+      thumbnailPath = lectureThumbRel(thumbnail.filename);
+    }
+
+    const at = nowSql();
+    const publishedAt =
+      requestedStatus === "published"
+        ? lecture.published_at || at
+        : null;
+
+    await pool.query(
+      `UPDATE lectures SET
+         course_title = ?, title = ?, description = ?, lecture_type = ?, source_path = ?, youtube_url = ?,
+         hls_path = ?, thumbnail_path = ?, status = ?, processing_status = ?, processing_error = ?,
+         duration_seconds = ?, file_size = ?, mime_type = ?, original_name = ?, qualities_json = ?,
+         updated_at = ?, published_at = ?
+       WHERE id = ?`,
+      [
+        courseTitle,
+        title,
+        description,
+        lectureType,
+        sourcePath,
+        youtubeUrl,
+        hlsPath,
+        thumbnailPath,
+        requestedStatus,
+        processingStatus,
+        processingError,
+        durationSeconds,
+        fileSize,
+        mimeType,
+        originalName,
+        qualitiesJson,
+        at,
+        publishedAt,
+        lecture.id
+      ]
+    );
+
+    if (shouldQueue) queueLectureProcessing(lecture.id);
+    res.json({ ok: true, msg: "Lecture updated" });
+  })
+);
+
+router.delete(
+  "/lectures/:id",
+  requireRole("teacher", "admin"),
+  asyncHandler(async (req, res) => {
+    const [rows] = await pool.query("SELECT * FROM lectures WHERE id = ? LIMIT 1", [req.params.id]);
+    const lecture = rows[0];
+    if (!lecture) throw new ApiError(404, "Lecture not found");
+    if (!canManageLecture(req.user, lecture)) throw new ApiError(403, "You cannot delete this lecture");
+
+    await pool.query("DELETE FROM lecture_progress WHERE lecture_id = ?", [lecture.id]);
+    await pool.query("DELETE FROM lectures WHERE id = ?", [lecture.id]);
+    await removeLectureFiles(lecture);
+    res.json({ ok: true, msg: "Lecture deleted" });
+  })
+);
+
+router.post(
+  "/lectures/:id/progress",
+  asyncHandler(async (req, res) => {
+    if (req.user.role !== "student") throw new ApiError(403, "Only students can save lecture progress");
+    const lecture = await loadLectureForUser(req, req.params.id);
+
+    const position = Math.max(0, Number(req.body.position_seconds || 0));
+    const duration = Math.max(0, Number(req.body.duration_seconds || 0));
+    const completed = req.body.completed ? 1 : duration > 0 && position >= Math.max(0, duration - 10) ? 1 : 0;
+    const id = newId("lp");
+    await pool.query(
+      `INSERT INTO lecture_progress (id, lecture_id, student_id, position_seconds, duration_seconds, completed, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?)
+       ON DUPLICATE KEY UPDATE
+         position_seconds = VALUES(position_seconds),
+         duration_seconds = GREATEST(duration_seconds, VALUES(duration_seconds)),
+         completed = GREATEST(completed, VALUES(completed)),
+         updated_at = VALUES(updated_at)`,
+      [id, lecture.id, req.user.id, position, duration, completed, nowSql()]
+    );
+    res.json({ ok: true });
+  })
+);
+
+router.get(
+  "/lectures/:id/thumbnail",
+  asyncHandler(async (req, res) => {
+    const lecture = await loadLectureForUser(req, req.params.id, { allowDraft: req.user.role !== "student" });
+    if (!lecture.thumbnail_path) throw new ApiError(404, "Thumbnail not found");
+    const full = resolveUploadRel(lecture.thumbnail_path);
+    if (!full || !fs.existsSync(full)) throw new ApiError(404, "Thumbnail not found");
+    res.sendFile(full);
+  })
+);
+
+router.get(
+  "/lectures/:id/stream",
+  asyncHandler(async (req, res) => {
+    const lecture = await loadLectureForUser(req, req.params.id);
+    if (lecture.lecture_type !== "upload" || !lecture.source_path) {
+      throw new ApiError(404, "Video file not available");
+    }
+    if (req.user.role === "student" && lecture.processing_status !== "ready" && lecture.processing_status !== "failed") {
+      throw new ApiError(409, "This lecture is still processing");
+    }
+    const full = resolveUploadRel(lecture.source_path);
+    if (!full || !fs.existsSync(full)) throw new ApiError(404, "Video file not found");
+
+    const stat = fs.statSync(full);
+    const size = stat.size;
+    const range = req.headers.range;
+    const contentType = lecture.mime_type || "video/mp4";
+
+    if (range) {
+      const match = /^bytes=(\d*)-(\d*)$/.exec(range);
+      if (!match) throw new ApiError(416, "Invalid range");
+      let start = match[1] ? Number(match[1]) : 0;
+      let end = match[2] ? Number(match[2]) : size - 1;
+      if (!Number.isFinite(start) || !Number.isFinite(end) || start > end || start >= size) {
+        res.setHeader("Content-Range", `bytes */${size}`);
+        throw new ApiError(416, "Range not satisfiable");
+      }
+      end = Math.min(end, size - 1);
+      res.writeHead(206, {
+        "Content-Range": `bytes ${start}-${end}/${size}`,
+        "Accept-Ranges": "bytes",
+        "Content-Length": end - start + 1,
+        "Content-Type": contentType
+      });
+      fs.createReadStream(full, { start, end }).pipe(res);
+      return;
+    }
+
+    res.writeHead(200, {
+      "Content-Length": size,
+      "Content-Type": contentType,
+      "Accept-Ranges": "bytes"
+    });
+    fs.createReadStream(full).pipe(res);
+  })
+);
+
+router.get(
+  "/lectures/:id/hls/*",
+  asyncHandler(async (req, res) => {
+    const lecture = await loadLectureForUser(req, req.params.id);
+    if (lecture.lecture_type !== "upload" || lecture.processing_status !== "ready") {
+      throw new ApiError(409, "Lecture stream is not ready");
+    }
+    const assetPath = req.params[0] || "master.m3u8";
+    const full = safeLectureAssetPath(lecture.id, assetPath);
+    if (!full || !fs.existsSync(full)) throw new ApiError(404, "Lecture stream not found");
+
+    const ext = path.extname(full).toLowerCase();
+    if (ext === ".m3u8") res.type("application/vnd.apple.mpegurl");
+    else if (ext === ".ts") res.type("video/mp2t");
+    else if (ext === ".mp4") res.type("video/mp4");
+    res.setHeader("Cache-Control", "private, no-store");
+    res.sendFile(full);
+  })
+);
+
+router.get(
+  "/lectures/:id/hls",
+  asyncHandler(async (req, res) => {
+    req.params[0] = "master.m3u8";
+    // delegate by reusing logic inline
+    const lecture = await loadLectureForUser(req, req.params.id);
+    if (lecture.lecture_type !== "upload" || lecture.processing_status !== "ready") {
+      throw new ApiError(409, "Lecture stream is not ready");
+    }
+    const full = safeLectureAssetPath(lecture.id, "master.m3u8");
+    if (!full || !fs.existsSync(full)) throw new ApiError(404, "Lecture stream not found");
+    res.type("application/vnd.apple.mpegurl");
+    res.setHeader("Cache-Control", "private, no-store");
+    res.sendFile(full);
   })
 );
 

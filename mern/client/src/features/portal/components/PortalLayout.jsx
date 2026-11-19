@@ -14,6 +14,7 @@ const items = {
   timetable: { to: "/portal/timetable", label: "Timetable", icon: "fa-calendar-days" },
   attendance: { to: "/portal/attendance", label: "Attendance", icon: "fa-circle-check" },
   materials: { to: "/portal/materials", label: "Materials", icon: "fa-folder" },
+  lectures: { to: "/portal/lectures", label: "Lectures", icon: "fa-circle-play" },
   documents: { to: "/portal/documents", label: "My Documents", icon: "fa-file-lines" },
   fees: { to: "/portal/fees", label: "Fees & Payments", icon: "fa-sack-dollar" },
   messages: { to: "/portal/messages", label: "Messages & Calls", icon: "fa-comments" },
@@ -40,14 +41,14 @@ const navByRole = {
   student: [
     { title: "Overview", keys: ["dashboard"] },
     { title: "Academics", keys: ["courses", "enrollments", "assignments", "quizzes", "marks"] },
-    { title: "Class", keys: ["timetable", "attendance", "materials"] },
+    { title: "Class", keys: ["timetable", "attendance", "materials", "lectures"] },
     { title: "Records", keys: ["documents", "fees"] },
     { title: "Communication", keys: ["messages", "announcements", "notices"] },
     { title: "Account", keys: ["profile"] }
   ],
   teacher: [
     { title: "Overview", keys: ["dashboard"] },
-    { title: "Teaching", keys: ["courses", "assignments", "quizzes", "qbank", "students"] },
+    { title: "Teaching", keys: ["courses", "assignments", "quizzes", "qbank", "students", "lectures"] },
     { title: "Class", keys: ["timetable", "attendance", "materials"] },
     { title: "Communication", keys: ["messages", "announcements", "notices"] },
     { title: "Account", keys: ["profile", "documents"] }
@@ -55,7 +56,7 @@ const navByRole = {
   admin: [
     { title: "Overview", keys: ["dashboard"] },
     { title: "People", keys: ["students", "teachers"] },
-    { title: "Academics", keys: ["enrollments", "courses", "assignments", "quizzes"] },
+    { title: "Academics", keys: ["enrollments", "courses", "assignments", "quizzes", "lectures"] },
     { title: "Campus", keys: ["timetable", "attendance", "materials"] },
     { title: "Communication", keys: ["messages", "announcements", "notices"] },
     { title: "System", keys: ["logs", "calls", "violations", "resets", "inbox", "subscribers"] },

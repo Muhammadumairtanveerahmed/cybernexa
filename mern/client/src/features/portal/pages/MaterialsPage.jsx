@@ -7,6 +7,8 @@ import PortalPage from "../components/PortalPage.jsx";
 import DataTable from "../components/DataTable.jsx";
 import Modal from "../components/Modal.jsx";
 
+const MAX_MATERIAL_MB = 500;
+
 export default function MaterialsPage() {
   const { user } = useAuth();
   const isStaff = user?.role === "teacher" || user?.role === "admin";
@@ -35,13 +37,17 @@ export default function MaterialsPage() {
 
   const save = async (event) => {
     event.preventDefault();
+    if (file && file.size > MAX_MATERIAL_MB * 1024 * 1024) {
+      setMessage(`File is too large. Materials can be up to ${MAX_MATERIAL_MB} MB.`);
+      return;
+    }
     const body = new FormData();
     Object.entries(form).forEach(([key, value]) => body.append(key, value));
     if (file) body.append("file", file);
     setBusy(true);
     setMessage("");
     try {
-      await portalApi.addMaterial(body);
+      await portalApi.addMaterial(body, file ? { timeout: 0 } : undefined);
       setOpen(false);
       setMessage("Material added.");
       await materials.reload();
@@ -68,7 +74,9 @@ export default function MaterialsPage() {
       sub={isStaff ? "Share notes, slides and resources with your students." : "Notes, slides and resources shared by your teachers."}
       actions={isStaff ? <button className="btn primary sm" type="button" onClick={openForm}>Add material</button> : null}
     >
-      {message ? <div className={message.includes("Could not") ? "err" : "ok"}>{message}</div> : null}
+      {message ? (
+        <div className={message.includes("Could not") || message.includes("too large") ? "err" : "ok"}>{message}</div>
+      ) : null}
       {materials.error ? <div className="err">{materials.error}</div> : null}
 
       <div className="panel">
@@ -142,6 +150,7 @@ export default function MaterialsPage() {
             <div>
               <label htmlFor="m-file">File</label>
               <input id="m-file" type="file" onChange={(event) => setFile(event.target.files?.[0] || null)} />
+              <small className="muted-sm">PDF, DOC/PPT, image, text or ZIP up to {MAX_MATERIAL_MB} MB.</small>
             </div>
             <div>
               <label htmlFor="m-url">External link</label>

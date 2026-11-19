@@ -16,6 +16,8 @@ const MarksPage = lazy(() => import("../features/portal/pages/MarksPage.jsx"));
 const AttendancePage = lazy(() => import("../features/portal/pages/AttendancePage.jsx"));
 const TimetablePage = lazy(() => import("../features/portal/pages/TimetablePage.jsx"));
 const MaterialsPage = lazy(() => import("../features/portal/pages/MaterialsPage.jsx"));
+const LecturesPage = lazy(() => import("../features/portal/pages/LecturesPage.jsx"));
+const LectureWatchPage = lazy(() => import("../features/portal/pages/LectureWatchPage.jsx"));
 const AnnouncementsPage = lazy(() => import("../features/portal/pages/AnnouncementsPage.jsx"));
 const QuizzesPage = lazy(() => import("../features/portal/pages/QuizzesPage.jsx"));
 const QuizTakePage = lazy(() => import("../features/portal/pages/QuizTakePage.jsx"));
@@ -54,6 +56,8 @@ export default function PortalRoutes() {
         <Route path="attendance" element={<AttendancePage />} />
         <Route path="timetable" element={<TimetablePage />} />
         <Route path="materials" element={<MaterialsPage />} />
+        <Route path="lectures" element={<LecturesPage />} />
+        <Route path="lectures/:id" element={<LectureWatchPage />} />
         <Route path="announcements" element={<AnnouncementsPage />} />
         <Route path="quizzes" element={<QuizzesPage />} />
         <Route path="quizzes/:id" element={<QuizTakePage />} />

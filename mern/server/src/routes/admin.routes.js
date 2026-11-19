@@ -432,6 +432,19 @@ router.get(
   })
 );
 
+router.get(
+  "/lectures",
+  asyncHandler(async (req, res) => {
+    const [rows] = await pool.query(
+      `SELECT l.*, u.full_name AS teacher_name, u.email AS teacher_email
+         FROM lectures l
+         LEFT JOIN users u ON u.id = l.teacher_id
+        ORDER BY l.created_at DESC LIMIT 500`
+    );
+    res.json({ ok: true, data: rows });
+  })
+);
+
 const simpleLists = {
   assignments: "SELECT * FROM assignments ORDER BY created_at DESC LIMIT 300",
   quizzes: "SELECT * FROM quizzes ORDER BY created_at DESC LIMIT 300",
